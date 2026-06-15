@@ -1,7 +1,7 @@
-package com.smartparking.smartparking.controller;
+package com.smartparking.controller;
 
-import com.smartparking.smartparking.entity.User;
-import com .smartparking.smartparking.repository.UserRepository;
+import com.smartparking.model.schemas.*;
+import com.smartparking.repository.UserRepository;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 

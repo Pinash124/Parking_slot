@@ -1,4 +1,4 @@
-package com.smartparking.smartparking;
+package com.smartparking;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
