@@ -11,148 +11,13 @@ body {
   line-height: 1.6;
 }
 
-/* ========== Header / Navbar ========== */
-.header {
-  background: linear-gradient(135deg, #ffffff 0%, #eff1f3 100%);
-  color: #173bab;
-  padding-bottom: 60px;
-}
-
-.navbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 20px 20px;
-}
-
-.logo {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 1.5rem;
-  font-weight: 700;
-}
-
-.logo-icon {
-  width: 50px;
-  height: 50px;
-  font-size: 2rem;
-}
-
-.logo-icon img {
-  width: 100%;
-  height: 100%;
-}
-
-.nav-links {
-  display: flex;
-  list-style: none;
-  gap: 30px;
-}
-
-.nav-links a {
-  color: #747779;
-  text-decoration: none;
-  font-weight: 500;
-  transition: color 0.2s;
-  font-size: 1.5rem;
-}
-
-.nav-links a:hover {
-  color: #173bab;
-}
-
-.nav-links a.active {
-  font-weight: 800;
-  text-decoration: underline 2px;
-  color: #173bab;
-}
-
-.btn-signin {
-  padding: 10px 24px;
-  border: 2px solid #4a90ff;
-  background: transparent;
-  color: #3755c3;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-signin:hover {
-  background: #4a90ff;
-  color: #ffffff;
-}
-
-/* ========== Hero Section ========== */
-.hero {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 40px 60px 0;
-}
-
-.hero-content {
-  display: flex;
-  align-items: center;
-  gap: 60px;
-}
-
-.hero-text {
-  flex: 1;
-}
-
-.hero-text h1 {
-  font-size: 2.8rem;
-  line-height: 1.2;
-  margin-bottom: 20px;
-  color: #3755c3;
-}
-
-.hero-text p {
-  font-size: 1rem;
-  color: #6d89fa;
-  margin-bottom: 30px;
-  max-width: 500px;
-}
-
-.hero-buttons {
-  display: flex;
-  gap: 16px;
-}
-
-.btn-primary {
-  padding: 14px 32px;
-  background: transparent;
-  color: #3755c3;
-  border: 2px solid #4a90ff;
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-primary:hover {
-  background: rgba(74, 144, 255, 0.15);
-}
-
-.hero-image {
-  flex: 1;
-}
-
-.hero-image img {
-  width: 100%;
-  border-radius: 16px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-}
-
 /* ========== Stats Banner Section ========== */
-.stats-section {
-  background: #efefff;
+.home-stats-section {
+  background: #E9F1FF;
   padding: 30px 0px;
 }
 
-.stats-container {
+.home-stats-container {
   max-width: 1200px;
   margin: 0 auto;
   display: flex;
@@ -162,7 +27,7 @@ body {
   flex-wrap: wrap;
 }
 
-.stat-box {
+.home-stat-box{
   background: #ffffff;
   border: 1px solid #e0e0e0;
   border-radius: 16px;
@@ -176,14 +41,14 @@ body {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
-.stat-number {
-  font-size: 1.5rem;
+.home-stat-number {
+  font-size: 1.3rem;
   font-weight: 800;
   color: #2b5be8;
   line-height: 1.2;
 }
 
-.stat-label {
+.home-stat-label {
   font-size: 0.8rem;
   font-weight: 600;
   color: #888888;
@@ -192,29 +57,29 @@ body {
 }
 
 /* ========== Pricing Section ========== */
-.pricing-section {
+.home-pricing-section {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 60px 60px;
-  background: #EFEFFF;
+  padding: 20px 60px 60px 60px;
+  background: #E9F1FF;
 }
 
-.pricing-section h2 {
+.home-pricing-section h2 {
   font-size: 2.2rem;
   text-align: center;
   margin-bottom: 8px;
   color: #001453;
 }
 
-.subtitle {
+.home-subtitle {
   text-align: center;
   color: #666;
   margin-bottom: 40px;
-  font-size: 1rem;
+  font-size: 0.85rem;
 }
 
 /* ========== Pricing Table ========== */
-.pricing-table {
+.home-pricing-table {
   width: 100%;
   border-collapse: collapse;
   background: #fff;
@@ -222,49 +87,49 @@ body {
   overflow: hidden;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
   margin-bottom: 60px;
-  font-size: 1.5rem;
+  font-size: 1.2rem;
 }
 
-.pricing-table th {
-  background: #B8C4FF;
+.home-pricing-table th {
+  background: #B9C8DE;
   color: #001453;
   padding: 16px 24px;
   font-weight: 600;
 }
 
-.pricing-table td {
+.home-pricing-table td {
   padding: 16px 24px;
   border-bottom: 1px solid #eef2f7;
 }
 
-.unit {
+.home-unit {
   font-size: 0.85rem;
 }
 
-.pricing-table tr:last-child td {
+.home-pricing-table tr:last-child td {
   border-bottom: none;
 }
 
-.pricing-table tr:hover {
+.home-pricing-table tr:hover {
   background: #f8faff;
 }
 
-.vehicle-icon {
+.home-vehicle-icon {
   margin-right: 10px;
 }
 
-.vehicle-name {
+.home-vehicle-name {
   font-weight: 600;
 }
 
 /* ========== Monthly Pass Section ========== */
-.monthly-pass {
+.home-monthly-pass {
   max-width: 1200px;
   margin: 0 auto;
 }
 
-.monthly-pass-banner {
-  background: linear-gradient(135deg, #0a4da4 0%, #1a6bd6 100%);
+.home-monthly-pass-banner {
+  background: linear-gradient(135deg, #0D1C2D 0%, #39485A 100%);
   border-radius: 20px;
   position: relative;
   box-shadow: 0 8px 32px rgba(10, 77, 164, 0.25);
@@ -272,7 +137,7 @@ body {
   display: flex; /* thêm flex để ảnh cao bằng banner */
 }
 
-.monthly-pass-badge {
+.home-monthly-pass-badge {
   position: absolute;
   top: 16px;
   left: 28px;
@@ -288,14 +153,14 @@ body {
   z-index: 10;
 }
 
-.monthly-pass-container {
+.home-monthly-pass-container {
   display: flex;
   align-items: stretch;
   flex: 1; /* chiếm toàn bộ chiều cao banner */
 }
 
 /* Left - Info */
-.monthly-pass-info {
+.home-monthly-pass-info {
   flex: 1;
   padding: 40px 0 40px 48px;
   display: flex;
@@ -303,27 +168,27 @@ body {
   justify-content: center;
 }
 
-.monthly-pass-info h2 {
+.home-monthly-pass-info h2 {
   font-size: 1.8rem;
   font-weight: 800;
   color: #ffffff;
   margin-bottom: 12px;
 }
 
-.pass-description {
+.home-pass-description {
   color: #c8d6e5;
   font-size: 0.95rem;
   margin-bottom: 20px;
   line-height: 1.5;
 }
 
-.benefits-list {
+.home-benefits-list {
   list-style: none;
   padding: 0;
   margin-bottom: 24px;
 }
 
-.benefits-list li {
+.home-benefits-list li {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -332,13 +197,13 @@ body {
   font-size: 0.95rem;
 }
 
-.benefit-icon {
+.home-benefit-icon {
   font-size: 1rem;
   flex-shrink: 0;
   color: #4caf50;
 }
 
-.btn-register {
+.home-btn-register {
   padding: 14px 48px;
   background: #ff6b35;
   color: #ffffff;
@@ -352,19 +217,19 @@ body {
   align-self: flex-start;
 }
 
-.btn-register:hover {
+.home-btn-register:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(255, 107, 53, 0.5);
 }
 
 /* Right - Image */
-.monthly-pass-card {
+.home-monthly-pass-card {
   width: 360px;
   flex-shrink: 0;
   overflow: hidden;
 }
 
-.pass-image {
+.home-pass-image {
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -372,18 +237,18 @@ body {
 }
 
 /* ========== Enterprise Contact ========== */
-.enterprise-section {
+.home-enterprise-section {
   margin-top: 40px;
 }
 
-.contact-info {
+.home-contact-info {
   display: flex;
   justify-content: center;
   gap: 30px;
   flex-wrap: wrap;
 }
 
-.contact-card {
+.home-contact-card {
   background: #fff;
   border: 1px solid #e0e6ed;
   border-radius: 12px;
@@ -393,112 +258,51 @@ body {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
 }
 
-.contact-icon {
+.home-contact-icon {
   font-size: 2.2rem;
   display: block;
   margin-bottom: 12px;
 }
 
-.contact-card h4 {
+.home-contact-card h4 {
   font-size: 1.5rem;
   margin-bottom: 8px;
 }
 
-.contact-card p {
+.home-contact-card p {
   color: #333;
   font-weight: 500;
   font-size: 1rem;
 }
 
-.contact-card .small {
+.home-contact-card .home-small {
   font-size: 0.85rem;
   color: #888;
   margin-top: 4px;
   font-weight: 400;
 }
 
-/* ========== Footer ========== */
-.footer {
-  background: #0f1b2d;
-  color: #a0b4cc;
-  text-align: center;
-  padding: 24px 60px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.footer p {
-  font-size: 0.9rem;
-}
-
-.footer-links {
-  display: flex;
-  gap: 24px;
-}
-
-.footer-links a {
-  color: #a0b4cc;
-  text-decoration: none;
-  font-size: 0.9rem;
-}
-
-.footer-links a:hover {
-  color: #fff;
-}
-
 /* ========== Responsive ========== */
 @media (max-width: 900px) {
-  .hero-content {
-    flex-direction: column;
-    text-align: center;
-  }
-
-  .hero-text p {
-    max-width: 100%;
-  }
-
-  .hero-buttons {
-    justify-content: center;
-  }
-
-  .navbar {
-    padding: 20px 24px;
-    flex-wrap: wrap;
-    gap: 16px;
-  }
-
-  .nav-links {
-    gap: 16px;
-    flex-wrap: wrap;
-    justify-content: center;
-  }
-
-  .pricing-section {
+  .home-pricing-section {
     padding: 40px 24px;
   }
 
-  .pass-cards {
+  .home-pass-cards {
     flex-direction: column;
     align-items: center;
   }
 
-  .pass-card.featured {
+  .home-pass-card.featured {
     transform: none;
   }
 
-  .pass-card.featured:hover {
+  .home-pass-card.featured:hover {
     transform: translateY(-4px);
   }
 
-  .contact-info {
+  .home-contact-info {
     flex-direction: column;
     align-items: center;
-  }
-
-  .footer {
-    flex-direction: column;
-    gap: 12px;
   }
 }
