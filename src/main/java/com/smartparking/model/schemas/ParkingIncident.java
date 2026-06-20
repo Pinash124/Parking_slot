@@ -1,0 +1,50 @@
+package com.smartparking.model.schemas;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import lombok.Getter;
+import lombok.Setter;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "parking_incidents")
+@Getter
+@Setter
+public class ParkingIncident {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "incident_id")
+    private Long incidentId;
+
+    @Column(name = "session_id")
+    private Long sessionId;
+
+    @Column(name = "incident_type")
+    private String incidentType;
+
+    private String description;
+
+    @Column(name = "penalty_amount")
+    private BigDecimal penaltyAmount;
+
+    private String status;
+
+    @Column(name = "created_by")
+    private Long createdBy;
+
+    @Column(name = "resolved_by")
+    private Long resolvedBy;
+
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
+
+    @Column(name = "resolved_at")
+    private LocalDateTime resolvedAt;
+}

@@ -1,10 +1,14 @@
 package com.smartparking.service;
 
 import com.smartparking.model.requests.AuthResponse;
+import com.smartparking.model.requests.ForgotPasswordRequest;
 import com.smartparking.model.requests.LoginRequest;
+import com.smartparking.model.requests.PasswordResetResponse;
 import com.smartparking.model.requests.RegisterRequest;
+import com.smartparking.model.requests.ResetPasswordRequest;
 import com.smartparking.model.schemas.User;
 import com.smartparking.repository.UserRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -12,18 +16,29 @@ import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class AuthService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final PasswordResetEmailService passwordResetEmailService;
+    private final String frontendUrl;
+    private final Map<String, PasswordResetToken> resetTokens = new ConcurrentHashMap<>();
 
     public AuthService(UserRepository userRepository,
-                       PasswordEncoder passwordEncoder) {
+                       PasswordEncoder passwordEncoder,
+                       PasswordResetEmailService passwordResetEmailService,
+                       @Value("${app.frontend-url:http://localhost:5173}") String frontendUrl) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.passwordResetEmailService = passwordResetEmailService;
+        this.frontendUrl = frontendUrl;
     }
 
     public AuthResponse register(RegisterRequest request) {
@@ -63,6 +78,55 @@ public class AuthService {
         }
 
         return new AuthResponse("Login successful", user.getEmail(), user.getUsername());
+    }
+
+    public PasswordResetResponse forgotPassword(ForgotPasswordRequest request) {
+        String email = Objects.requireNonNull(request.getEmail(), "Email is required").trim();
+        removeExpiredResetTokens();
+
+        Optional<User> optionalUser = userRepository.findByEmail(email);
+        if (optionalUser.isEmpty()) {
+            return new PasswordResetResponse(
+                    "If this email exists, a reset password link will be sent.",
+                    null
+            );
+        }
+
+        User user = optionalUser.get();
+        long userId = Objects.requireNonNull(user.getUserId(), "User id is required");
+        String userEmail = Objects.requireNonNull(user.getEmail(), "User email is required");
+        String token = UUID.randomUUID().toString();
+        LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(30);
+        resetTokens.put(token, new PasswordResetToken(userId, expiresAt));
+
+        String resetLink = frontendUrl + "/?resetToken=" + token;
+        boolean emailSent = passwordResetEmailService.sendResetLink(userEmail, resetLink);
+        return new PasswordResetResponse(
+                emailSent
+                        ? "Reset password link was sent to your email."
+                        : "Reset password link created. SMTP is not configured, use resetLink for testing.",
+                resetLink
+        );
+    }
+
+    public AuthResponse resetPassword(ResetPasswordRequest request) {
+        removeExpiredResetTokens();
+
+        PasswordResetToken resetToken = resetTokens.get(request.getToken());
+        if (resetToken == null || resetToken.expiresAt().isBefore(LocalDateTime.now())) {
+            resetTokens.remove(request.getToken());
+            throw new IllegalArgumentException("Reset link is invalid or expired");
+        }
+
+        User user = userRepository.findById(resetToken.userId())
+                .orElseThrow(() -> new IllegalArgumentException("User was not found"));
+
+        user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        user.setUpdatedAt(LocalDateTime.now());
+        User savedUser = userRepository.save(user);
+        resetTokens.remove(request.getToken());
+
+        return new AuthResponse("Password reset successful", savedUser.getEmail(), savedUser.getUsername());
     }
 
     public AuthResponse loginWithGoogle(OAuth2User googleUser) {
@@ -110,5 +174,13 @@ public class AuthService {
             suffix++;
         }
         return username;
+    }
+
+    private void removeExpiredResetTokens() {
+        LocalDateTime now = LocalDateTime.now();
+        resetTokens.entrySet().removeIf(entry -> entry.getValue().expiresAt().isBefore(now));
+    }
+
+    private record PasswordResetToken(long userId, LocalDateTime expiresAt) {
     }
 }
