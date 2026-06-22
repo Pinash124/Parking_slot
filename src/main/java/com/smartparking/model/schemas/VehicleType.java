@@ -1,50 +1,46 @@
 package com.smartparking.model.schemas;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "users")
+@Table(name = "vehicle_types")
 @Getter
 @Setter
-public class User {
+public class VehicleType {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "user_id")
-    private Long userId;
+    @Column(name = "vehicle_type_id")
+    private Long vehicleTypeId;
 
-    @Column(name = "full_name")
-    private String fullName;
+    @Transient
+    private String code;
 
-    @Column(unique = true)
-    private String username;
+    @Column(nullable = false)
+    private String name;
 
-    @Column(unique = true)
-    private String email;
+    private String description;
 
-    private String phone;
+    @Column(name = "default_hourly_fee")
+    private BigDecimal defaultHourlyFee;
 
-    @JsonIgnore
-    @Column(name = "password_hash")
-    private String passwordHash;
-
+    @Transient
     private String status;
 
-    @Column(name = "created_at")
+    @Transient
     private LocalDateTime createdAt;
 
-    @Column(name = "updated_at")
+    @Transient
     private LocalDateTime updatedAt;
-
-    private String role;
 }

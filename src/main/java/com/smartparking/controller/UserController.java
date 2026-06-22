@@ -1,6 +1,6 @@
 package com.smartparking.controller;
 
-import com.smartparking.model.schemas.*;
+import com.smartparking.model.requests.UserResponse;
 import com.smartparking.repository.UserRepository;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -17,7 +17,9 @@ public class UserController {
     }
 
     @GetMapping("/api/users")
-    public List<User> getAllUsers() {
-        return userRepository.findAll();
+    public List<UserResponse> getAllUsers() {
+        return userRepository.findAll().stream()
+                .map(UserResponse::from)
+                .toList();
     }
 }
