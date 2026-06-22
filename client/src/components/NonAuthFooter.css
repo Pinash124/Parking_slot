@@ -1,0 +1,38 @@
+/* ========== Footer ========== */
+.non-auth-footer {
+  background: #0D1C2D;
+  color: #a0b4cc;
+  text-align: center;
+  padding: 24px 60px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 0.9rem;
+}
+
+.footer p {
+  font-size: 0.9rem;
+}
+
+.footer-links {
+  display: flex;
+  gap: 24px;
+}
+
+.footer-links a {
+  color: #a0b4cc;
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.footer-links a:hover {
+  color: #fff;
+}
+
+@media (max-width: 900px) {
+  .footer {
+    flex-direction: column;
+    gap: 12px;
+  }
+}
