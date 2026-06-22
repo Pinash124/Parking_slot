@@ -1,8 +1,11 @@
 package com.smartparking.controller;
 
 import com.smartparking.model.requests.AuthResponse;
+import com.smartparking.model.requests.ForgotPasswordRequest;
 import com.smartparking.model.requests.LoginRequest;
+import com.smartparking.model.requests.PasswordResetResponse;
 import com.smartparking.model.requests.RegisterRequest;
+import com.smartparking.model.requests.ResetPasswordRequest;
 import com.smartparking.service.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -47,6 +50,18 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
         AuthResponse response = authService.login(request);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<PasswordResetResponse> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        PasswordResetResponse response = authService.forgotPassword(request);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<AuthResponse> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        AuthResponse response = authService.resetPassword(request);
         return ResponseEntity.ok(response);
     }
 

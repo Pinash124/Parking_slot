@@ -3,14 +3,15 @@ package com.smartparking.model.requests;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
+import org.springframework.lang.Nullable;
 
 @Getter
 @Setter
 @AllArgsConstructor
-public class AuthResponse {
+public class PasswordResetResponse {
 
     private String message;
-    private String email;
-    private String username;
-    private String role;
+
+    @Nullable
+    private String resetLink;
 }
