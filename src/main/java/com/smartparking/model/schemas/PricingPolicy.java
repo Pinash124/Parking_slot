@@ -6,6 +6,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -21,37 +22,53 @@ public class PricingPolicy {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "pricing_policy_id")
+    @Column(name = "policy_id")
     private Long pricingPolicyId;
 
     @Column(name = "vehicle_type_id")
     private Long vehicleTypeId;
 
-    @Column(nullable = false)
+    @Column(name = "policy_name")
     private String name;
 
-    @Column(name = "price_amount", nullable = false)
+    @Column(name = "hourly_rate")
     private BigDecimal priceAmount;
 
-    @Column(name = "pricing_unit")
+    @Column(name = "daily_rate")
+    private BigDecimal dailyRate;
+
+    @Column(name = "lost_ticket_fee")
+    private BigDecimal lostTicketFee;
+
+    @Column(name = "overtime_fee")
+    private BigDecimal overtimeFee;
+
+    @Column(name = "effective_from")
+    private LocalDateTime effectiveFrom;
+
+    @Column(name = "effective_to")
+    private LocalDateTime effectiveTo;
+
+    @Transient
     private String pricingUnit;
 
-    @Column(name = "peak_start_time")
+    @Transient
     private LocalTime peakStartTime;
 
-    @Column(name = "peak_end_time")
+    @Transient
     private LocalTime peakEndTime;
 
-    @Column(name = "peak_multiplier")
+    @Transient
     private BigDecimal peakMultiplier;
 
+    @Transient
     private String rules;
 
     private String status;
 
-    @Column(name = "created_at")
+    @Transient
     private LocalDateTime createdAt;
 
-    @Column(name = "updated_at")
+    @Transient
     private LocalDateTime updatedAt;
 }

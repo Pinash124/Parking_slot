@@ -3,6 +3,7 @@ package com.smartparking.controller;
 import com.smartparking.model.requests.ManagerOverviewReport;
 import com.smartparking.model.requests.SlotStatusUpdateRequest;
 import com.smartparking.model.requests.UserRoleUpdateRequest;
+import com.smartparking.model.requests.UserResponse;
 import com.smartparking.model.requests.UserStatusUpdateRequest;
 import com.smartparking.model.requests.VehicleTypeReport;
 import com.smartparking.model.schemas.ParkingBuilding;
@@ -11,7 +12,6 @@ import com.smartparking.model.schemas.ParkingSlot;
 import com.smartparking.model.schemas.ParkingZone;
 import com.smartparking.model.schemas.PricingPolicy;
 import com.smartparking.model.schemas.SystemConfig;
-import com.smartparking.model.schemas.User;
 import com.smartparking.model.schemas.VehicleType;
 import com.smartparking.repository.ParkingBuildingRepository;
 import com.smartparking.repository.ParkingIncidentRepository;
@@ -233,18 +233,20 @@ public class ManagerController {
     }
 
     @GetMapping("/users")
-    public List<User> getUsers() {
-        return userRepository.findAll();
+    public List<UserResponse> getUsers() {
+        return userRepository.findAll().stream()
+                .map(UserResponse::from)
+                .toList();
     }
 
     @PatchMapping("/users/{id}/role")
-    public User updateUserRole(@PathVariable Long id, @Valid @RequestBody UserRoleUpdateRequest request) {
-        return managerService.updateUserRole(id, request);
+    public UserResponse updateUserRole(@PathVariable Long id, @Valid @RequestBody UserRoleUpdateRequest request) {
+        return UserResponse.from(managerService.updateUserRole(id, request));
     }
 
     @PatchMapping("/users/{id}/status")
-    public User updateUserStatus(@PathVariable Long id, @Valid @RequestBody UserStatusUpdateRequest request) {
-        return managerService.updateUserStatus(id, request);
+    public UserResponse updateUserStatus(@PathVariable Long id, @Valid @RequestBody UserStatusUpdateRequest request) {
+        return UserResponse.from(managerService.updateUserStatus(id, request));
     }
 
     @GetMapping("/system-configs")

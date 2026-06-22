@@ -6,6 +6,7 @@ import com.smartparking.model.requests.LoginRequest;
 import com.smartparking.model.requests.PasswordResetResponse;
 import com.smartparking.model.requests.RegisterRequest;
 import com.smartparking.model.requests.ResetPasswordRequest;
+import com.smartparking.model.schemas.Role;
 import com.smartparking.model.schemas.User;
 import com.smartparking.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Value;
@@ -17,7 +18,6 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -42,8 +42,14 @@ public class AuthService {
     }
 
     public AuthResponse register(RegisterRequest request) {
-        String email = request.getEmail().trim();
-        String username = request.getUsername().trim();
+        if (request == null) {
+            throw new IllegalArgumentException("Registration information is required");
+        }
+
+        String email = requireText(request.getEmail(), "Email is required");
+        String username = requireText(request.getUsername(), "Username is required");
+        String fullName = requireText(request.getFullName(), "Full name is required");
+        String password = requireText(request.getPassword(), "Password is required");
 
         userRepository.findByEmail(email).ifPresent(existing -> {
             throw new IllegalArgumentException("Email is already registered");
@@ -53,35 +59,44 @@ public class AuthService {
         });
 
         User user = new User();
-        user.setFullName(request.getFullName().trim());
+        user.setFullName(fullName);
         user.setUsername(username);
         user.setEmail(email);
-        user.setPhone(request.getPhone() == null ? null : request.getPhone().trim());
-        user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+        user.setPhone(blankToNull(request.getPhone()));
+        user.setPasswordHash(passwordEncoder.encode(password));
         user.setStatus("ACTIVE");
-        user.setRole("USER");
+        user.setRole(Role.CUSTOMER.name());
         user.setCreatedAt(LocalDateTime.now());
         user.setUpdatedAt(LocalDateTime.now());
 
         User savedUser = userRepository.save(user);
-        return new AuthResponse("Registration successful", savedUser.getEmail(), savedUser.getUsername());
+        return toAuthResponse("Registration successful", savedUser);
     }
 
     public AuthResponse login(LoginRequest request) {
-        String usernameOrEmail = request.getUsernameOrEmail().trim();
+        if (request == null) {
+            throw new IllegalArgumentException("Login information is required");
+        }
+
+        String usernameOrEmail = requireText(request.getUsernameOrEmail(), "Username or email is required");
+        String password = requireText(request.getPassword(), "Password is required");
 
         User user = userRepository.findByEmailOrUsername(usernameOrEmail, usernameOrEmail)
                 .orElseThrow(() -> new UsernameNotFoundException("Invalid username/email or password"));
 
-        if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
+        if (user.getPasswordHash() == null || !passwordEncoder.matches(password, user.getPasswordHash())) {
             throw new BadCredentialsException("Invalid username/email or password");
         }
 
-        return new AuthResponse("Login successful", user.getEmail(), user.getUsername());
+        return toAuthResponse("Login successful", user);
     }
 
     public PasswordResetResponse forgotPassword(ForgotPasswordRequest request) {
-        String email = Objects.requireNonNull(request.getEmail(), "Email is required").trim();
+        if (request == null) {
+            throw new IllegalArgumentException("Email is required");
+        }
+
+        String email = requireText(request.getEmail(), "Email is required");
         removeExpiredResetTokens();
 
         Optional<User> optionalUser = userRepository.findByEmail(email);
@@ -93,8 +108,11 @@ public class AuthService {
         }
 
         User user = optionalUser.get();
-        long userId = Objects.requireNonNull(user.getUserId(), "User id is required");
-        String userEmail = Objects.requireNonNull(user.getEmail(), "User email is required");
+        Long userId = user.getUserId();
+        String userEmail = user.getEmail();
+        if (userId == null || userEmail == null || userEmail.isBlank()) {
+            throw new IllegalArgumentException("User account is missing required information");
+        }
         String token = UUID.randomUUID().toString();
         LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(30);
         resetTokens.put(token, new PasswordResetToken(userId, expiresAt));
@@ -110,23 +128,29 @@ public class AuthService {
     }
 
     public AuthResponse resetPassword(ResetPasswordRequest request) {
-        removeExpiredResetTokens();
+        if (request == null) {
+            throw new IllegalArgumentException("Reset password information is required");
+        }
 
-        PasswordResetToken resetToken = resetTokens.get(request.getToken());
+        removeExpiredResetTokens();
+        String token = requireText(request.getToken(), "Reset token is required");
+        String newPassword = requireText(request.getNewPassword(), "New password is required");
+
+        PasswordResetToken resetToken = resetTokens.get(token);
         if (resetToken == null || resetToken.expiresAt().isBefore(LocalDateTime.now())) {
-            resetTokens.remove(request.getToken());
+            resetTokens.remove(token);
             throw new IllegalArgumentException("Reset link is invalid or expired");
         }
 
         User user = userRepository.findById(resetToken.userId())
                 .orElseThrow(() -> new IllegalArgumentException("User was not found"));
 
-        user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
         user.setUpdatedAt(LocalDateTime.now());
         User savedUser = userRepository.save(user);
-        resetTokens.remove(request.getToken());
+        resetTokens.remove(token);
 
-        return new AuthResponse("Password reset successful", savedUser.getEmail(), savedUser.getUsername());
+        return toAuthResponse("Password reset successful", savedUser);
     }
 
     public AuthResponse loginWithGoogle(OAuth2User googleUser) {
@@ -145,7 +169,7 @@ public class AuthService {
             newUser.setUsername(generateGoogleUsername(normalizedEmail));
             newUser.setPasswordHash(passwordEncoder.encode("GOOGLE_LOGIN:" + UUID.randomUUID()));
             newUser.setStatus("ACTIVE");
-            newUser.setRole("USER");
+            newUser.setRole(Role.CUSTOMER.name());
             newUser.setCreatedAt(now);
             return newUser;
         });
@@ -153,14 +177,17 @@ public class AuthService {
         if (fullName != null && !fullName.isBlank()) {
             user.setFullName(fullName.trim());
         }
+        user.setRole(Role.from(user.getRole()).name());
         user.setUpdatedAt(now);
 
         User savedUser = userRepository.save(user);
-        return new AuthResponse("Google login successful", savedUser.getEmail(), savedUser.getUsername());
+        return toAuthResponse("Google login successful", savedUser);
     }
 
     private String generateGoogleUsername(String email) {
-        String baseUsername = email.substring(0, email.indexOf("@"))
+        int atIndex = email.indexOf("@");
+        String base = atIndex > 0 ? email.substring(0, atIndex) : email;
+        String baseUsername = base
                 .replaceAll("[^a-zA-Z0-9_]", "")
                 .toLowerCase();
         if (baseUsername.isBlank()) {
@@ -179,6 +206,30 @@ public class AuthService {
     private void removeExpiredResetTokens() {
         LocalDateTime now = LocalDateTime.now();
         resetTokens.entrySet().removeIf(entry -> entry.getValue().expiresAt().isBefore(now));
+    }
+
+    private AuthResponse toAuthResponse(String message, User user) {
+        Role role = Role.from(user.getRole());
+        if (!role.name().equals(user.getRole())) {
+            user.setRole(role.name());
+            user.setUpdatedAt(LocalDateTime.now());
+            userRepository.save(user);
+        }
+        return new AuthResponse(message, user.getEmail(), user.getUsername(), role.name());
+    }
+
+    private String requireText(String value, String message) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException(message);
+        }
+        return value.trim();
+    }
+
+    private String blankToNull(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
     }
 
     private record PasswordResetToken(long userId, LocalDateTime expiresAt) {

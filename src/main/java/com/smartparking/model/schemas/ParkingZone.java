@@ -6,13 +6,14 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import lombok.Getter;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "parking_zones")
+@Table(name = "zones")
 @Getter
 @Setter
 public class ParkingZone {
@@ -22,25 +23,30 @@ public class ParkingZone {
     @Column(name = "zone_id")
     private Long zoneId;
 
-    @Column(name = "building_id")
+    @Transient
     private Long buildingId;
+
+    @Column(name = "floor_id")
+    private Long floorId;
 
     @Column(name = "vehicle_type_id")
     private Long vehicleTypeId;
 
-    @Column(nullable = false)
+    @Column(name = "zone_name")
     private String name;
 
-    @Column(name = "floor_number")
+    @Transient
     private Integer floorNumber;
 
+    @Transient
     private String description;
 
+    @Transient
     private String status;
 
-    @Column(name = "created_at")
+    @Transient
     private LocalDateTime createdAt;
 
-    @Column(name = "updated_at")
+    @Transient
     private LocalDateTime updatedAt;
 }

@@ -6,6 +6,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -13,7 +14,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "parking_incidents")
+@Table(name = "incident_reports")
 @Getter
 @Setter
 public class ParkingIncident {
@@ -31,20 +32,20 @@ public class ParkingIncident {
 
     private String description;
 
-    @Column(name = "penalty_amount")
+    @Transient
     private BigDecimal penaltyAmount;
 
     private String status;
 
-    @Column(name = "created_by")
+    @Column(name = "reported_by")
     private Long createdBy;
 
-    @Column(name = "resolved_by")
+    @Transient
     private Long resolvedBy;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
-    @Column(name = "resolved_at")
+    @Transient
     private LocalDateTime resolvedAt;
 }

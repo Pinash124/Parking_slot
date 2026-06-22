@@ -83,8 +83,8 @@ public class ManagerService {
     }
 
     public VehicleType createVehicleType(VehicleType vehicleType) {
-        vehicleTypeRepository.findByCode(vehicleType.getCode()).ifPresent(existing -> {
-            throw new IllegalArgumentException("Vehicle type code already exists");
+        vehicleTypeRepository.findByName(vehicleType.getName()).ifPresent(existing -> {
+            throw new IllegalArgumentException("Vehicle type name already exists");
         });
         markCreated(vehicleType);
         return vehicleTypeRepository.save(vehicleType);
@@ -93,11 +93,9 @@ public class ManagerService {
     public VehicleType updateVehicleType(Long id, VehicleType updated) {
         VehicleType vehicleType = vehicleTypeRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Vehicle type not found: " + id));
-        vehicleType.setCode(updated.getCode());
         vehicleType.setName(updated.getName());
         vehicleType.setDescription(updated.getDescription());
-        vehicleType.setStatus(updated.getStatus());
-        vehicleType.setUpdatedAt(LocalDateTime.now());
+        vehicleType.setDefaultHourlyFee(updated.getDefaultHourlyFee());
         return vehicleTypeRepository.save(vehicleType);
     }
 
@@ -109,13 +107,9 @@ public class ManagerService {
     public ParkingZone updateZone(Long id, ParkingZone updated) {
         ParkingZone zone = zoneRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Parking zone not found: " + id));
-        zone.setBuildingId(updated.getBuildingId());
+        zone.setFloorId(updated.getFloorId());
         zone.setVehicleTypeId(updated.getVehicleTypeId());
         zone.setName(updated.getName());
-        zone.setFloorNumber(updated.getFloorNumber());
-        zone.setDescription(updated.getDescription());
-        zone.setStatus(updated.getStatus());
-        zone.setUpdatedAt(LocalDateTime.now());
         return zoneRepository.save(zone);
     }
 
@@ -190,19 +184,26 @@ public class ManagerService {
     }
 
     public User updateUserRole(Long id, UserRoleUpdateRequest request) {
-        String role = request.getRole().trim().toUpperCase();
-        Role.valueOf(role);
+        if (request == null || request.getRole() == null || request.getRole().isBlank()) {
+            throw new IllegalArgumentException("Role is required");
+        }
+
+        Role role = Role.from(request.getRole());
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + id));
-        user.setRole(role);
+        user.setRole(role.name());
         user.setUpdatedAt(LocalDateTime.now());
         return userRepository.save(user);
     }
 
     public User updateUserStatus(Long id, UserStatusUpdateRequest request) {
+        if (request == null || request.getStatus() == null || request.getStatus().isBlank()) {
+            throw new IllegalArgumentException("Status is required");
+        }
+
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + id));
-        user.setStatus(request.getStatus());
+        user.setStatus(request.getStatus().trim().toUpperCase());
         user.setUpdatedAt(LocalDateTime.now());
         return userRepository.save(user);
     }

@@ -6,9 +6,11 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -22,7 +24,7 @@ public class VehicleType {
     @Column(name = "vehicle_type_id")
     private Long vehicleTypeId;
 
-    @Column(nullable = false, unique = true)
+    @Transient
     private String code;
 
     @Column(nullable = false)
@@ -30,11 +32,15 @@ public class VehicleType {
 
     private String description;
 
+    @Column(name = "default_hourly_fee")
+    private BigDecimal defaultHourlyFee;
+
+    @Transient
     private String status;
 
-    @Column(name = "created_at")
+    @Transient
     private LocalDateTime createdAt;
 
-    @Column(name = "updated_at")
+    @Transient
     private LocalDateTime updatedAt;
 }

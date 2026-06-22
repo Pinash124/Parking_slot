@@ -6,6 +6,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -25,7 +26,7 @@ public class ParkingSlot {
     @Column(name = "zone_id")
     private Long zoneId;
 
-    @Column(name = "vehicle_type_id")
+    @Transient
     private Long vehicleTypeId;
 
     @Column(name = "slot_code", nullable = false, unique = true)
@@ -33,11 +34,12 @@ public class ParkingSlot {
 
     private String status;
 
+    @Transient
     private String note;
 
-    @Column(name = "created_at")
+    @Transient
     private LocalDateTime createdAt;
 
-    @Column(name = "updated_at")
+    @Transient
     private LocalDateTime updatedAt;
 }
