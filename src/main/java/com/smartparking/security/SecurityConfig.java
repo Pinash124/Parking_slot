@@ -19,6 +19,8 @@ public class SecurityConfig {
                                                    ObjectProvider<ClientRegistrationRepository> clientRegistrations) throws Exception {
 
         http
+            .cors()
+            .and()
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
                 .anyRequest().permitAll()

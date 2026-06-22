@@ -64,7 +64,7 @@ public class AuthService {
         user.setUpdatedAt(LocalDateTime.now());
 
         User savedUser = userRepository.save(user);
-        return new AuthResponse("Registration successful", savedUser.getEmail(), savedUser.getUsername());
+        return new AuthResponse("Registration successful", "????", savedUser.getUserId().toString(), savedUser.getFullName(), savedUser.getEmail(), savedUser.getRole());
     }
 
     public AuthResponse login(LoginRequest request) {
@@ -77,7 +77,7 @@ public class AuthService {
             throw new BadCredentialsException("Invalid username/email or password");
         }
 
-        return new AuthResponse("Login successful", user.getEmail(), user.getUsername());
+        return new AuthResponse("Login successful", "????", user.getUserId().toString(), user.getFullName(), user.getEmail(), user.getRole());
     }
 
     public PasswordResetResponse forgotPassword(ForgotPasswordRequest request) {
@@ -126,7 +126,7 @@ public class AuthService {
         User savedUser = userRepository.save(user);
         resetTokens.remove(request.getToken());
 
-        return new AuthResponse("Password reset successful", savedUser.getEmail(), savedUser.getUsername());
+        return new AuthResponse("Password reset successful", "????", savedUser.getUserId().toString(), savedUser.getFullName(), savedUser.getEmail(), savedUser.getRole());
     }
 
     public AuthResponse loginWithGoogle(OAuth2User googleUser) {
@@ -156,7 +156,7 @@ public class AuthService {
         user.setUpdatedAt(now);
 
         User savedUser = userRepository.save(user);
-        return new AuthResponse("Google login successful", savedUser.getEmail(), savedUser.getUsername());
+        return new AuthResponse("Google login successful", "????", savedUser.getUserId().toString(), savedUser.getFullName(), savedUser.getEmail(), savedUser.getRole());
     }
 
     private String generateGoogleUsername(String email) {

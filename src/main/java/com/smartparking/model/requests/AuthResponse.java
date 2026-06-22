@@ -10,6 +10,9 @@ import lombok.Setter;
 public class AuthResponse {
 
     private String message;
+    private String accessToken;
+    private String userId;
+    private String fullName;
     private String email;
-    private String username;
+    private String role;
 }
