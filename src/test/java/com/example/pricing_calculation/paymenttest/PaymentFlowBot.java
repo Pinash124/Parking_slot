@@ -10,8 +10,8 @@ import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 final class PaymentFlowBot {
 
@@ -68,14 +68,14 @@ final class PaymentFlowBot {
             gatewayRequest.put("returnUrl", "https://payment-bot.test/return?code=" + seed.code());
             gatewayRequest.put("orderInfo", "Payment bot " + seed.code());
             JsonNode payment = post("/api/payment-gateways/" + gateway.toLowerCase(Locale.ROOT), gatewayRequest);
-            String referenceCode = payment.path("referenceCode").stringValue("");
+            String referenceCode = payment.path("referenceCode").asText("");
             long paymentId = payment.path("paymentId").asLong();
             if ("CASH".equals(gateway)) {
                 requireText(payment, "status", "COMPLETED");
             } else {
                 requireText(payment, "status", "PENDING");
-                if (payment.path("paymentUrl").stringValue("").isBlank()
-                        || payment.path("qrContent").stringValue("").isBlank()) {
+                if (payment.path("paymentUrl").asText("").isBlank()
+                        || payment.path("qrContent").asText("").isBlank()) {
                     throw new IllegalStateException("Online gateway must return paymentUrl and qrContent");
                 }
                 payment = post("/api/payment-gateways/" + gateway.toLowerCase(Locale.ROOT) + "/confirm", Map.of(
@@ -106,7 +106,7 @@ final class PaymentFlowBot {
             if (!exitValidation.path("openBarrier").asBoolean()) {
                 throw new IllegalStateException(
                         "Barrier should open but decision was "
-                                + exitValidation.path("decision").stringValue(""));
+                                + exitValidation.path("decision").asText(""));
             }
             requireText(exitValidation, "decision", "OPEN_PAYMENT_VERIFIED");
 
@@ -163,7 +163,7 @@ final class PaymentFlowBot {
     }
 
     private void requireText(JsonNode node, String field, String expected) {
-        String actual = node.path(field).stringValue("");
+        String actual = node.path(field).asText("");
         if (!expected.equals(actual)) {
             throw new IllegalStateException(field + " expected " + expected + " but was " + actual);
         }

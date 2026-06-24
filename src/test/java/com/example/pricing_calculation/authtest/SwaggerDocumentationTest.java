@@ -12,8 +12,8 @@ import java.time.Duration;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
@@ -44,7 +44,7 @@ class SwaggerDocumentationTest {
 
         assertEquals(200, response.statusCode());
         JsonNode document = objectMapper.readTree(response.body());
-        assertEquals("Parking Payment System API", document.path("info").path("title").stringValue(""));
+        assertEquals("Parking Payment System API", document.path("info").path("title").asText(""));
         assertFalse(document.path("paths").path("/api/auth/register").isMissingNode());
         assertFalse(document.path("paths").path("/api/auth/login").isMissingNode());
         assertFalse(document.path("paths").path("/api/auth/logout").isMissingNode());
@@ -53,7 +53,7 @@ class SwaggerDocumentationTest {
         assertEquals(
                 "bearer",
                 document.path("components").path("securitySchemes").path("bearerAuth").path("scheme")
-                        .stringValue("")
+                        .asText("")
         );
     }
 

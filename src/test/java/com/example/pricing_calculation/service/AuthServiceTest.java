@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -15,7 +16,9 @@ import com.example.pricing_calculation.domain.UserAccount;
 import com.example.pricing_calculation.dto.AuthLoginRequest;
 import com.example.pricing_calculation.dto.AuthLoginResponse;
 import com.example.pricing_calculation.dto.AuthRegistrationRequest;
-import com.example.pricing_calculation.dto.AuthRegistrationResponse;
+import com.example.pricing_calculation.dto.ChangePasswordRequest;
+import com.example.pricing_calculation.dto.VerifyOtpRequest;
+import com.example.pricing_calculation.dto.OtpResponse;
 import com.example.pricing_calculation.repository.UserAccountRepository;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -36,16 +39,29 @@ class AuthServiceTest {
     }
 
     @Test
-    void registerNormalizesInputAndNeverStoresThePlainPassword() {
-        when(userAccountRepository.existsByEmailIgnoreCase("customer@example.com")).thenReturn(false);
+    void registerTriggersOtpAndVerifyingOtpSavesUserAndNeverStoresThePlainPassword() {
+        String email = "customer@example.com";
+        when(userAccountRepository.existsByEmailIgnoreCase(email)).thenReturn(false);
         when(userAccountRepository.save(any(UserAccount.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        AuthRegistrationResponse response = authService.register(new AuthRegistrationRequest(
+        OtpResponse otpResponse = authService.register(new AuthRegistrationRequest(
                 "  Nguyen Van A  ",
                 "  CUSTOMER@Example.COM ",
                 " 0901234567 ",
-                "safe-password-123"
+                "Safe-password-123!"
         ));
+
+        assertEquals("customer@example.com", otpResponse.email());
+        assertEquals("OTP sent to your email. Please verify to complete registration.", otpResponse.message());
+
+        String otp = authService.getPendingOtpForTesting(email);
+        assertNotNull(otp);
+
+        // Verify save was NOT called yet
+        verify(userAccountRepository, never()).save(any(UserAccount.class));
+
+        // Call unified verification (which registers the user and logs them in)
+        AuthLoginResponse response = authService.verifyOtp(new VerifyOtpRequest(email, otp));
 
         ArgumentCaptor<UserAccount> userCaptor = ArgumentCaptor.forClass(UserAccount.class);
         verify(userAccountRepository).save(userCaptor.capture());
@@ -56,34 +72,65 @@ class AuthServiceTest {
         assertEquals("0901234567", savedUser.getPhone());
         assertEquals("ACTIVE", savedUser.getStatus());
         assertEquals("CUSTOMER", savedUser.getRole());
-        assertNotEquals("safe-password-123", savedUser.getPasswordHash());
+        assertNotEquals("Safe-password-123!", savedUser.getPasswordHash());
         assertFalse(savedUser.getPasswordHash().isBlank());
-        assertEquals("Registration completed", response.message());
+
+        // Assert login elements of response
+        assertNotNull(response.accessToken());
+        assertEquals("Bearer", response.tokenType());
     }
 
     @Test
-    void registerRejectsDuplicateEmailBeforeSaving() {
+    void registerRejectsDuplicateEmailBeforeSendingOtp() {
         when(userAccountRepository.existsByEmailIgnoreCase("customer@example.com")).thenReturn(true);
 
         assertThrows(BadRequestException.class, () -> authService.register(new AuthRegistrationRequest(
                 "Nguyen Van A",
                 "customer@example.com",
                 null,
-                "safe-password-123"
+                "Safe-password-123!"
         )));
 
         verify(userAccountRepository, never()).save(any(UserAccount.class));
     }
 
     @Test
-    void loginCreatesBearerTokenAndLogoutInvalidatesIt() {
-        UserAccount user = activeUser("customer@example.com", "safe-password-123");
-        when(userAccountRepository.findByEmailIgnoreCase("customer@example.com")).thenReturn(Optional.of(user));
+    void registerRejectsWeakPasswords() {
+        // Missing uppercase
+        assertThrows(BadRequestException.class, () -> authService.register(new AuthRegistrationRequest(
+                "Nguyen Van A", "customer@example.com", null, "safe-password-123!"
+        )));
+        // Missing special char
+        assertThrows(BadRequestException.class, () -> authService.register(new AuthRegistrationRequest(
+                "Nguyen Van A", "customer@example.com", null, "SafePassword123"
+        )));
+        // Missing number
+        assertThrows(BadRequestException.class, () -> authService.register(new AuthRegistrationRequest(
+                "Nguyen Van A", "customer@example.com", null, "Safe-Password!"
+        )));
+        // Missing letter
+        assertThrows(BadRequestException.class, () -> authService.register(new AuthRegistrationRequest(
+                "Nguyen Van A", "customer@example.com", null, "12345678?!"
+        )));
+    }
 
-        AuthLoginResponse login = authService.login(new AuthLoginRequest(
+    @Test
+    void loginTriggersOtpAndVerifyingOtpCreatesBearerTokenAndLogoutInvalidatesIt() {
+        String email = "customer@example.com";
+        UserAccount user = activeUser(email, "Safe-password-123!");
+        when(userAccountRepository.findByEmailIgnoreCase(email)).thenReturn(Optional.of(user));
+        when(userAccountRepository.findById(user.getId())).thenReturn(Optional.of(user));
+
+        OtpResponse otpResponse = authService.login(new AuthLoginRequest(
                 " CUSTOMER@example.com ",
-                "safe-password-123"
+                "Safe-password-123!"
         ));
+
+        assertEquals("customer@example.com", otpResponse.email());
+        String otp = authService.getPendingOtpForTesting(email);
+        assertNotNull(otp);
+
+        AuthLoginResponse login = authService.verifyOtp(new VerifyOtpRequest(email, otp));
 
         assertNotNull(login.accessToken());
         assertFalse(login.accessToken().isBlank());
@@ -97,24 +144,48 @@ class AuthServiceTest {
 
     @Test
     void loginDoesNotRevealWhetherEmailOrPasswordWasWrong() {
-        UserAccount user = activeUser("customer@example.com", "safe-password-123");
+        UserAccount user = activeUser("customer@example.com", "Safe-password-123!");
         when(userAccountRepository.findByEmailIgnoreCase("customer@example.com")).thenReturn(Optional.of(user));
 
         UnauthorizedException wrongPassword = assertThrows(
                 UnauthorizedException.class,
-                () -> authService.login(new AuthLoginRequest("customer@example.com", "wrong-password"))
+                () -> authService.login(new AuthLoginRequest("customer@example.com", "wrong-Password-123!"))
         );
         UnauthorizedException unknownEmail = assertThrows(
                 UnauthorizedException.class,
-                () -> authService.login(new AuthLoginRequest("unknown@example.com", "wrong-password"))
+                () -> authService.login(new AuthLoginRequest("unknown@example.com", "wrong-Password-123!"))
         );
 
         assertEquals("Invalid email or password", wrongPassword.getMessage());
         assertEquals("Invalid email or password", unknownEmail.getMessage());
     }
 
+    @Test
+    void changePasswordUpdatesPasswordWhenAuthenticated() {
+        String email = "customer@example.com";
+        UserAccount user = activeUser(email, "Old-password-123!");
+        user.setId(5L);
+        when(userAccountRepository.findByEmailIgnoreCase(email)).thenReturn(Optional.of(user));
+        when(userAccountRepository.findById(5L)).thenReturn(Optional.of(user));
+
+        // Perform login to get session token
+        OtpResponse otpResponse = authService.login(new AuthLoginRequest(email, "Old-password-123!"));
+        String otp = authService.getPendingOtpForTesting(email);
+        AuthLoginResponse login = authService.verifyOtp(new VerifyOtpRequest(email, otp));
+
+        String token = "Bearer " + login.accessToken();
+
+        // Perform password change
+        authService.changePassword(token, new ChangePasswordRequest("Old-password-123!", "New-secure-password-456!"));
+
+        verify(userAccountRepository).save(user);
+        // Verify new password matches
+        assertTrue(passwordHashService.matches("New-secure-password-456!", user.getPasswordHash()));
+    }
+
     private UserAccount activeUser(String email, String password) {
         UserAccount user = new UserAccount();
+        user.setId(1L);
         user.setFullName("Nguyen Van A");
         user.setEmail(email);
         user.setPhone("0901234567");

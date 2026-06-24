@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.example.pricing_calculation.repository.UserAccountRepository;
+import com.example.pricing_calculation.service.AuthService;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -11,7 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
-import tools.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
@@ -26,7 +27,7 @@ import tools.jackson.databind.ObjectMapper;
 )
 class AuthFlowBotTest {
 
-    private static final String PASSWORD = "auth-bot-password-123";
+    private static final String PASSWORD = "Auth-bot-password-123!";
 
     @LocalServerPort
     private int port;
@@ -36,6 +37,9 @@ class AuthFlowBotTest {
 
     @Autowired
     private UserAccountRepository userAccountRepository;
+
+    @Autowired
+    private AuthService authService;
 
     private String email;
 
@@ -54,7 +58,7 @@ class AuthFlowBotTest {
     void botCompletesRegistrationLoginAndLogoutFlow() {
         AuthFlowBot bot = new AuthFlowBot("http://localhost:" + port, objectMapper);
 
-        AuthFlowResult result = bot.run(email, PASSWORD);
+        AuthFlowResult result = bot.run(email, PASSWORD, e -> authService.getPendingOtpForTesting(e));
 
         assertTrue(result.successful(), () -> "Auth bot failed: " + result.error());
         assertTrue(result.durationMillis() < 20000, "Auth flow should finish within 20 seconds");
