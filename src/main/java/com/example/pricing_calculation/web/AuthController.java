@@ -4,7 +4,9 @@ import com.example.pricing_calculation.dto.AuthLoginRequest;
 import com.example.pricing_calculation.dto.AuthLoginResponse;
 import com.example.pricing_calculation.dto.AuthLogoutResponse;
 import com.example.pricing_calculation.dto.AuthRegistrationRequest;
-import com.example.pricing_calculation.dto.AuthRegistrationResponse;
+import com.example.pricing_calculation.dto.ChangePasswordRequest;
+import com.example.pricing_calculation.dto.VerifyOtpRequest;
+import com.example.pricing_calculation.dto.OtpResponse;
 import com.example.pricing_calculation.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -14,7 +16,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.http.HttpStatus;
+import java.util.Map;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -24,7 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/auth")
-@Tag(name = "Authentication", description = "Đăng ký, đăng nhập và đăng xuất")
+@Tag(name = "Authentication", description = "Đăng ký, đăng nhập, OTP và đổi mật khẩu")
 public class AuthController {
 
     private final AuthService authService;
@@ -34,25 +36,52 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    @Operation(summary = "Đăng ký tài khoản", description = "Tạo tài khoản mới với role CUSTOMER và status ACTIVE.")
+    @Operation(summary = "Đăng ký tài khoản (Gửi OTP)", description = "Yêu cầu đăng ký tài khoản mới và gửi mã OTP qua email.")
     @ApiResponses({
-            @ApiResponse(responseCode = "201", description = "Đăng ký thành công",
-                    content = @Content(schema = @Schema(implementation = AuthRegistrationResponse.class))),
+            @ApiResponse(responseCode = "200", description = "OTP đã được gửi",
+                    content = @Content(schema = @Schema(implementation = OtpResponse.class))),
             @ApiResponse(responseCode = "400", description = "Dữ liệu không hợp lệ hoặc email đã tồn tại")
     })
-    public ResponseEntity<AuthRegistrationResponse> register(@RequestBody AuthRegistrationRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(authService.register(request));
+    public ResponseEntity<OtpResponse> register(@RequestBody AuthRegistrationRequest request) {
+        return ResponseEntity.ok(authService.register(request));
     }
 
     @PostMapping("/login")
-    @Operation(summary = "Đăng nhập", description = "Xác thực email/mật khẩu và trả Bearer access token có hạn 8 giờ.")
+    @Operation(summary = "Đăng nhập (Yêu cầu OTP)", description = "Xác thực email/mật khẩu và gửi mã OTP qua email.")
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Đăng nhập thành công",
-                    content = @Content(schema = @Schema(implementation = AuthLoginResponse.class))),
+            @ApiResponse(responseCode = "200", description = "Mật khẩu đúng, OTP đã được gửi",
+                    content = @Content(schema = @Schema(implementation = OtpResponse.class))),
             @ApiResponse(responseCode = "401", description = "Email hoặc mật khẩu không đúng")
     })
-    public AuthLoginResponse login(@RequestBody AuthLoginRequest request) {
+    public OtpResponse login(@RequestBody AuthLoginRequest request) {
         return authService.login(request);
+    }
+
+    @PostMapping("/verify-otp")
+    @Operation(summary = "Xác nhận mã OTP", description = "Xác nhận mã OTP cho cả đăng ký và đăng nhập để nhận Bearer access token truy cập API.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "OTP chính xác, đăng nhập thành công và trả về access token",
+                    content = @Content(schema = @Schema(implementation = AuthLoginResponse.class))),
+            @ApiResponse(responseCode = "400", description = "OTP không hợp lệ hoặc đã hết hạn")
+    })
+    public ResponseEntity<AuthLoginResponse> verifyOtp(@RequestBody VerifyOtpRequest request) {
+        return ResponseEntity.ok(authService.verifyOtp(request));
+    }
+
+    @PostMapping("/change-password")
+    @Operation(summary = "Thay đổi mật khẩu", description = "Đổi mật khẩu cho người dùng hiện tại (yêu cầu xác thực Bearer token).")
+    @SecurityRequirement(name = "bearerAuth")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Đổi mật khẩu thành công"),
+            @ApiResponse(responseCode = "400", description = "Mật khẩu cũ không chính xác hoặc mật khẩu mới không hợp lệ"),
+            @ApiResponse(responseCode = "401", description = "Token không hợp lệ hoặc đã hết hạn")
+    })
+    public ResponseEntity<Map<String, String>> changePassword(
+            @Parameter(hidden = true)
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
+            @RequestBody ChangePasswordRequest request) {
+        authService.changePassword(authorizationHeader, request);
+        return ResponseEntity.ok(Map.of("message", "Thay đổi mật khẩu thành công"));
     }
 
     @PostMapping("/logout")

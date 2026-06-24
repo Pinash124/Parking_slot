@@ -5,7 +5,9 @@ import com.example.pricing_calculation.dto.AuthLoginRequest;
 import com.example.pricing_calculation.dto.AuthLoginResponse;
 import com.example.pricing_calculation.dto.AuthLogoutResponse;
 import com.example.pricing_calculation.dto.AuthRegistrationRequest;
-import com.example.pricing_calculation.dto.AuthRegistrationResponse;
+import com.example.pricing_calculation.dto.ChangePasswordRequest;
+import com.example.pricing_calculation.dto.VerifyOtpRequest;
+import com.example.pricing_calculation.dto.OtpResponse;
 import com.example.pricing_calculation.repository.UserAccountRepository;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -17,6 +19,11 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,46 +36,74 @@ public class AuthService {
 
     private final UserAccountRepository userAccountRepository;
     private final PasswordHashService passwordHashService;
+    private final ObjectProvider<JavaMailSender> mailSenderProvider;
+    private final String fromAddress;
     private final SecureRandom secureRandom = new SecureRandom();
     private final Map<String, AuthSession> sessions = new ConcurrentHashMap<>();
 
+    private record OtpCacheEntry(
+            String type, // "REGISTER" or "LOGIN"
+            String email,
+            String otp,
+            LocalDateTime expiresAt,
+            String fullName,
+            String phone,
+            String passwordHash,
+            Long userId
+    ) {}
+
+    private final Map<String, OtpCacheEntry> otpStorage = new ConcurrentHashMap<>();
+
+    @Autowired
+    public AuthService(
+            UserAccountRepository userAccountRepository,
+            PasswordHashService passwordHashService,
+            ObjectProvider<JavaMailSender> mailSenderProvider,
+            @Value("${spring.mail.username:}") String fromAddress) {
+        this.userAccountRepository = userAccountRepository;
+        this.passwordHashService = passwordHashService;
+        this.mailSenderProvider = mailSenderProvider;
+        this.fromAddress = fromAddress;
+    }
+
+    // Overloaded constructor for tests / backwards compatibility
     public AuthService(
             UserAccountRepository userAccountRepository,
             PasswordHashService passwordHashService) {
-        this.userAccountRepository = userAccountRepository;
-        this.passwordHashService = passwordHashService;
+        this(userAccountRepository, passwordHashService, null, "");
     }
 
     @Transactional
-    public AuthRegistrationResponse register(AuthRegistrationRequest request) {
+    public OtpResponse register(AuthRegistrationRequest request) {
         validateRegistration(request);
         String email = normalizeEmail(request.email());
         if (userAccountRepository.existsByEmailIgnoreCase(email)) {
             throw new BadRequestException("Email is already registered");
         }
 
-        UserAccount user = new UserAccount();
-        user.setFullName(request.fullName());
-        user.setEmail(email);
-        user.setPhone(request.phone());
-        user.setPasswordHash(passwordHashService.hash(request.password()));
-        user.setStatus("ACTIVE");
-        user.setRole("CUSTOMER");
-        UserAccount saved = userAccountRepository.save(user);
+        String otp = generateOtp();
+        LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(5);
 
-        return new AuthRegistrationResponse(
-                saved.getId(),
-                saved.getFullName(),
-                saved.getEmail(),
-                saved.getPhone(),
-                saved.getStatus(),
-                saved.getRole(),
-                "Registration completed"
-        );
+        otpStorage.put(email, new OtpCacheEntry(
+                "REGISTER",
+                email,
+                otp,
+                expiresAt,
+                request.fullName(),
+                request.phone(),
+                passwordHashService.hash(request.password()),
+                null
+        ));
+
+        String subject = "ParkingSmart - Confirm Registration OTP";
+        String body = "Your registration OTP code is: " + otp + "\nIt will expire in 5 minutes.";
+        sendEmail(email, subject, body, otp);
+
+        return new OtpResponse(email, "OTP sent to your email. Please verify to complete registration.");
     }
 
     @Transactional(readOnly = true)
-    public AuthLoginResponse login(AuthLoginRequest request) {
+    public OtpResponse login(AuthLoginRequest request) {
         if (request == null || request.email() == null || request.email().isBlank()
                 || request.password() == null || request.password().isBlank()) {
             throw new UnauthorizedException("Invalid email or password");
@@ -80,10 +115,69 @@ public class AuthService {
             throw new UnauthorizedException("Invalid email or password");
         }
 
+        String otp = generateOtp();
+        LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(5);
+
+        otpStorage.put(normalizeEmail(request.email()), new OtpCacheEntry(
+                "LOGIN",
+                normalizeEmail(request.email()),
+                otp,
+                expiresAt,
+                null,
+                null,
+                null,
+                user.getId()
+        ));
+
+        String subject = "ParkingSmart - Confirm Login OTP";
+        String body = "Your login OTP code is: " + otp + "\nIt will expire in 5 minutes.";
+        sendEmail(normalizeEmail(request.email()), subject, body, otp);
+
+        return new OtpResponse(normalizeEmail(request.email()), "OTP sent to your email. Please verify to complete login.");
+    }
+
+    @Transactional
+    public AuthLoginResponse verifyOtp(VerifyOtpRequest request) {
+        if (request == null || request.email() == null || request.otp() == null) {
+            throw new BadRequestException("Email and OTP are required");
+        }
+        String email = normalizeEmail(request.email());
+        OtpCacheEntry entry = otpStorage.get(email);
+        if (entry == null || entry.expiresAt().isBefore(LocalDateTime.now())) {
+            otpStorage.remove(email);
+            throw new BadRequestException("OTP is invalid or has expired");
+        }
+
+        if (!entry.otp().equals(request.otp().trim())) {
+            throw new BadRequestException("Incorrect OTP code");
+        }
+
+        UserAccount user;
+        if ("REGISTER".equals(entry.type())) {
+            if (userAccountRepository.existsByEmailIgnoreCase(email)) {
+                throw new BadRequestException("Email is already registered");
+            }
+
+            user = new UserAccount();
+            user.setFullName(entry.fullName());
+            user.setEmail(email);
+            user.setPhone(entry.phone());
+            user.setPasswordHash(entry.passwordHash());
+            user.setStatus("ACTIVE");
+            user.setRole("CUSTOMER");
+            user = userAccountRepository.save(user);
+        } else {
+            user = userAccountRepository.findById(entry.userId())
+                    .orElseThrow(() -> new UnauthorizedException("User no longer exists"));
+        }
+
         purgeExpiredSessions();
         String rawToken = generateToken();
         LocalDateTime expiresAt = LocalDateTime.now().plusHours(SESSION_HOURS);
         sessions.put(hashToken(rawToken), new AuthSession(user.getId(), expiresAt));
+
+        otpStorage.remove(email);
+
         return new AuthLoginResponse(
                 rawToken,
                 "Bearer",
@@ -93,6 +187,30 @@ public class AuthService {
                 user.getEmail(),
                 user.getRole()
         );
+    }
+
+    @Transactional
+    public void changePassword(String authorizationHeader, ChangePasswordRequest request) {
+        if (request == null || request.oldPassword() == null || request.newPassword() == null) {
+            throw new BadRequestException("Old and new passwords are required");
+        }
+        validatePasswordStrength(request.newPassword());
+
+        String token = extractBearerToken(authorizationHeader);
+        AuthSession session = sessions.get(hashToken(token));
+        if (session == null || session.expiresAt().isBefore(LocalDateTime.now())) {
+            throw new UnauthorizedException("Invalid or expired access token");
+        }
+
+        UserAccount user = userAccountRepository.findById(session.userId())
+                .orElseThrow(() -> new UnauthorizedException("User no longer exists"));
+
+        if (!passwordHashService.matches(request.oldPassword(), user.getPasswordHash())) {
+            throw new BadRequestException("Incorrect old password");
+        }
+
+        user.setPasswordHash(passwordHashService.hash(request.newPassword()));
+        userAccountRepository.save(user);
     }
 
     public AuthLogoutResponse logout(String authorizationHeader) {
@@ -119,14 +237,81 @@ public class AuthService {
         if (request.phone() != null && request.phone().trim().length() > 20) {
             throw new BadRequestException("phone must not exceed 20 characters");
         }
-        if (request.password() == null || request.password().length() < 8
-                || request.password().length() > 128) {
-            throw new BadRequestException("password must contain between 8 and 128 characters");
+        validatePasswordStrength(request.password());
+    }
+
+    private void validatePasswordStrength(String password) {
+        if (password == null || password.length() < 8 || password.length() > 128) {
+            throw new BadRequestException("Password must contain between 8 and 128 characters");
+        }
+        boolean hasUppercase = false;
+        boolean hasDigit = false;
+        boolean hasSpecial = false;
+        boolean hasLetter = false;
+
+        for (int i = 0; i < password.length(); i++) {
+            char c = password.charAt(i);
+            if (Character.isUpperCase(c)) {
+                hasUppercase = true;
+            }
+            if (Character.isDigit(c)) {
+                hasDigit = true;
+            }
+            if (Character.isLetter(c)) {
+                hasLetter = true;
+            }
+            if (!Character.isLetterOrDigit(c)) {
+                hasSpecial = true;
+            }
+        }
+
+        if (!hasUppercase) {
+            throw new BadRequestException("Password must contain at least one uppercase letter");
+        }
+        if (!hasLetter) {
+            throw new BadRequestException("Password must contain at least one letter");
+        }
+        if (!hasDigit) {
+            throw new BadRequestException("Password must contain at least one number");
+        }
+        if (!hasSpecial) {
+            throw new BadRequestException("Password must contain at least one special character");
         }
     }
 
     private String normalizeEmail(String email) {
         return email == null ? "" : email.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private String generateOtp() {
+        int code = 100000 + secureRandom.nextInt(900000);
+        return String.valueOf(code);
+    }
+
+    private void sendEmail(String toEmail, String subject, String body, String otpCode) {
+        System.out.println("[OTP-SERVICE] Generated OTP for " + toEmail + ": " + otpCode);
+        if (mailSenderProvider == null) {
+            return;
+        }
+        JavaMailSender mailSender = mailSenderProvider.getIfAvailable();
+        if (mailSender == null || fromAddress == null || fromAddress.isBlank()) {
+            return;
+        }
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom(fromAddress);
+            message.setTo(toEmail);
+            message.setSubject(subject);
+            message.setText(body);
+            mailSender.send(message);
+        } catch (Exception ex) {
+            System.err.println("[OTP-SERVICE] Failed to send email to " + toEmail + ": " + ex.getMessage());
+        }
+    }
+
+    public String getPendingOtpForTesting(String email) {
+        OtpCacheEntry entry = otpStorage.get(normalizeEmail(email));
+        return entry == null ? null : entry.otp();
     }
 
     private String generateToken() {
