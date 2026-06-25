@@ -1,0 +1,13 @@
+package com.example.pricing_calculation.domain;
+
+public enum TransactionType {
+    RESERVATION_CREATED,
+    RESERVATION_CANCELLED,
+    SESSION_STARTED,
+    FEE_CALCULATED,
+    PAYMENT_PENDING,
+    PAYMENT_COMPLETED,
+    CHECKOUT_COMPLETED,
+    SLOT_STATUS_CHANGED,
+    REFUND_CREATED
+}
