@@ -161,22 +161,32 @@ class AuthServiceTest {
     }
 
     @Test
-    void changePasswordUpdatesPasswordWhenAuthenticated() {
+    void changePasswordUpdatesPasswordWhenAuthenticatedAndOtpVerified() {
         String email = "customer@example.com";
         UserAccount user = activeUser(email, "Old-password-123!");
         user.setId(5L);
         when(userAccountRepository.findByEmailIgnoreCase(email)).thenReturn(Optional.of(user));
         when(userAccountRepository.findById(5L)).thenReturn(Optional.of(user));
+        when(userAccountRepository.save(any(UserAccount.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         // Perform login to get session token
-        OtpResponse otpResponse = authService.login(new AuthLoginRequest(email, "Old-password-123!"));
-        String otp = authService.getPendingOtpForTesting(email);
-        AuthLoginResponse login = authService.verifyOtp(new VerifyOtpRequest(email, otp));
+        OtpResponse loginOtpResponse = authService.login(new AuthLoginRequest(email, "Old-password-123!"));
+        String loginOtp = authService.getPendingOtpForTesting(email);
+        AuthLoginResponse login = authService.verifyOtp(new VerifyOtpRequest(email, loginOtp));
 
         String token = "Bearer " + login.accessToken();
 
-        // Perform password change
-        authService.changePassword(token, new ChangePasswordRequest("Old-password-123!", "New-secure-password-456!"));
+        // Perform password change (triggers OTP)
+        OtpResponse changeOtpResponse = authService.changePassword(token, new ChangePasswordRequest("Old-password-123!", "New-secure-password-456!"));
+        assertEquals(email, changeOtpResponse.email());
+        assertEquals("OTP sent to your email. Please verify to complete password change.", changeOtpResponse.message());
+
+        String changeOtp = authService.getPendingOtpForTesting(email);
+        assertNotNull(changeOtp);
+
+        // Verify the change password OTP
+        AuthLoginResponse changeVerifyResponse = authService.verifyOtp(new VerifyOtpRequest(email, changeOtp));
+        assertNotNull(changeVerifyResponse.accessToken());
 
         verify(userAccountRepository).save(user);
         // Verify new password matches
