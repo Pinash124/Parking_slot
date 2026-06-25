@@ -161,6 +161,30 @@ class AuthServiceTest {
     }
 
     @Test
+    void requireRoleUsesCurrentDatabaseRoleAndRejectsNonAdmin() {
+        String email = "customer@example.com";
+        UserAccount user = activeUser(email, "Safe-password-123!");
+        when(userAccountRepository.findByEmailIgnoreCase(email)).thenReturn(Optional.of(user));
+        when(userAccountRepository.findById(user.getId())).thenReturn(Optional.of(user));
+
+        authService.login(new AuthLoginRequest(email, "Safe-password-123!"));
+        AuthLoginResponse login = authService.verifyOtp(
+                new VerifyOtpRequest(email, authService.getPendingOtpForTesting(email))
+        );
+
+        assertThrows(
+                ForbiddenException.class,
+                () -> authService.requireRole("Bearer " + login.accessToken(), "ADMIN")
+        );
+
+        user.setRole("ADMIN");
+        assertEquals(
+                user,
+                authService.requireRole("Bearer " + login.accessToken(), "ADMIN")
+        );
+    }
+
+    @Test
     void changePasswordUpdatesPasswordWhenAuthenticatedAndOtpVerified() {
         String email = "customer@example.com";
         UserAccount user = activeUser(email, "Old-password-123!");

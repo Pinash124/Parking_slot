@@ -200,6 +200,14 @@ CREATE TABLE AuditLogs(
     FOREIGN KEY(user_id) REFERENCES Users(user_id)
 );
 
+CREATE TABLE SystemConfigs(
+    config_id BIGINT IDENTITY(1,1) PRIMARY KEY,
+    config_key VARCHAR(150) NOT NULL UNIQUE,
+    config_value NVARCHAR(MAX),
+    description NVARCHAR(500),
+    updated_at DATETIME2 DEFAULT GETDATE()
+);
+
 CREATE TABLE LicensePlateScans(
     scan_id BIGINT IDENTITY(1,1) PRIMARY KEY,
     session_id BIGINT NOT NULL,
@@ -215,4 +223,4 @@ ADD role VARCHAR(20) NOT NULL DEFAULT 'CUSTOMER';
 
 ALTER TABLE Users
 ADD CONSTRAINT CK_Users_Role
-CHECK (role IN ('ADMIN', 'PARKING_MANAGER', 'STAFF', 'CUSTOMER'));
+CHECK (role IN ('ADMIN', 'MANAGER', 'STAFF', 'CUSTOMER'));

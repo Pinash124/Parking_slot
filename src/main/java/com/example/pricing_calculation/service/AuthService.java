@@ -248,6 +248,45 @@ public class AuthService {
         return new AuthLogoutResponse("Logout completed");
     }
 
+    @Transactional(readOnly = true)
+    public UserAccount requireUser(String authorizationHeader) {
+        String token = extractBearerToken(authorizationHeader);
+        AuthSession session = sessions.get(hashToken(token));
+        if (session == null || session.expiresAt().isBefore(LocalDateTime.now())) {
+            if (session != null) {
+                sessions.remove(hashToken(token));
+            }
+            throw new UnauthorizedException("Invalid or expired access token");
+        }
+
+        UserAccount user = userAccountRepository.findById(session.userId())
+                .orElseThrow(() -> new UnauthorizedException("User no longer exists"));
+        if (!"ACTIVE".equalsIgnoreCase(user.getStatus())) {
+            revokeSessions(user.getId());
+            throw new UnauthorizedException("User account is not active");
+        }
+        return user;
+    }
+
+    @Transactional(readOnly = true)
+    public UserAccount requireRole(String authorizationHeader, String requiredRole) {
+        UserAccount user = requireUser(authorizationHeader);
+        if (user.getRole() == null || !requiredRole.equalsIgnoreCase(user.getRole())) {
+            throw new ForbiddenException(requiredRole + " role is required");
+        }
+        return user;
+    }
+
+    public void revokeSessions(Long userId) {
+        if (userId != null) {
+            sessions.entrySet().removeIf(entry -> userId.equals(entry.getValue().userId()));
+        }
+    }
+
+    public void validatePasswordForAdministration(String password) {
+        validatePasswordStrength(password);
+    }
+
     private void validateRegistration(AuthRegistrationRequest request) {
         if (request == null) {
             throw new BadRequestException("Registration request is required");

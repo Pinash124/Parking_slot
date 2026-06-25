@@ -10,4 +10,4 @@ alter table users
 
 alter table users
     add constraint chk_users_role
-    check (role in ('MANAGER', 'STAFF', 'CUSTOMER'));
+    check (role in ('ADMIN', 'MANAGER', 'STAFF', 'CUSTOMER'));
