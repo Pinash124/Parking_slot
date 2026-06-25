@@ -15,6 +15,15 @@ Các chức năng hiện đã có trong repository:
 - Lưu, tìm kiếm và tổng hợp lịch sử giao dịch.
 - Phát sự kiện realtime bằng STOMP WebSocket.
 - Dashboard tổng hợp reservation, session, slot, payment, doanh thu và transaction.
+- Role `PARKING_USER` cho Parking User / Driver, kèm API tra cứu quyền/capability.
+- API xem thông tin bãi xe đầy đủ: thời gian hoạt động, quy định gửi xe, loại xe hỗ trợ, bảng giá và sức chứa.
+- API xem slot còn trống theo khu vực hoặc loại xe dành cho user.
+- API gửi phản hồi/sự cố: mất vé, sai phí, khó tìm xe, slot bị chiếm hoặc vấn đề khác trong bãi.
+- Ghi audit log cho thao tác quan trọng và cung cấp API tra cứu audit log cho Manager/Administrator.
+- Phân quyền truy cập theo Bearer token và role `PARKING_USER`, `PARKING_STAFF`, `PARKING_MANAGER`, `ADMINISTRATOR`.
+- Theo dõi SLA phản hồi 3 giây bằng response header `X-Response-Time-Ms`, `X-Response-SLA-Ms`, `X-Response-SLA`.
+- Hỗ trợ xử lý nhiều làn xe đồng thời ở mức nghiệp vụ bằng `laneCode` trong API license plate scan và cấu hình lane vận hành.
+- API trạng thái backup/recovery và backup checkpoint định kỳ.
 - Unit test, functional test, smoke bot và concurrent load test cho payment flow.
 
 ## 2. Công nghệ và môi trường
@@ -25,21 +34,19 @@ Các chức năng hiện đã có trong repository:
 | Framework | Spring Boot 4.1.0 |
 | REST API | Spring Web MVC |
 | Persistence | Spring Data JPA / Hibernate |
-| Database | Microsoft SQL Server hoặc MySQL / database `SmartParking` |
+| Database | H2 local mặc định; Microsoft SQL Server hoặc MySQL / database `SmartParking` khi bật profile |
 | Realtime | STOMP WebSocket |
 | Build | Maven Wrapper |
 | Test | JUnit 5, Mockito, Spring Boot Test, Java HTTP Client |
 
-Các dependency và plugin được khai báo tại [`pom.xml`](pom.xml). SQL Server là profile mặc định; MySQL được hỗ trợ qua profile `mysql`.
+Các dependency và plugin được khai báo tại [`pom.xml`](pom.xml). H2 là database mặc định để chạy demo không cần cài SQL Server; SQL Server và MySQL được hỗ trợ qua profile `sqlserver` và `mysql`.
 
 ## 3. Khởi động nhanh
 
 ### Điều kiện
 
 - Java 17 trở lên.
-- SQL Server lắng nghe tại `localhost:1433`.
-- Database `SmartParking` đã được khởi tạo.
-- Tài khoản SQL hiện tại: `sa`.
+- SQL Server chỉ cần khi chạy profile `sqlserver`.
 
 ### Chạy ứng dụng
 
@@ -48,7 +55,21 @@ Các dependency và plugin được khai báo tại [`pom.xml`](pom.xml). SQL Se
 .\mvnw.cmd spring-boot:run
 ```
 
-Server mặc định chạy tại `http://localhost:8080`. Endpoint kiểm tra đơn giản là `GET /hello`, được xử lý bởi [`HelloController.java`](src/main/java/com/example/pricing_calculation/HelloController.java).
+Server mặc định chạy tại `http://localhost:8080`. Endpoint kiểm tra đơn giản là `GET /hello`, được xử lý bởi [`HelloController.java`](src/main/java/com/example/pricing_calculation/HelloController.java). Mặc định app dùng H2 in-memory nên lệnh `.\mvnw.cmd spring-boot:run` chạy được ngay cả khi chưa có SQL Server/database `SmartParking`.
+
+Nếu muốn chỉ rõ profile local bằng H2 in-memory:
+
+```powershell
+.\mvnw.cmd spring-boot:run "-Dspring-boot.run.profiles=local"
+```
+
+Profile local dùng database tạm trong RAM, tự tạo schema khi app khởi động và xóa dữ liệu khi tắt app. H2 console có tại [http://localhost:8080/h2-console](http://localhost:8080/h2-console), JDBC URL là `jdbc:h2:mem:smartparking-local`.
+
+Nếu muốn chạy SQL Server thật:
+
+```powershell
+.\mvnw.cmd spring-boot:run "-Dspring-boot.run.profiles=sqlserver"
+```
 
 ### Swagger / OpenAPI
 
@@ -72,7 +93,7 @@ Metadata OpenAPI và Bearer scheme nằm tại [`OpenApiConfig.java`](src/main/j
 .\mvnw.cmd "-Dtest=SwaggerDocumentationTest" test
 ```
 
-Kết quả kiểm tra gần nhất: `2` test, `0` failure, `0` error, `BUILD SUCCESS`.
+Kết quả kiểm tra gần nhất: `3` test, `0` failure, `0` error, `BUILD SUCCESS`.
 
 ### Đóng gói
 
@@ -116,6 +137,28 @@ java -jar target\pricing-calculation-0.0.1-SNAPSHOT.jar --spring.profiles.active
 
 Cấu hình profile nằm tại [`application-mysql.properties`](src/main/resources/application-mysql.properties). Có thể ghi đè toàn bộ JDBC URL bằng biến `MYSQL_URL`.
 
+### Lỗi thường gặp khi chạy app
+
+Nếu chạy profile SQL Server và gặp lỗi:
+
+```text
+Cannot open database "SmartParking" requested by the login. The login failed.
+```
+
+nghĩa là SQL Server đang chạy nhưng database `SmartParking` chưa tồn tại, chưa attach, hoặc tài khoản `sa` không có quyền mở database đó. Có 2 cách xử lý:
+
+1. Chạy bằng database local H2:
+
+```powershell
+.\mvnw.cmd spring-boot:run
+```
+
+2. Hoặc tạo/attach database thật bằng script [`database/SmartParkingSystem.sql`](database/SmartParkingSystem.sql), kiểm tra lại username/password trong [`application-sqlserver.properties`](src/main/resources/application-sqlserver.properties), rồi chạy:
+
+```powershell
+.\mvnw.cmd spring-boot:run "-Dspring-boot.run.profiles=sqlserver"
+```
+
 ### Tạo ZIP để gửi đi
 
 Không zip trực tiếp MDF/LDF khi SQL Server đang chạy. Dùng script sau để tạo gói portable bên ngoài project:
@@ -156,11 +199,12 @@ Lỗi nghiệp vụ được ném bằng [`BadRequestException.java`](src/main/j
 - Database logic: `SmartParking` trên SQL Server Express tại `localhost:1433`.
 - File dữ liệu: `D:\New folder\Parking Payment System\database\SmartParking.mdf`.
 - File transaction log: `D:\New folder\Parking Payment System\database\SmartParking_log.ldf`.
-- Cấu hình kết nối: [`application.properties`](src/main/resources/application.properties).
+- Cấu hình mặc định H2: [`application.properties`](src/main/resources/application.properties).
+- Cấu hình SQL Server: [`application-sqlserver.properties`](src/main/resources/application-sqlserver.properties).
 
-`spring.jpa.hibernate.ddl-auto=none`, vì vậy Java không tự tạo hoặc thay đổi schema. Khi database chưa tồn tại, chạy `SmartParkingSystem.sql` một lần trong SSMS 2022 trước khi khởi động backend.
+Khi chạy profile `sqlserver`, `spring.jpa.hibernate.ddl-auto=none`, vì vậy Java không tự tạo hoặc thay đổi schema. Khi database chưa tồn tại, chạy `SmartParkingSystem.sql` một lần trong SSMS 2022 trước khi khởi động backend.
 
-Mật khẩu SQL hiện đang nằm trực tiếp trong `application.properties`. Khi triển khai thật, cần chuyển username/password sang environment variables hoặc secret manager.
+Mật khẩu SQL hiện đang nằm trực tiếp trong `application-sqlserver.properties`. Khi triển khai thật, cần chuyển username/password sang environment variables hoặc secret manager.
 
 ### Entity và bảng được sử dụng
 
@@ -178,8 +222,12 @@ Mật khẩu SQL hiện đang nằm trực tiếp trong `application.properties`
 | `ParkingSession` | `ParkingSessions` | Liên kết reservation, vehicle và slot | [`ParkingSession.java`](src/main/java/com/example/pricing_calculation/domain/ParkingSession.java) |
 | `Payment` | `Payments` | Thuộc một parking session | [`Payment.java`](src/main/java/com/example/pricing_calculation/domain/Payment.java) |
 | `TransactionHistory` | `Transactions` | Thuộc một payment, lưu gateway/reference/status | [`TransactionHistory.java`](src/main/java/com/example/pricing_calculation/domain/TransactionHistory.java) |
+| `Feedback` | `Feedbacks` | Phản hồi của user theo parking session | [`Feedback.java`](src/main/java/com/example/pricing_calculation/domain/Feedback.java) |
+| `IncidentReport` | `IncidentReports` | Sự cố phát sinh từ feedback hoặc vận hành | [`IncidentReport.java`](src/main/java/com/example/pricing_calculation/domain/IncidentReport.java) |
+| `AuditLog` | `AuditLogs` | Ghi thao tác quan trọng theo user/role | [`AuditLog.java`](src/main/java/com/example/pricing_calculation/domain/AuditLog.java) |
+| `LicensePlateScan` | `LicensePlateScans` | Lưu scan biển số theo parking session và lane | [`LicensePlateScan.java`](src/main/java/com/example/pricing_calculation/domain/LicensePlateScan.java) |
 
-Script SQL còn tạo `Gates`, `Violations`, `IncidentReports`, `Feedbacks`, `Notifications`, `AuditLogs` và `LicensePlateScans`. Repository hiện chưa có entity/API cho các bảng này.
+Script SQL còn tạo `Gates`, `Violations` và `Notifications`. Các bảng `IncidentReports`, `Feedbacks`, `AuditLogs` và `LicensePlateScans` hiện đã có entity/repository/API tương ứng.
 
 ## 6. Chức năng hệ thống
 
@@ -189,9 +237,11 @@ Backend cung cấp đầy đủ API đăng ký, đăng nhập và đăng xuất.
 
 | API | Chức năng | Kết quả chính |
 |---|---|---|
-| `POST /api/auth/register` | Tạo tài khoản `CUSTOMER` đang hoạt động | HTTP 201 và thông tin tài khoản, không trả mật khẩu |
+| `POST /api/auth/register` | Tạo tài khoản `PARKING_USER` đang hoạt động | HTTP 201 và thông tin tài khoản, không trả mật khẩu |
 | `POST /api/auth/login` | Kiểm tra email/mật khẩu | Bearer access token có hiệu lực 8 giờ |
 | `POST /api/auth/logout` | Thu hồi access token hiện tại | Xóa phiên đăng nhập phía backend |
+| `GET /api/roles` | Xem danh sách role | Danh sách role và quyền/capability |
+| `GET /api/roles/parking-user` | Xem role Parking User / Driver | Mô tả role `PARKING_USER` |
 
 Ví dụ đăng ký:
 
@@ -227,9 +277,106 @@ Invoke-RestMethod -Method Post `
     -Headers @{ Authorization = "Bearer $($login.accessToken)" }
 ```
 
-Email được chuẩn hóa về chữ thường; password dài 8–128 ký tự và chỉ được lưu dưới dạng PBKDF2-SHA256 kèm salt. Backend tự gán `status=ACTIVE` và `role=CUSTOMER`, nên client không thể tự cấp quyền cho mình. Phiên đăng nhập hiện được giữ trong bộ nhớ và sẽ bị xóa khi ứng dụng khởi động lại.
+Email được chuẩn hóa về chữ thường; password dài 8–128 ký tự và chỉ được lưu dưới dạng PBKDF2-SHA256 kèm salt. Backend tự gán `status=ACTIVE` và `role=PARKING_USER`, nên client không thể tự cấp quyền cho mình. Phiên đăng nhập hiện được giữ trong bộ nhớ và sẽ bị xóa khi ứng dụng khởi động lại.
 
-### 6.1 Reservation
+### Role Parking User / Driver
+
+Role mặc định của tài khoản đăng ký mới là `PARKING_USER`, tên hiển thị `Parking User / Driver`. Role này đại diện cho người gửi xe/lái xe trong hệ thống.
+
+Các quyền/capability chính:
+
+- Xem thông tin bãi xe: thời gian hoạt động, loại xe được phục vụ, bảng giá, quy định gửi xe và số slot trống.
+- Gửi xe theo lượt: nhận thẻ xe hoặc mã gửi xe khi vào bãi và thanh toán phí khi ra.
+- Đặt chỗ trước theo loại phương tiện, thời gian gửi và khu vực còn trống nếu hệ thống hỗ trợ.
+- Theo dõi lượt gửi xe hiện tại: giờ vào, loại xe, khu vực gửi và phí tạm tính.
+- Thanh toán phí gửi xe và dịch vụ bổ sung nếu có.
+- Gửi phản hồi về mất thẻ xe, sai phí, khó tìm xe, slot bị chiếm hoặc vấn đề trong bãi xe.
+
+File xử lý role:
+
+- [`UserRole.java`](src/main/java/com/example/pricing_calculation/domain/UserRole.java) định nghĩa role `PARKING_USER` và danh sách capability.
+- [`UserRoleController.java`](src/main/java/com/example/pricing_calculation/web/UserRoleController.java) cung cấp API `GET /api/roles` và `GET /api/roles/parking-user`.
+- [`UserRoleResponse.java`](src/main/java/com/example/pricing_calculation/dto/UserRoleResponse.java) là response DTO cho role.
+
+Lệnh test riêng role user:
+
+```powershell
+.\mvnw.cmd "-Dtest=UserRoleTest" test
+```
+
+Lệnh test nhóm auth + role + Swagger:
+
+```powershell
+.\mvnw.cmd "-Dtest=AuthServiceTest,AuthFlowBotTest,SwaggerDocumentationTest,UserRoleTest" test
+```
+
+### 6.1 Parking info cho user
+
+Backend cung cấp API đọc thông tin bãi xe đầy đủ, không cần frontend riêng:
+
+| API | Chức năng |
+|---|---|
+| `GET /api/parking-info` | Trả tên/địa chỉ bãi xe, thời gian hoạt động, quy định gửi xe, loại xe hỗ trợ, bảng giá và tổng hợp slot |
+| `GET /api/parking-info/available-slots?zoneId=&vehicleTypeId=` | Trả danh sách slot `AVAILABLE`, có thể lọc theo khu vực hoặc loại xe |
+
+Thông tin quy định gửi xe gồm các ràng buộc chính: mỗi slot chỉ chứa một xe, xe ra phải thanh toán, slot đặt trước không được xe khác sử dụng, và sự cố như mất vé/sai phí/slot bị chiếm cần gửi feedback.
+
+### 6.2 Feedback, incident và phản hồi người dùng
+
+Người dùng role `PARKING_USER` có thể gửi phản hồi; hệ thống đồng thời tạo `IncidentReport` để nhân viên/manager xử lý.
+
+| API | Role | Chức năng |
+|---|---|---|
+| `POST /api/feedback` | `PARKING_USER` | Gửi phản hồi theo `feedbackType`: `LOST_TICKET`, `WRONG_FEE`, `HARD_TO_FIND_VEHICLE`, `OCCUPIED_SLOT`, `OTHER` |
+| `GET /api/feedback/me` | `PARKING_USER` | Xem phản hồi của chính user |
+| `GET /api/feedback` | `PARKING_STAFF`, `PARKING_MANAGER`, `ADMINISTRATOR` | Xem toàn bộ phản hồi |
+
+File xử lý chính:
+
+- [`Feedback.java`](src/main/java/com/example/pricing_calculation/domain/Feedback.java) ánh xạ bảng `Feedbacks`.
+- [`IncidentReport.java`](src/main/java/com/example/pricing_calculation/domain/IncidentReport.java) ánh xạ bảng `IncidentReports`.
+- [`FeedbackController.java`](src/main/java/com/example/pricing_calculation/web/FeedbackController.java) cung cấp API phản hồi.
+- [`FeedbackService.java`](src/main/java/com/example/pricing_calculation/service/FeedbackService.java) kiểm tra dữ liệu, lưu feedback, tạo incident và ghi audit log.
+
+### 6.3 Audit log và phân quyền thật theo role
+
+Các API nhạy cảm dùng Bearer token và kiểm tra role thật trong backend bằng [`AuthService.java`](src/main/java/com/example/pricing_calculation/service/AuthService.java).
+
+| API | Role | Chức năng |
+|---|---|---|
+| `GET /api/audit-logs/recent?limit=50` | `PARKING_MANAGER`, `ADMINISTRATOR` | Xem audit log gần nhất |
+| `POST /api/system/backups` | `PARKING_MANAGER`, `ADMINISTRATOR` | Tạo backup checkpoint thủ công |
+| `POST /api/license-plate-scans` | `PARKING_STAFF`, `PARKING_MANAGER`, `ADMINISTRATOR` | Ghi nhận scan biển số theo làn xe |
+
+Role hiện hỗ trợ:
+
+- `PARKING_USER`: người gửi xe/lái xe.
+- `PARKING_STAFF`: nhân viên xử lý xe vào/ra và scan biển số.
+- `PARKING_MANAGER`: quản lý vận hành, feedback, audit và backup.
+- `ADMINISTRATOR`: quản trị hệ thống.
+
+### 6.4 SLA 3 giây, multi-lane, backup và recovery
+
+Hệ thống có response-time filter áp dụng cho toàn bộ API. Mỗi response có header:
+
+- `X-Response-Time-Ms`: thời gian xử lý request.
+- `X-Response-SLA-Ms`: mục tiêu SLA, mặc định `3000`.
+- `X-Response-SLA`: `PASS` hoặc `WARN`.
+
+API vận hành:
+
+| API | Chức năng |
+|---|---|
+| `GET /api/system/operations` | Trả SLA 3 giây, trạng thái multi-lane, backup, recovery, audit log và role access |
+| `GET /api/system/recovery` | Kiểm tra kết nối database và trạng thái auto reconnect/recovery |
+| `GET /api/system/backups/latest` | Xem backup checkpoint gần nhất |
+| `POST /api/system/backups` | Tạo backup checkpoint thủ công, yêu cầu Manager/Admin |
+| `POST /api/license-plate-scans` | Ghi nhận scan biển số theo `laneCode`, hỗ trợ nhiều làn xe đồng thời |
+| `GET /api/license-plate-scans/sessions/{sessionId}` | Xem scan biển số của một parking session |
+
+Backup định kỳ tạo checkpoint trong thư mục `target/backups` theo cấu hình `parking.backup.fixed-delay-ms`. Đây là checkpoint vận hành để chứng minh lịch backup và audit; khi triển khai production với SQL Server/MySQL vẫn nên dùng thêm công cụ dump/backup database chính thức.
+
+### 6.5 Reservation
 
 | API | Chức năng |
 |---|---|
@@ -250,7 +397,7 @@ File xử lý và liên kết:
 - `ReservationCreateRequest`, `ReservationResponse`, `PageResponse` là DTO request/response.
 - `RealtimeEventService` phát sự kiện reservation tới `/topic/reservations`.
 
-### 6.2 Pricing calculation
+### 6.6 Pricing calculation
 
 | API | Chức năng |
 |---|---|
@@ -274,7 +421,7 @@ Quy tắc chính:
 - `lostTicket=true` cộng `lostTicketFee`.
 - Overtime làm tròn lên theo giờ rồi nhân `overtimeFee`.
 
-### 6.3 Parking session
+### 6.7 Parking session
 
 | API | Chức năng |
 |---|---|
@@ -291,7 +438,7 @@ File xử lý và liên kết:
 - `SessionCheckInRequest`, `SessionCheckoutRequest`, `ParkingSessionResponse` là DTO.
 - Sự kiện session/slot được phát tới `/topic/parking-sessions` và `/topic/parking-slots`.
 
-### 6.4 Payment cơ bản
+### 6.8 Payment cơ bản
 
 | API | Chức năng |
 |---|---|
@@ -308,7 +455,7 @@ File xử lý và liên kết:
 - `PaymentCreateRequest`, `PaymentStatusUpdateRequest`, `PaymentResponse` là DTO.
 - Payment event được phát tới `/topic/payments`.
 
-### 6.5 Payment gateway
+### 6.9 Payment gateway
 
 | API | Chức năng |
 |---|---|
@@ -326,7 +473,7 @@ File xử lý và liên kết:
 
 MoMo và VNPAY hiện là sandbox/mock URL. Chưa có merchant key, HMAC signature, IPN verification hoặc API thật của nhà cung cấp.
 
-### 6.6 Payment checkout và barrier
+### 6.10 Payment checkout và barrier
 
 | API | Chức năng |
 |---|---|
@@ -344,7 +491,7 @@ File xử lý và liên kết:
 
 Backend chỉ trả quyết định `openBarrier`; chưa tích hợp thiết bị/barrier API thật.
 
-### 6.7 Transaction history
+### 6.11 Transaction history
 
 | API | Chức năng |
 |---|---|
@@ -366,7 +513,7 @@ Filter hỗ trợ `keyword`, `type`, `status`, `paymentMethod`, `licensePlate`, 
 - `TransactionHistory` liên kết tới `Payment`, sau đó lần theo `ParkingSession`, `Vehicle`, `Reservation` và `UserAccount` để dựng response.
 - `TransactionStatus`, `TransactionType`, `PaymentMethod` định nghĩa các enum hỗ trợ filter.
 
-### 6.8 Realtime WebSocket
+### 6.12 Realtime WebSocket
 
 - STOMP endpoint: `/ws`.
 - Broker prefix: `/topic`.
@@ -377,7 +524,7 @@ Filter hỗ trợ `keyword`, `type`, `status`, `paymentMethod`, `licensePlate`, 
 
 `setAllowedOriginPatterns("*")` phù hợp môi trường phát triển nhưng cần giới hạn domain khi triển khai production.
 
-### 6.9 Dashboard
+### 6.13 Dashboard
 
 | API | Chức năng |
 |---|---|
@@ -395,7 +542,7 @@ Response gồm tổng/pending/approved reservations, active sessions, available/
 
 | Bước | API | Kết quả bắt buộc |
 |---|---|---|
-| Đăng ký | `POST /api/auth/register` | HTTP 201, `ACTIVE`, role `CUSTOMER`, response không lộ password |
+| Đăng ký | `POST /api/auth/register` | HTTP 201, `ACTIVE`, role `PARKING_USER`, response không lộ password |
 | Đăng nhập sai | `POST /api/auth/login` | HTTP 401 và không cấp token |
 | Đăng nhập đúng | `POST /api/auth/login` | HTTP 200, trả Bearer token và thời gian hết hạn |
 | Đăng xuất | `POST /api/auth/logout` | HTTP 200, token bị thu hồi |
@@ -409,15 +556,15 @@ Chạy riêng bot auth:
 .\mvnw.cmd "-Dtest=AuthFlowBotTest" test
 ```
 
-Log chạy thực tế gần nhất ngày `2026-06-18`:
+Log chạy thực tế gần nhất ngày `2026-06-23`:
 
 ```text
-[auth-bot] result=PASS durationMs=1384 register=201 invalidLogin=401 login=200 logout=200 reusedToken=401
+[auth-bot] result=PASS durationMs=766 register=201 invalidLogin=401 login=200 logout=200 reusedToken=401
 Tests run: 1, Failures: 0, Errors: 0, Skipped: 0
 BUILD SUCCESS
 ```
 
-Toàn bộ test suite sau khi thêm bot và Swagger: `24` test, `0` failure, `0` error, `2` payment smoke/load test được skip theo cấu hình mặc định; kết quả `BUILD SUCCESS`.
+Toàn bộ test suite sau khi thêm role Parking User / Driver, bot auth và Swagger: `27` test, `0` failure, `0` error, `2` payment smoke/load test được skip theo cấu hình mặc định; kết quả `BUILD SUCCESS`.
 
 Các unit test auth bổ sung nằm tại [`AuthServiceTest.java`](src/test/java/com/example/pricing_calculation/service/AuthServiceTest.java), kiểm tra chuẩn hóa dữ liệu, hash mật khẩu, email trùng, credential sai và thu hồi token.
 
