@@ -7,11 +7,16 @@ import org.springframework.data.repository.query.Param;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 public interface ParkingSessionRepository extends JpaRepository<ParkingSession, Long> {
     List<ParkingSession> findByStatus(String status);
     List<ParkingSession> findByVehicleId(Long vehicleId);
+    Optional<ParkingSession> findFirstByTicketCodeOrderByEntryTimeDesc(String ticketCode);
+    boolean existsBySlotIdAndStatusIn(Long slotId, Collection<String> statuses);
+    boolean existsByVehicleIdAndStatusIn(Long vehicleId, Collection<String> statuses);
 
     long countByEntryTimeBetween(LocalDateTime from, LocalDateTime to);
 

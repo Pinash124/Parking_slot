@@ -1,6 +1,7 @@
 package com.example.pricing_calculation.web;
 
 import com.example.pricing_calculation.service.BadRequestException;
+import com.example.pricing_calculation.service.ForbiddenException;
 import com.example.pricing_calculation.service.ResourceNotFoundException;
 import com.example.pricing_calculation.service.UnauthorizedException;
 import java.time.LocalDateTime;
@@ -26,6 +27,11 @@ public class ApiExceptionHandler {
     @ExceptionHandler(UnauthorizedException.class)
     public ResponseEntity<Map<String, Object>> handleUnauthorized(UnauthorizedException ex) {
         return error(HttpStatus.UNAUTHORIZED, ex.getMessage());
+    }
+
+    @ExceptionHandler(ForbiddenException.class)
+    public ResponseEntity<Map<String, Object>> handleForbidden(ForbiddenException ex) {
+        return error(HttpStatus.FORBIDDEN, ex.getMessage());
     }
 
     @ExceptionHandler({

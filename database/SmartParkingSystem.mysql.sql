@@ -8,6 +8,7 @@ SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
 DROP TABLE IF EXISTS LicensePlateScans;
+DROP TABLE IF EXISTS SystemConfigs;
 DROP TABLE IF EXISTS AuditLogs;
 DROP TABLE IF EXISTS Notifications;
 DROP TABLE IF EXISTS Feedbacks;
@@ -40,7 +41,7 @@ CREATE TABLE Users (
     updated_at DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6),
     role VARCHAR(20) NOT NULL DEFAULT 'CUSTOMER',
     CONSTRAINT CK_Users_Role
-        CHECK (role IN ('ADMIN', 'PARKING_MANAGER', 'STAFF', 'CUSTOMER'))
+        CHECK (role IN ('ADMIN', 'MANAGER', 'STAFF', 'CUSTOMER'))
 ) ENGINE=InnoDB;
 
 CREATE TABLE VehicleTypes (
@@ -254,6 +255,14 @@ CREATE TABLE AuditLogs (
     created_at DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6),
     CONSTRAINT FK_AuditLogs_Users
         FOREIGN KEY (user_id) REFERENCES Users(user_id)
+) ENGINE=InnoDB;
+
+CREATE TABLE SystemConfigs (
+    config_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    config_key VARCHAR(150) NOT NULL UNIQUE,
+    config_value TEXT,
+    description VARCHAR(500),
+    updated_at DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6)
 ) ENGINE=InnoDB;
 
 CREATE TABLE LicensePlateScans (
