@@ -69,19 +69,19 @@ public class AuthController {
     }
 
     @PostMapping("/change-password")
-    @Operation(summary = "Thay đổi mật khẩu", description = "Đổi mật khẩu cho người dùng hiện tại (yêu cầu xác thực Bearer token).")
+    @Operation(summary = "Thay đổi mật khẩu (Gửi OTP)", description = "Yêu cầu đổi mật khẩu cho người dùng hiện tại (yêu cầu xác thực Bearer token). Gửi mã OTP xác nhận qua email.")
     @SecurityRequirement(name = "bearerAuth")
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Đổi mật khẩu thành công"),
+            @ApiResponse(responseCode = "200", description = "Yêu cầu đổi mật khẩu thành công, OTP đã được gửi",
+                    content = @Content(schema = @Schema(implementation = OtpResponse.class))),
             @ApiResponse(responseCode = "400", description = "Mật khẩu cũ không chính xác hoặc mật khẩu mới không hợp lệ"),
             @ApiResponse(responseCode = "401", description = "Token không hợp lệ hoặc đã hết hạn")
     })
-    public ResponseEntity<Map<String, String>> changePassword(
+    public ResponseEntity<OtpResponse> changePassword(
             @Parameter(hidden = true)
             @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
             @RequestBody ChangePasswordRequest request) {
-        authService.changePassword(authorizationHeader, request);
-        return ResponseEntity.ok(Map.of("message", "Thay đổi mật khẩu thành công"));
+        return ResponseEntity.ok(authService.changePassword(authorizationHeader, request));
     }
 
     @PostMapping("/logout")

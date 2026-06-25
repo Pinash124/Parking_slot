@@ -166,6 +166,14 @@ public class AuthService {
             user.setStatus("ACTIVE");
             user.setRole("CUSTOMER");
             user = userAccountRepository.save(user);
+        } else if ("CHANGE_PASSWORD".equals(entry.type())) {
+            user = userAccountRepository.findById(entry.userId())
+                    .orElseThrow(() -> new UnauthorizedException("User no longer exists"));
+            user.setPasswordHash(entry.passwordHash());
+            UserAccount saved = userAccountRepository.save(user);
+            if (saved != null) {
+                user = saved;
+            }
         } else {
             user = userAccountRepository.findById(entry.userId())
                     .orElseThrow(() -> new UnauthorizedException("User no longer exists"));
@@ -190,7 +198,7 @@ public class AuthService {
     }
 
     @Transactional
-    public void changePassword(String authorizationHeader, ChangePasswordRequest request) {
+    public OtpResponse changePassword(String authorizationHeader, ChangePasswordRequest request) {
         if (request == null || request.oldPassword() == null || request.newPassword() == null) {
             throw new BadRequestException("Old and new passwords are required");
         }
@@ -209,8 +217,26 @@ public class AuthService {
             throw new BadRequestException("Incorrect old password");
         }
 
-        user.setPasswordHash(passwordHashService.hash(request.newPassword()));
-        userAccountRepository.save(user);
+        String email = normalizeEmail(user.getEmail());
+        String otp = generateOtp();
+        LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(5);
+
+        otpStorage.put(email, new OtpCacheEntry(
+                "CHANGE_PASSWORD",
+                email,
+                otp,
+                expiresAt,
+                null,
+                null,
+                passwordHashService.hash(request.newPassword()),
+                user.getId()
+        ));
+
+        String subject = "ParkingSmart - Confirm Password Change OTP";
+        String body = "Your password change OTP code is: " + otp + "\nIt will expire in 5 minutes.";
+        sendEmail(email, subject, body, otp);
+
+        return new OtpResponse(email, "OTP sent to your email. Please verify to complete password change.");
     }
 
     public AuthLogoutResponse logout(String authorizationHeader) {
