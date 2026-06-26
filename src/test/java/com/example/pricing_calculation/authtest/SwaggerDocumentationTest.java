@@ -48,6 +48,8 @@ class SwaggerDocumentationTest {
         assertFalse(document.path("paths").path("/api/auth/register").isMissingNode());
         assertFalse(document.path("paths").path("/api/auth/login").isMissingNode());
         assertFalse(document.path("paths").path("/api/auth/logout").isMissingNode());
+        assertFalse(document.path("paths").path("/api/roles").isMissingNode());
+        assertFalse(document.path("paths").path("/api/roles/parking-user").isMissingNode());
         assertFalse(document.path("paths").path("/api/reservations").isMissingNode());
         assertFalse(document.path("paths").path("/api/dashboard/overview").isMissingNode());
         assertEquals(
@@ -63,6 +65,18 @@ class SwaggerDocumentationTest {
 
         assertEquals(200, response.statusCode());
         assertTrue(response.body().toLowerCase().contains("swagger ui"));
+    }
+
+    @Test
+    void parkingUserRoleEndpointDocumentsDriverCapabilities() throws Exception {
+        HttpResponse<String> response = get("/api/roles/parking-user");
+
+        assertEquals(200, response.statusCode());
+        JsonNode role = objectMapper.readTree(response.body());
+        assertEquals("PARKING_USER", role.path("code").stringValue(""));
+        assertEquals("Parking User / Driver", role.path("displayName").stringValue(""));
+        assertTrue(role.path("capabilities").isArray());
+        assertTrue(role.path("capabilities").size() >= 6);
     }
 
     private HttpResponse<String> get(String path) throws Exception {

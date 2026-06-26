@@ -12,6 +12,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.example.pricing_calculation.domain.UserAccount;
+import com.example.pricing_calculation.domain.UserRole;
 import com.example.pricing_calculation.dto.AuthLoginRequest;
 import com.example.pricing_calculation.dto.AuthLoginResponse;
 import com.example.pricing_calculation.dto.AuthRegistrationRequest;
@@ -55,7 +56,7 @@ class AuthServiceTest {
         assertEquals("customer@example.com", savedUser.getEmail());
         assertEquals("0901234567", savedUser.getPhone());
         assertEquals("ACTIVE", savedUser.getStatus());
-        assertEquals("CUSTOMER", savedUser.getRole());
+        assertEquals(UserRole.PARKING_USER.code(), savedUser.getRole());
         assertNotEquals("safe-password-123", savedUser.getPasswordHash());
         assertFalse(savedUser.getPasswordHash().isBlank());
         assertEquals("Registration completed", response.message());
@@ -89,7 +90,7 @@ class AuthServiceTest {
         assertFalse(login.accessToken().isBlank());
         assertEquals("Bearer", login.tokenType());
         assertEquals("customer@example.com", login.email());
-        assertEquals("CUSTOMER", login.role());
+        assertEquals(UserRole.PARKING_USER.code(), login.role());
         assertEquals("Logout completed", authService.logout("Bearer " + login.accessToken()).message());
         assertThrows(UnauthorizedException.class,
                 () -> authService.logout("Bearer " + login.accessToken()));
@@ -120,7 +121,7 @@ class AuthServiceTest {
         user.setPhone("0901234567");
         user.setPasswordHash(passwordHashService.hash(password));
         user.setStatus("ACTIVE");
-        user.setRole("CUSTOMER");
+        user.setRole(UserRole.PARKING_USER.code());
         return user;
     }
 }

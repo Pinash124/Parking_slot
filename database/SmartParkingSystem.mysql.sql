@@ -40,7 +40,7 @@ CREATE TABLE Users (
     updated_at DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6),
     role VARCHAR(20) NOT NULL DEFAULT 'CUSTOMER',
     CONSTRAINT CK_Users_Role
-        CHECK (role IN ('ADMIN', 'PARKING_MANAGER', 'STAFF', 'CUSTOMER'))
+        CHECK (role IN ('ADMIN', 'ADMINISTRATOR', 'PARKING_MANAGER', 'PARKING_STAFF', 'STAFF', 'CUSTOMER', 'PARKING_USER'))
 ) ENGINE=InnoDB;
 
 CREATE TABLE VehicleTypes (
@@ -225,8 +225,10 @@ CREATE TABLE Feedbacks (
     feedback_id BIGINT AUTO_INCREMENT PRIMARY KEY,
     user_id BIGINT NOT NULL,
     session_id BIGINT NOT NULL,
+    feedback_type VARCHAR(50),
     rating INT,
     content LONGTEXT,
+    status VARCHAR(20),
     created_at DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6),
     CONSTRAINT FK_Feedbacks_Users
         FOREIGN KEY (user_id) REFERENCES Users(user_id),
@@ -247,7 +249,7 @@ CREATE TABLE Notifications (
 
 CREATE TABLE AuditLogs (
     log_id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    user_id BIGINT NOT NULL,
+    user_id BIGINT NULL,
     action VARCHAR(255),
     entity_name VARCHAR(100),
     entity_id BIGINT,
@@ -259,6 +261,7 @@ CREATE TABLE AuditLogs (
 CREATE TABLE LicensePlateScans (
     scan_id BIGINT AUTO_INCREMENT PRIMARY KEY,
     session_id BIGINT NOT NULL,
+    lane_code VARCHAR(50),
     plate_number VARCHAR(20),
     image_url VARCHAR(500),
     confidence_score DECIMAL(5,2),

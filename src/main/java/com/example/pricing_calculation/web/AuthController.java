@@ -34,7 +34,7 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    @Operation(summary = "Đăng ký tài khoản", description = "Tạo tài khoản mới với role CUSTOMER và status ACTIVE.")
+    @Operation(summary = "Đăng ký tài khoản", description = "Tạo tài khoản mới với role PARKING_USER và status ACTIVE.")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Đăng ký thành công",
                     content = @Content(schema = @Schema(implementation = AuthRegistrationResponse.class))),

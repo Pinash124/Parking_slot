@@ -1,6 +1,7 @@
 package com.example.pricing_calculation.service;
 
 import com.example.pricing_calculation.domain.UserAccount;
+import com.example.pricing_calculation.domain.UserRole;
 import com.example.pricing_calculation.dto.AuthLoginRequest;
 import com.example.pricing_calculation.dto.AuthLoginResponse;
 import com.example.pricing_calculation.dto.AuthLogoutResponse;
@@ -15,6 +16,7 @@ import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 import org.springframework.stereotype.Service;
@@ -53,7 +55,7 @@ public class AuthService {
         user.setPhone(request.phone());
         user.setPasswordHash(passwordHashService.hash(request.password()));
         user.setStatus("ACTIVE");
-        user.setRole("CUSTOMER");
+        user.setRole(UserRole.PARKING_USER.code());
         UserAccount saved = userAccountRepository.save(user);
 
         return new AuthRegistrationResponse(
@@ -102,6 +104,28 @@ public class AuthService {
             throw new UnauthorizedException("Invalid or expired access token");
         }
         return new AuthLogoutResponse("Logout completed");
+    }
+
+    @Transactional(readOnly = true)
+    public UserAccount authenticate(String authorizationHeader) {
+        String token = extractBearerToken(authorizationHeader);
+        AuthSession session = sessions.get(hashToken(token));
+        if (session == null || session.expiresAt().isBefore(LocalDateTime.now())) {
+            throw new UnauthorizedException("Invalid or expired access token");
+        }
+        return userAccountRepository.findById(session.userId())
+                .orElseThrow(() -> new UnauthorizedException("Invalid or expired access token"));
+    }
+
+    @Transactional(readOnly = true)
+    public UserAccount requireAnyRole(String authorizationHeader, UserRole... allowedRoles) {
+        UserAccount user = authenticate(authorizationHeader);
+        UserRole actualRole = UserRole.fromCode(user.getRole());
+        Set<UserRole> allowed = Set.of(allowedRoles);
+        if (!allowed.contains(actualRole)) {
+            throw new ForbiddenException("Access denied for role " + actualRole.code());
+        }
+        return user;
     }
 
     private void validateRegistration(AuthRegistrationRequest request) {

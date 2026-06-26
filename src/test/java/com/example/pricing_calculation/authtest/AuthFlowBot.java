@@ -42,7 +42,7 @@ final class AuthFlowBot {
             JsonNode registeredUser = objectMapper.readTree(registration.body());
             requireText(registeredUser, "email", email);
             requireText(registeredUser, "status", "ACTIVE");
-            requireText(registeredUser, "role", "CUSTOMER");
+            requireText(registeredUser, "role", "PARKING_USER");
             if (registeredUser.has("password") || registeredUser.has("passwordHash")) {
                 throw new IllegalStateException("Registration response exposed password data");
             }
@@ -63,6 +63,7 @@ final class AuthFlowBot {
             JsonNode loginBody = objectMapper.readTree(login.body());
             requireText(loginBody, "tokenType", "Bearer");
             requireText(loginBody, "email", email);
+            requireText(loginBody, "role", "PARKING_USER");
             String accessToken = loginBody.path("accessToken").stringValue("");
             if (accessToken.isBlank() || loginBody.path("expiresAt").isMissingNode()) {
                 throw new IllegalStateException("Login did not return a valid access token");

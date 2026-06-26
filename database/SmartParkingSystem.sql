@@ -173,8 +173,10 @@ CREATE TABLE Feedbacks(
     feedback_id BIGINT IDENTITY(1,1) PRIMARY KEY,
     user_id BIGINT NOT NULL,
     session_id BIGINT NOT NULL,
+    feedback_type VARCHAR(50),
     rating INT,
     content NVARCHAR(MAX),
+    status VARCHAR(20),
     created_at DATETIME2 DEFAULT GETDATE(),
     FOREIGN KEY(user_id) REFERENCES Users(user_id),
     FOREIGN KEY(session_id) REFERENCES ParkingSessions(session_id)
@@ -192,7 +194,7 @@ CREATE TABLE Notifications(
 
 CREATE TABLE AuditLogs(
     log_id BIGINT IDENTITY(1,1) PRIMARY KEY,
-    user_id BIGINT NOT NULL,
+    user_id BIGINT NULL,
     action VARCHAR(255),
     entity_name VARCHAR(100),
     entity_id BIGINT,
@@ -203,6 +205,7 @@ CREATE TABLE AuditLogs(
 CREATE TABLE LicensePlateScans(
     scan_id BIGINT IDENTITY(1,1) PRIMARY KEY,
     session_id BIGINT NOT NULL,
+    lane_code VARCHAR(50),
     plate_number VARCHAR(20),
     image_url NVARCHAR(500),
     confidence_score DECIMAL(5,2),
@@ -215,4 +218,4 @@ ADD role VARCHAR(20) NOT NULL DEFAULT 'CUSTOMER';
 
 ALTER TABLE Users
 ADD CONSTRAINT CK_Users_Role
-CHECK (role IN ('ADMIN', 'PARKING_MANAGER', 'STAFF', 'CUSTOMER'));
+CHECK (role IN ('ADMIN', 'ADMINISTRATOR', 'PARKING_MANAGER', 'PARKING_STAFF', 'STAFF', 'CUSTOMER', 'PARKING_USER'));
