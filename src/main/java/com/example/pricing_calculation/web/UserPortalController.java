@@ -1,0 +1,31 @@
+package com.example.pricing_calculation.web;
+
+import com.example.pricing_calculation.domain.UserAccount;
+import com.example.pricing_calculation.domain.UserRole;
+import com.example.pricing_calculation.dto.*;
+import com.example.pricing_calculation.dto.ManagementDtos.VehicleRequest;
+import com.example.pricing_calculation.dto.ManagementDtos.VehicleView;
+import com.example.pricing_calculation.service.*;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import java.util.List;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+@RestController @RequestMapping("/api/user") @SecurityRequirement(name="bearerAuth")
+@Tag(name="Parking User",description="Phuong tien, dat cho, luot gui hien tai, lich su va dich vu bo sung")
+public class UserPortalController {
+    private final PaymentModuleAuthService auth;private final UserPortalService portal;private final ReservationService reservations;
+    public UserPortalController(PaymentModuleAuthService auth,UserPortalService portal,ReservationService reservations){this.auth=auth;this.portal=portal;this.reservations=reservations;}
+    private UserAccount user(String h){return auth.requireAnyRole(h,UserRole.PARKING_USER);}
+    @GetMapping("/vehicles") public List<VehicleView> vehicles(@RequestHeader("Authorization")String h){return portal.vehicles(user(h));}
+    @PostMapping("/vehicles") public ResponseEntity<VehicleView> createVehicle(@RequestHeader("Authorization")String h,@RequestBody VehicleRequest r){return ResponseEntity.status(HttpStatus.CREATED).body(portal.saveVehicle(user(h),null,r));}
+    @PutMapping("/vehicles/{id}") public VehicleView updateVehicle(@RequestHeader("Authorization")String h,@PathVariable Long id,@RequestBody VehicleRequest r){return portal.saveVehicle(user(h),id,r);}
+    @DeleteMapping("/vehicles/{id}") public void deleteVehicle(@RequestHeader("Authorization")String h,@PathVariable Long id){portal.deleteVehicle(user(h),id);}
+    @PostMapping("/reservations") public ReservationResponse reserve(@RequestHeader("Authorization")String h,@RequestBody ReservationCreateRequest r){UserAccount u=user(h);return reservations.create(new ReservationCreateRequest(u.getId(),r.vehicleId(),r.zoneId(),r.startTime(),r.endTime()));}
+    @GetMapping("/reservations") public PageResponse<ReservationResponse> myReservations(@RequestHeader("Authorization")String h,@RequestParam(defaultValue="0")int page,@RequestParam(defaultValue="20")int size){return reservations.search(user(h).getId(),null,null,null,null,null,page,size);}
+    @GetMapping("/parking-sessions/current") public CurrentParkingSessionResponse current(@RequestHeader("Authorization")String h){return portal.current(user(h));}
+    @GetMapping("/parking-sessions/history") public List<ParkingSessionResponse> history(@RequestHeader("Authorization")String h){return portal.history(user(h));}
+    @PostMapping("/parking-sessions/{id}/additional-services") public CurrentParkingSessionResponse addService(@RequestHeader("Authorization")String h,@PathVariable Long id,@RequestBody ServiceUsageRequest r){return portal.addService(user(h),id,r);}
+}

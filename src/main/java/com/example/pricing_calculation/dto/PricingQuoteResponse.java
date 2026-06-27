@@ -17,6 +17,7 @@ public record PricingQuoteResponse(
         BigDecimal parkingFee,
         BigDecimal lostTicketFee,
         BigDecimal overtimeFee,
+        BigDecimal fixedSurcharge,
         BigDecimal penaltyFee,
         BigDecimal totalFee,
         String currency

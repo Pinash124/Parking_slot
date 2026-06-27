@@ -4,9 +4,16 @@ import com.example.pricing_calculation.domain.PaymentModuleParkingSlot;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.repository.query.Param;
+import jakarta.persistence.LockModeType;
+import java.util.Optional;
 
 public interface PaymentModuleParkingSlotRepository extends JpaRepository<PaymentModuleParkingSlot, Long> {
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select slot from PaymentModuleParkingSlot slot where slot.id = :id")
+    Optional<PaymentModuleParkingSlot> findByIdForUpdate(@Param("id") Long id);
 
     long countByStatusIgnoreCase(String status);
 

@@ -45,4 +45,8 @@ public class Zone {
     public String getZoneName() {
         return zoneName;
     }
+
+    public void setFloor(Floor floor) { this.floor = floor; }
+    public void setVehicleType(VehicleTypeEntity vehicleType) { this.vehicleType = vehicleType; }
+    public void setZoneName(String zoneName) { this.zoneName = zoneName; }
 }

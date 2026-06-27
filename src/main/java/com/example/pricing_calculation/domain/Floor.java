@@ -44,4 +44,8 @@ public class Floor {
     public Integer getFloorNumber() {
         return floorNumber;
     }
+
+    public void setBuilding(Building building) { this.building = building; }
+    public void setFloorName(String floorName) { this.floorName = floorName; }
+    public void setFloorNumber(Integer floorNumber) { this.floorNumber = floorNumber; }
 }

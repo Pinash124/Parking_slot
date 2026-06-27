@@ -48,6 +48,9 @@ public class FeedbackService {
         validate(request);
         PaymentModuleParkingSession session = parkingSessionRepository.findById(request.sessionId())
                 .orElseThrow(() -> new ResourceNotFoundException("Parking session not found: " + request.sessionId()));
+        if (!session.getVehicle().getUser().getId().equals(user.getId())) {
+            throw new ForbiddenException("Parking session does not belong to current user");
+        }
         String type = normalizeType(request.feedbackType());
 
         Feedback feedback = new Feedback();

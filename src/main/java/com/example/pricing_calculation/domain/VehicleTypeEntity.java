@@ -41,4 +41,8 @@ public class VehicleTypeEntity {
     public BigDecimal getDefaultHourlyFee() {
         return defaultHourlyFee;
     }
+
+    public void setName(String name) { this.name = name; }
+    public void setDescription(String description) { this.description = description; }
+    public void setDefaultHourlyFee(BigDecimal defaultHourlyFee) { this.defaultHourlyFee = defaultHourlyFee; }
 }

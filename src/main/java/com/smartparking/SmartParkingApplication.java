@@ -7,9 +7,9 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 @EnableScheduling
-@EntityScan(basePackages = {"com.smartparking.model.schemas", "com.example.pricing_calculation.domain"})
-@EnableJpaRepositories(basePackages = {"com.smartparking.repository", "com.example.pricing_calculation.repository"})
-@SpringBootApplication(scanBasePackages = {"com.smartparking", "com.example.pricing_calculation"})
+@EntityScan(basePackages = "com.example.pricing_calculation.domain")
+@EnableJpaRepositories(basePackages = "com.example.pricing_calculation.repository")
+@SpringBootApplication(scanBasePackages = {"com.example.pricing_calculation", "com.smartparking.security"})
 public class SmartParkingApplication {
 
 	public static void main(String[] args) {

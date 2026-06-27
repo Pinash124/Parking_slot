@@ -32,6 +32,10 @@ public class Reservation {
     @JoinColumn(name = "zone_id")
     private Zone zone;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "reserved_slot_id")
+    private PaymentModuleParkingSlot reservedSlot;
+
     @Column(name = "start_time")
     private LocalDateTime startTime;
 
@@ -68,6 +72,9 @@ public class Reservation {
     public void setZone(Zone zone) {
         this.zone = zone;
     }
+
+    public PaymentModuleParkingSlot getReservedSlot() { return reservedSlot; }
+    public void setReservedSlot(PaymentModuleParkingSlot reservedSlot) { this.reservedSlot = reservedSlot; }
 
     public LocalDateTime getStartTime() {
         return startTime;

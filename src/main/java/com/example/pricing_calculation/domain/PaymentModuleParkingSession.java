@@ -54,6 +54,18 @@ public class PaymentModuleParkingSession {
     @Column(name = "status", length = 20)
     private String status;
 
+    @Column(name = "entry_gate_code", length = 50)
+    private String entryGateCode;
+
+    @Column(name = "exit_gate_code", length = 50)
+    private String exitGateCode;
+
+    @Column(name = "entry_staff_id")
+    private Long entryStaffId;
+
+    @Column(name = "exit_staff_id")
+    private Long exitStaffId;
+
     public Long getId() {
         return id;
     }
@@ -137,6 +149,15 @@ public class PaymentModuleParkingSession {
     public void setStatus(String status) {
         this.status = normalize(status);
     }
+
+    public String getEntryGateCode() { return entryGateCode; }
+    public void setEntryGateCode(String entryGateCode) { this.entryGateCode = normalize(entryGateCode); }
+    public String getExitGateCode() { return exitGateCode; }
+    public void setExitGateCode(String exitGateCode) { this.exitGateCode = normalize(exitGateCode); }
+    public Long getEntryStaffId() { return entryStaffId; }
+    public void setEntryStaffId(Long entryStaffId) { this.entryStaffId = entryStaffId; }
+    public Long getExitStaffId() { return exitStaffId; }
+    public void setExitStaffId(Long exitStaffId) { this.exitStaffId = exitStaffId; }
 
     private String normalize(String value) {
         if (value == null) {

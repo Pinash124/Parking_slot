@@ -34,6 +34,12 @@ public class PaymentModulePricingPolicy {
     @Column(name = "daily_rate", precision = 18, scale = 2)
     private BigDecimal dailyRate;
 
+    @Column(name = "monthly_rate", precision = 18, scale = 2)
+    private BigDecimal monthlyRate;
+
+    @Column(name = "fixed_surcharge", precision = 18, scale = 2)
+    private BigDecimal fixedSurcharge;
+
     @Column(name = "lost_ticket_fee", precision = 18, scale = 2)
     private BigDecimal lostTicketFee;
 
@@ -69,6 +75,9 @@ public class PaymentModulePricingPolicy {
         return dailyRate;
     }
 
+    public BigDecimal getMonthlyRate() { return monthlyRate; }
+    public BigDecimal getFixedSurcharge() { return fixedSurcharge; }
+
     public BigDecimal getLostTicketFee() {
         return lostTicketFee;
     }
@@ -88,4 +97,16 @@ public class PaymentModulePricingPolicy {
     public String getStatus() {
         return status;
     }
+
+    public void setVehicleType(VehicleTypeEntity vehicleType) { this.vehicleType = vehicleType; }
+    public void setPolicyName(String policyName) { this.policyName = policyName; }
+    public void setHourlyRate(BigDecimal hourlyRate) { this.hourlyRate = hourlyRate; }
+    public void setDailyRate(BigDecimal dailyRate) { this.dailyRate = dailyRate; }
+    public void setMonthlyRate(BigDecimal monthlyRate) { this.monthlyRate = monthlyRate; }
+    public void setFixedSurcharge(BigDecimal fixedSurcharge) { this.fixedSurcharge = fixedSurcharge; }
+    public void setLostTicketFee(BigDecimal lostTicketFee) { this.lostTicketFee = lostTicketFee; }
+    public void setOvertimeFee(BigDecimal overtimeFee) { this.overtimeFee = overtimeFee; }
+    public void setEffectiveFrom(LocalDateTime effectiveFrom) { this.effectiveFrom = effectiveFrom; }
+    public void setEffectiveTo(LocalDateTime effectiveTo) { this.effectiveTo = effectiveTo; }
+    public void setStatus(String status) { this.status = status; }
 }

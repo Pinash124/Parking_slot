@@ -13,6 +13,8 @@ public record ReservationResponse(
         String licensePlate,
         Long zoneId,
         String zoneName,
+        Long reservedSlotId,
+        String reservedSlotCode,
         LocalDateTime startTime,
         LocalDateTime endTime,
         String status
@@ -29,6 +31,8 @@ public record ReservationResponse(
                 vehicle == null ? null : vehicle.getPlateNumber(),
                 zone == null ? null : zone.getId(),
                 zone == null ? null : zone.getZoneName(),
+                reservation.getReservedSlot() == null ? null : reservation.getReservedSlot().getId(),
+                reservation.getReservedSlot() == null ? null : reservation.getReservedSlot().getSlotCode(),
                 reservation.getStartTime(),
                 reservation.getEndTime(),
                 reservation.getStatus()

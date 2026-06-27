@@ -40,7 +40,13 @@ public class PaymentService {
         }
         PaymentModuleParkingSession session = parkingSessionRepository.findById(request.sessionId())
                 .orElseThrow(() -> new ResourceNotFoundException("Parking session not found: " + request.sessionId()));
-        BigDecimal amount = request.amount() == null ? session.getTotalFee() : request.amount();
+        BigDecimal amount = session.getTotalFee();
+        if (amount == null) {
+            throw new BadRequestException("Parking fee must be prepared before payment");
+        }
+        if (request.amount() != null && request.amount().compareTo(amount) != 0) {
+            throw new BadRequestException("Payment amount must equal the calculated session total: " + amount);
+        }
         if (amount == null || amount.compareTo(BigDecimal.ZERO) < 0) {
             throw new BadRequestException("Payment amount must be greater than or equal to 0");
         }

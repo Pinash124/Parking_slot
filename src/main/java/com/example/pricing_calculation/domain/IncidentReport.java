@@ -10,6 +10,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
+import java.math.BigDecimal;
 
 @Entity
 @Table(name = "IncidentReports")
@@ -39,6 +40,16 @@ public class IncidentReport {
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "resolved_by")
+    private UserAccount resolvedBy;
+
+    @Column(name = "resolved_at")
+    private LocalDateTime resolvedAt;
+
+    @Column(name = "penalty_amount", precision = 18, scale = 2)
+    private BigDecimal penaltyAmount;
 
     public Long getId() {
         return id;
@@ -91,6 +102,13 @@ public class IncidentReport {
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
     }
+
+    public UserAccount getResolvedBy() { return resolvedBy; }
+    public void setResolvedBy(UserAccount resolvedBy) { this.resolvedBy = resolvedBy; }
+    public LocalDateTime getResolvedAt() { return resolvedAt; }
+    public void setResolvedAt(LocalDateTime resolvedAt) { this.resolvedAt = resolvedAt; }
+    public BigDecimal getPenaltyAmount() { return penaltyAmount; }
+    public void setPenaltyAmount(BigDecimal penaltyAmount) { this.penaltyAmount = penaltyAmount; }
 
     private String normalize(String value) {
         if (value == null) {

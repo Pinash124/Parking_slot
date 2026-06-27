@@ -49,6 +49,9 @@ public class PaymentModuleParkingSlot {
         this.status = normalize(status);
     }
 
+    public void setZone(Zone zone) { this.zone = zone; }
+    public void setSlotCode(String slotCode) { this.slotCode = normalize(slotCode); }
+
     private String normalize(String value) {
         if (value == null) {
             return null;
