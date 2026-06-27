@@ -66,6 +66,8 @@ public class ParkingInfoService {
                         policy.getVehicleType() == null ? null : policy.getVehicleType().getName(),
                         policy.getHourlyRate(),
                         policy.getDailyRate(),
+                        policy.getMonthlyRate(),
+                        policy.getFixedSurcharge(),
                         policy.getLostTicketFee(),
                         policy.getOvertimeFee(),
                         policy.getStatus()

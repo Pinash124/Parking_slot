@@ -59,15 +59,30 @@ public class ReservationService {
         if (!vehicle.getUser().getId().equals(user.getId())) {
             throw new BadRequestException("Vehicle does not belong to selected user");
         }
+        if (!zone.getVehicleType().getId().equals(vehicle.getVehicleType().getId())) {
+            throw new BadRequestException("Selected zone does not support this vehicle type");
+        }
         ensureZoneCapacity(zone.getId(), request.startTime(), request.endTime());
+        var available = parkingSlotRepository.findByZoneIdAndStatusIgnoreCaseOrderBySlotCodeAsc(zone.getId(), "AVAILABLE");
+        if (available.isEmpty()) {
+            throw new BadRequestException("No available slot in selected zone");
+        }
+        var reservedSlot = parkingSlotRepository.findByIdForUpdate(available.get(0).getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Parking slot not found"));
+        if (!"AVAILABLE".equalsIgnoreCase(reservedSlot.getStatus())) {
+            throw new BadRequestException("Selected reservation slot is no longer available");
+        }
 
         Reservation reservation = new Reservation();
         reservation.setUser(user);
         reservation.setVehicle(vehicle);
         reservation.setZone(zone);
+        reservation.setReservedSlot(reservedSlot);
         reservation.setStartTime(request.startTime());
         reservation.setEndTime(request.endTime());
         reservation.setStatus("APPROVED");
+        reservedSlot.setStatus("RESERVED");
+        parkingSlotRepository.save(reservedSlot);
         Reservation saved = reservationRepository.save(reservation);
         ReservationResponse response = ReservationResponse.from(saved);
         realtimeEventService.publish(
@@ -138,6 +153,10 @@ public class ReservationService {
     public ReservationResponse cancel(Long id) {
         Reservation reservation = findReservation(id);
         reservation.setStatus("CANCELLED");
+        if (reservation.getReservedSlot() != null && "RESERVED".equalsIgnoreCase(reservation.getReservedSlot().getStatus())) {
+            reservation.getReservedSlot().setStatus("AVAILABLE");
+            parkingSlotRepository.save(reservation.getReservedSlot());
+        }
         ReservationResponse response = ReservationResponse.from(reservationRepository.save(reservation));
         realtimeEventService.publish("/topic/reservations", "RESERVATION_CANCELLED", "Reservation cancelled", response);
         return response;

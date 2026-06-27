@@ -12,6 +12,8 @@ import com.example.pricing_calculation.repository.PaymentModuleParkingSessionRep
 import com.example.pricing_calculation.repository.PaymentModuleParkingSlotRepository;
 import com.example.pricing_calculation.repository.ReservationRepository;
 import com.example.pricing_calculation.repository.VehicleRepository;
+import com.example.pricing_calculation.repository.SessionServiceUsageRepository;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.UUID;
@@ -27,6 +29,7 @@ public class PaymentModuleParkingSessionService {
     private final PaymentModuleParkingSlotRepository parkingSlotRepository;
     private final PricingService pricingService;
     private final RealtimeEventService realtimeEventService;
+    private final SessionServiceUsageRepository serviceUsageRepository;
 
     public PaymentModuleParkingSessionService(
             PaymentModuleParkingSessionRepository parkingSessionRepository,
@@ -34,28 +37,41 @@ public class PaymentModuleParkingSessionService {
             VehicleRepository vehicleRepository,
             PaymentModuleParkingSlotRepository parkingSlotRepository,
             PricingService pricingService,
-            RealtimeEventService realtimeEventService) {
+            RealtimeEventService realtimeEventService,
+            SessionServiceUsageRepository serviceUsageRepository) {
         this.parkingSessionRepository = parkingSessionRepository;
         this.reservationRepository = reservationRepository;
         this.vehicleRepository = vehicleRepository;
         this.parkingSlotRepository = parkingSlotRepository;
         this.pricingService = pricingService;
         this.realtimeEventService = realtimeEventService;
+        this.serviceUsageRepository = serviceUsageRepository;
     }
 
     @Transactional
     public ParkingSessionResponse checkIn(SessionCheckInRequest request) {
+        return checkIn(request, null, null);
+    }
+
+    @Transactional
+    public ParkingSessionResponse checkIn(SessionCheckInRequest request, Long staffId, String entryGateCode) {
         if (request == null || request.vehicleId() == null || request.slotId() == null) {
             throw new BadRequestException("vehicleId and slotId are required");
         }
         Vehicle vehicle = vehicleRepository.findById(request.vehicleId())
                 .orElseThrow(() -> new ResourceNotFoundException("Vehicle not found: " + request.vehicleId()));
-        PaymentModuleParkingSlot slot = parkingSlotRepository.findById(request.slotId())
+        PaymentModuleParkingSlot slot = parkingSlotRepository.findByIdForUpdate(request.slotId())
                 .orElseThrow(() -> new ResourceNotFoundException("Parking slot not found: " + request.slotId()));
         if (slot.getStatus() != null
                 && !slot.getStatus().equalsIgnoreCase("AVAILABLE")
                 && !slot.getStatus().equalsIgnoreCase("RESERVED")) {
             throw new BadRequestException("Parking slot is not available");
+        }
+        if (!slot.getZone().getVehicleType().getId().equals(vehicle.getVehicleType().getId())) {
+            throw new BadRequestException("Vehicle type is not allowed in selected slot zone");
+        }
+        if (parkingSessionRepository.countByVehicleIdAndStatusIn(vehicle.getId(), java.util.List.of("ACTIVE", "PAYMENT_PENDING")) > 0) {
+            throw new BadRequestException("Vehicle already has an active parking session");
         }
         Reservation reservation = null;
         if (request.reservationId() != null) {
@@ -63,6 +79,15 @@ public class PaymentModuleParkingSessionService {
                     .orElseThrow(() -> new ResourceNotFoundException("Reservation not found: " + request.reservationId()));
             if (!reservation.getVehicle().getId().equals(vehicle.getId())) {
                 throw new BadRequestException("Reservation vehicle does not match check-in vehicle");
+            }
+            if (!reservation.getZone().getId().equals(slot.getZone().getId())) {
+                throw new BadRequestException("Selected slot is outside the reserved zone");
+            }
+            if (reservation.getReservedSlot() != null && !reservation.getReservedSlot().getId().equals(slot.getId())) {
+                throw new BadRequestException("Check-in must use the slot assigned to the reservation");
+            }
+            if ("CANCELLED".equalsIgnoreCase(reservation.getStatus())) {
+                throw new BadRequestException("Reservation is cancelled");
             }
             reservation.setStatus("CONFIRMED");
         }
@@ -76,6 +101,8 @@ public class PaymentModuleParkingSessionService {
                 : request.ticketCode());
         session.setEntryTime(request.entryTime() == null ? LocalDateTime.now() : request.entryTime());
         session.setStatus("ACTIVE");
+        session.setEntryStaffId(staffId);
+        session.setEntryGateCode(entryGateCode);
         slot.setStatus("OCCUPIED");
 
         PaymentModuleParkingSession saved = parkingSessionRepository.save(session);
@@ -108,13 +135,27 @@ public class PaymentModuleParkingSessionService {
         session.setExitTime(exitTime);
         session.setParkingFee(quote.parkingFee());
         session.setPenaltyFee(quote.penaltyFee());
-        session.setTotalFee(quote.totalFee());
-        session.setStatus("CHECKED_OUT");
-        session.getSlot().setStatus("AVAILABLE");
+        BigDecimal additionalTotal = serviceUsageRepository.findBySessionId(session.getId()).stream()
+                .map(usage -> usage.getUnitPrice().multiply(BigDecimal.valueOf(usage.getQuantity())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        session.setTotalFee(quote.totalFee().add(additionalTotal));
+        session.setStatus("PAYMENT_PENDING");
         PaymentModuleParkingSession saved = parkingSessionRepository.save(session);
-        parkingSlotRepository.save(session.getSlot());
         ParkingSessionResponse response = ParkingSessionResponse.from(saved);
-        realtimeEventService.publish("/topic/parking-sessions", "CHECKOUT_COMPLETED", "Parking session checked out", response);
+        realtimeEventService.publish("/topic/parking-sessions", "PAYMENT_REQUIRED", "Parking fee calculated; payment required", response);
+        return response;
+    }
+
+    @Transactional
+    public ParkingSessionResponse completePaidExit(Long id, Long staffId, String exitGateCode) {
+        PaymentModuleParkingSession session = findSession(id);
+        session.setExitStaffId(staffId);
+        session.setExitGateCode(exitGateCode);
+        session.setStatus("COMPLETED");
+        session.getSlot().setStatus("AVAILABLE");
+        parkingSlotRepository.save(session.getSlot());
+        ParkingSessionResponse response = ParkingSessionResponse.from(parkingSessionRepository.save(session));
+        realtimeEventService.publish("/topic/parking-sessions", "EXIT_COMPLETED", "Paid vehicle exited", response);
         realtimeEventService.publish("/topic/parking-slots", "SLOT_AVAILABLE", "Parking slot available", response);
         return response;
     }

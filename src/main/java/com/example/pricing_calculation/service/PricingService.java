@@ -56,12 +56,13 @@ public class PricingService {
                 ? firstPositive(policy == null ? null : policy.getLostTicketFee(), BigDecimal.ZERO)
                 : BigDecimal.ZERO;
         BigDecimal overtimeFeeRate = firstPositive(policy == null ? null : policy.getOvertimeFee(), BigDecimal.ZERO);
+        BigDecimal fixedSurcharge = firstPositive(policy == null ? null : policy.getFixedSurcharge(), BigDecimal.ZERO);
         int safeOvertimeMinutes = Math.max(0, overtimeMinutes == null ? 0 : overtimeMinutes);
         long durationMinutes = Duration.between(entryTime, exitTime).toMinutes();
         long billableHours = Math.max(1, divideCeiling(durationMinutes, 60));
         BigDecimal parkingFee = calculateParkingFee(billableHours, hourlyRate, dailyRate);
         BigDecimal overtimeFee = overtimeFeeRate.multiply(BigDecimal.valueOf(divideCeiling(safeOvertimeMinutes, 60)));
-        BigDecimal penaltyFee = lostTicketFee.add(overtimeFee);
+        BigDecimal penaltyFee = lostTicketFee.add(overtimeFee).add(fixedSurcharge);
         BigDecimal totalFee = parkingFee.add(penaltyFee).setScale(2, RoundingMode.HALF_UP);
 
         return new PricingQuoteResponse(
@@ -78,6 +79,7 @@ public class PricingService {
                 parkingFee,
                 lostTicketFee,
                 overtimeFee,
+                fixedSurcharge,
                 penaltyFee,
                 totalFee,
                 "VND"

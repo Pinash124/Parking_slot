@@ -31,6 +31,8 @@ public record ParkingFacilityInfoResponse(
             String vehicleTypeName,
             BigDecimal hourlyRate,
             BigDecimal dailyRate,
+            BigDecimal monthlyRate,
+            BigDecimal fixedSurcharge,
             BigDecimal lostTicketFee,
             BigDecimal overtimeFee,
             String status

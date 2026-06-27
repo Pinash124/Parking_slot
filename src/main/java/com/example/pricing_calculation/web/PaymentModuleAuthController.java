@@ -1,73 +1,39 @@
 package com.example.pricing_calculation.web;
 
-import com.example.pricing_calculation.dto.AuthLoginRequest;
-import com.example.pricing_calculation.dto.AuthLoginResponse;
-import com.example.pricing_calculation.dto.AuthLogoutResponse;
-import com.example.pricing_calculation.dto.AuthRegistrationRequest;
-import com.example.pricing_calculation.dto.AuthRegistrationResponse;
+import static com.example.pricing_calculation.dto.ExtendedAuthDtos.*;
+import com.example.pricing_calculation.dto.*;
 import com.example.pricing_calculation.service.PaymentModuleAuthService;
-import io.swagger.v3.oas.annotations.Hidden;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.core.user.OAuth2User;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.view.RedirectView;
 
 @RestController
-@RequestMapping("/api/payment-module/auth")
-@Hidden
-@Tag(name = "Authentication", description = "Đăng ký, đăng nhập và đăng xuất")
+@RequestMapping("/api/auth")
+@Tag(name="Authentication")
 public class PaymentModuleAuthController {
+    private final PaymentModuleAuthService auth;
+    public PaymentModuleAuthController(PaymentModuleAuthService auth){this.auth=auth;}
 
-    private final PaymentModuleAuthService authService;
+    @PostMapping("/register") public OtpChallengeResponse register(@RequestBody AuthRegistrationRequest r){return auth.requestRegistration(r);}
+    @PostMapping("/register/verify") public ResponseEntity<AuthRegistrationResponse> verifyRegistration(@RequestBody VerifyOtpRequest r){return ResponseEntity.status(HttpStatus.CREATED).body(auth.verifyRegistration(r));}
+    @PostMapping("/register/direct") public ResponseEntity<AuthRegistrationResponse> registerDirect(@RequestBody AuthRegistrationRequest r){return ResponseEntity.status(HttpStatus.CREATED).body(auth.registerDirect(r));}
 
-    public PaymentModuleAuthController(PaymentModuleAuthService authService) {
-        this.authService = authService;
-    }
+    @PostMapping("/login") public OtpChallengeResponse login(@RequestBody AuthLoginRequest r){return auth.requestLogin(r);}
+    @PostMapping("/login/verify") public AuthLoginResponse verifyLogin(@RequestBody VerifyOtpRequest r){return auth.verifyLogin(r);}
+    @PostMapping("/login/direct") public AuthLoginResponse loginDirect(@RequestBody AuthLoginRequest r){return auth.loginDirect(r);}
 
-    @PostMapping("/register")
-    @Operation(summary = "Đăng ký tài khoản", description = "Tạo tài khoản mới với role PARKING_USER và status ACTIVE.")
-    @ApiResponses({
-            @ApiResponse(responseCode = "201", description = "Đăng ký thành công",
-                    content = @Content(schema = @Schema(implementation = AuthRegistrationResponse.class))),
-            @ApiResponse(responseCode = "400", description = "Dữ liệu không hợp lệ hoặc email đã tồn tại")
-    })
-    public ResponseEntity<AuthRegistrationResponse> register(@RequestBody AuthRegistrationRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(authService.register(request));
-    }
+    @PostMapping("/forgot-password") public OtpChallengeResponse forgotPassword(@RequestBody ForgotPasswordRequest r){return auth.forgotPassword(r);}
+    @PostMapping("/reset-password") public AuthLogoutResponse resetPassword(@RequestBody ResetPasswordRequest r){return auth.resetPassword(r);}
+    @PostMapping("/change-password") @SecurityRequirement(name="bearerAuth") public AuthLogoutResponse changePassword(@RequestHeader("Authorization")String h,@RequestBody ChangePasswordRequest r){return auth.changePassword(h,r);}
+    @GetMapping("/me") @SecurityRequirement(name="bearerAuth") public UserProfileResponse me(@RequestHeader("Authorization")String h){return auth.profile(h);}
+    @PatchMapping("/profile") @SecurityRequirement(name="bearerAuth") public UserProfileResponse updateProfile(@RequestHeader("Authorization")String h,@RequestBody UpdateProfileRequest r){return auth.updateProfile(h,r);}
+    @PostMapping("/logout") @SecurityRequirement(name="bearerAuth") public AuthLogoutResponse logout(@RequestHeader("Authorization")String h){return auth.logout(h);}
 
-    @PostMapping("/login")
-    @Operation(summary = "Đăng nhập", description = "Xác thực email/mật khẩu và trả Bearer access token có hạn 8 giờ.")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Đăng nhập thành công",
-                    content = @Content(schema = @Schema(implementation = AuthLoginResponse.class))),
-            @ApiResponse(responseCode = "401", description = "Email hoặc mật khẩu không đúng")
-    })
-    public AuthLoginResponse login(@RequestBody AuthLoginRequest request) {
-        return authService.login(request);
-    }
-
-    @PostMapping("/logout")
-    @Operation(summary = "Đăng xuất", description = "Thu hồi Bearer access token hiện tại.")
-    @SecurityRequirement(name = "bearerAuth")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Đăng xuất thành công",
-                    content = @Content(schema = @Schema(implementation = AuthLogoutResponse.class))),
-            @ApiResponse(responseCode = "401", description = "Token thiếu, không hợp lệ hoặc đã hết hạn")
-    })
-    public AuthLogoutResponse logout(
-            @Parameter(hidden = true)
-            @RequestHeader(value = "Authorization", required = false) String authorizationHeader) {
-        return authService.logout(authorizationHeader);
-    }
+    @GetMapping("/google") public RedirectView google(){return new RedirectView("/oauth2/authorization/google");}
+    @GetMapping("/oauth2/success") public AuthLoginResponse googleSuccess(@AuthenticationPrincipal OAuth2User principal){if(principal==null)throw new com.example.pricing_calculation.service.UnauthorizedException("Google authentication is not available");return auth.loginWithGoogle(principal.getAttribute("email"),principal.getAttribute("name"));}
 }

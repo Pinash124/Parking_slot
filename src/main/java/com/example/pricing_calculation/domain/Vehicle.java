@@ -66,4 +66,11 @@ public class Vehicle {
     public String getStatus() {
         return status;
     }
+
+    public void setUser(UserAccount user) { this.user = user; }
+    public void setVehicleType(VehicleTypeEntity vehicleType) { this.vehicleType = vehicleType; }
+    public void setPlateNumber(String plateNumber) { this.plateNumber = plateNumber == null ? null : plateNumber.trim().toUpperCase(); }
+    public void setBrand(String brand) { this.brand = brand; }
+    public void setColor(String color) { this.color = color; }
+    public void setStatus(String status) { this.status = status; }
 }

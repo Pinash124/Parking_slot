@@ -54,7 +54,7 @@ public class PaymentCheckoutService {
                             request.overtimeMinutes()
                     )
             );
-        } else if ("CHECKED_OUT".equalsIgnoreCase(session.getStatus())) {
+        } else if ("PAYMENT_PENDING".equalsIgnoreCase(session.getStatus()) || "COMPLETED".equalsIgnoreCase(session.getStatus())) {
             sessionResponse = ParkingSessionResponse.from(session);
         } else {
             throw new BadRequestException("Parking session cannot enter payment checkout from status " + session.getStatus());
@@ -72,7 +72,7 @@ public class PaymentCheckoutService {
         );
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public PaymentExitValidationResponse validateExit(PaymentExitValidationRequest request) {
         if (request == null || request.licensePlate() == null || request.licensePlate().isBlank()) {
             throw new BadRequestException("licensePlate is required");
@@ -112,6 +112,9 @@ public class PaymentCheckoutService {
                     withinWindow,
                     withinWindow ? "OPEN_PAYMENT_VERIFIED" : "DENY_EXIT_WINDOW_EXPIRED"
             );
+            if (withinWindow && !"COMPLETED".equalsIgnoreCase(session.getStatus())) {
+                parkingSessionService.completePaidExit(session.getId(), null, null);
+            }
         }
         realtimeEventService.publish(
                 "/topic/parking-sessions",
@@ -120,6 +123,16 @@ public class PaymentCheckoutService {
                 response
         );
         return response;
+    }
+
+    @Transactional
+    public ParkingSessionResponse completeExit(Long sessionId, Long staffId, String exitGateCode) {
+        PaymentModuleParkingSession session = parkingSessionRepository.findById(sessionId)
+                .orElseThrow(() -> new ResourceNotFoundException("Parking session not found: " + sessionId));
+        if (paymentRepository.findFirstBySessionIdAndStatusInOrderByPaymentTimeDesc(sessionId, PAID_STATUSES).isEmpty()) {
+            throw new BadRequestException("Cannot complete exit before payment");
+        }
+        return parkingSessionService.completePaidExit(session.getId(), staffId, exitGateCode);
     }
 
     private PaymentModuleParkingSession findLatestSession(String licensePlate) {

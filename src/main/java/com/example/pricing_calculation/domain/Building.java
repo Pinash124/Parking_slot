@@ -40,4 +40,8 @@ public class Building {
     public String getStatus() {
         return status;
     }
+
+    public void setName(String name) { this.name = name; }
+    public void setAddress(String address) { this.address = address; }
+    public void setStatus(String status) { this.status = status; }
 }

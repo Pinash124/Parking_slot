@@ -11,29 +11,56 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestHeader;
+import com.example.pricing_calculation.domain.UserAccount;
+import com.example.pricing_calculation.domain.UserRole;
+import com.example.pricing_calculation.domain.PaymentModuleParkingSession;
+import com.example.pricing_calculation.repository.PaymentModuleParkingSessionRepository;
+import com.example.pricing_calculation.service.PaymentModuleAuthService;
+import com.example.pricing_calculation.service.ForbiddenException;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 
 @RestController
 @RequestMapping("/api/payment-gateways")
 public class PaymentGatewayController {
 
     private final PaymentGatewayService paymentGatewayService;
+    private final PaymentModuleAuthService authService;
+    private final PaymentModuleParkingSessionRepository sessions;
 
-    public PaymentGatewayController(PaymentGatewayService paymentGatewayService) {
+    public PaymentGatewayController(PaymentGatewayService paymentGatewayService, PaymentModuleAuthService authService,
+            PaymentModuleParkingSessionRepository sessions) {
         this.paymentGatewayService = paymentGatewayService;
+        this.authService = authService;
+        this.sessions = sessions;
+    }
+
+    private void authorize(String header, Long sessionId) {
+        UserAccount user = authService.authenticate(header);
+        if (UserRole.fromCode(user.getRole()) == UserRole.PARKING_USER) {
+            PaymentModuleParkingSession session = sessions.findById(sessionId).orElseThrow();
+            if (!session.getVehicle().getUser().getId().equals(user.getId())) throw new ForbiddenException("Session does not belong to current user");
+        }
     }
 
     @PostMapping("/momo")
-    public ResponseEntity<PaymentGatewayResponse> createMomo(@RequestBody PaymentGatewayRequest request) {
+    @SecurityRequirement(name="bearerAuth")
+    public ResponseEntity<PaymentGatewayResponse> createMomo(@RequestHeader("Authorization") String header, @RequestBody PaymentGatewayRequest request) {
+        authorize(header, request.sessionId());
         return ResponseEntity.status(HttpStatus.CREATED).body(paymentGatewayService.createMomoPayment(request));
     }
 
     @PostMapping("/vnpay")
-    public ResponseEntity<PaymentGatewayResponse> createVnpay(@RequestBody PaymentGatewayRequest request) {
+    @SecurityRequirement(name="bearerAuth")
+    public ResponseEntity<PaymentGatewayResponse> createVnpay(@RequestHeader("Authorization") String header, @RequestBody PaymentGatewayRequest request) {
+        authorize(header, request.sessionId());
         return ResponseEntity.status(HttpStatus.CREATED).body(paymentGatewayService.createVnpayPayment(request));
     }
 
     @PostMapping("/cash")
-    public ResponseEntity<PaymentGatewayResponse> createCash(@RequestBody PaymentGatewayRequest request) {
+    @SecurityRequirement(name="bearerAuth")
+    public ResponseEntity<PaymentGatewayResponse> createCash(@RequestHeader("Authorization") String header, @RequestBody PaymentGatewayRequest request) {
+        authorize(header, request.sessionId());
         return ResponseEntity.status(HttpStatus.CREATED).body(paymentGatewayService.createCashPayment(request));
     }
 
