@@ -4,7 +4,6 @@ import com.example.pricing_calculation.dto.ParkingSessionResponse;
 import com.example.pricing_calculation.dto.SessionCheckInRequest;
 import com.example.pricing_calculation.dto.SessionCheckoutRequest;
 import com.example.pricing_calculation.service.PaymentModuleParkingSessionService;
-import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import com.example.pricing_calculation.domain.UserAccount;
