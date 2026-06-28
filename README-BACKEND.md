@@ -41,10 +41,10 @@ DDL_AUTO=update
 6. Staff check-in tai `/api/staff/parking-sessions/check-in`.
 7. User xem `/api/user/parking-sessions/current` va co the them dich vu bo sung.
 8. Staff goi checkout de tinh phi; session chuyen `PAYMENT_PENDING` nhung slot van `OCCUPIED`.
-9. Thanh toan cash/MoMo/VNPay tai `/api/payment-gateways`.
+9. Thanh toan Cash/VNPay tai `/api/payment-gateways`.
 10. Staff goi `complete-exit`; chi cho ra khi payment da hoan tat, sau do slot ve `AVAILABLE`.
 
-MoMo/VNPay hien la sandbox/mock de test Swagger; production can bo sung credential, signature va callback verification cua nha cung cap.
+VNPay Sandbox uses HMAC-SHA512 signing and verifies the callback signature, amount and transaction reference before completing a payment.
 
 ## Authentication day du
 
@@ -58,3 +58,5 @@ MoMo/VNPay hien la sandbox/mock de test Swagger; production can bo sung credenti
 - Dang xuat: `/api/auth/logout`
 
 Dev mac dinh tra OTP trong truong `developmentOtp`. Production dat `EXPOSE_DEVELOPMENT_OTP=false` va cau hinh SMTP.
+
+

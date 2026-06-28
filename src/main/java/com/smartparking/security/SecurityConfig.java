@@ -28,7 +28,7 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/api/auth/**", "/api/parking-info/**", "/api/pricing/estimate", "/api/roles/**", "/ws/**").permitAll()
-                .requestMatchers("/api/payment-gateways/*/confirm").permitAll()
+                .requestMatchers("/api/payment-gateways/vnpay/return", "/api/payment-gateways/vnpay/ipn").permitAll()
                 .requestMatchers("/api/admin/**").hasRole("ADMINISTRATOR")
                 .requestMatchers("/api/manager/**").hasAnyRole("PARKING_MANAGER", "ADMINISTRATOR")
                 .requestMatchers("/api/staff/**", "/api/license-plate-scans/**").hasAnyRole("PARKING_STAFF", "PARKING_MANAGER", "ADMINISTRATOR")
@@ -52,3 +52,5 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 }
+
+
