@@ -67,6 +67,16 @@ public class PaymentGatewayController {
         return ResponseEntity.status(HttpStatus.CREATED).body(paymentGatewayService.createCashPayment(request));
     }
 
+    @PostMapping("/personal-qr")
+    @SecurityRequirement(name="bearerAuth")
+    public ResponseEntity<PaymentGatewayResponse> createPersonalQr(
+            @RequestHeader("Authorization") String header,
+            @RequestBody PaymentGatewayRequest request) {
+        authorize(header, request.sessionId());
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(paymentGatewayService.createPersonalQrPayment(request));
+    }
+
     @GetMapping("/vnpay/return")
     public PaymentGatewayResponse vnpayReturn(@RequestParam Map<String, String> parameters) {
         return paymentGatewayService.processVnpayCallback(parameters);
@@ -85,5 +95,4 @@ public class PaymentGatewayController {
         }
     }
 }
-
 

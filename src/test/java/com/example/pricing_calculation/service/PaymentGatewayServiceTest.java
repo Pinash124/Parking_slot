@@ -41,7 +41,8 @@ class PaymentGatewayServiceTest {
                 "TESTCODE",
                 secret,
                 "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html",
-                "https://merchant.example/api/payment-gateways/vnpay/return");
+                "https://merchant.example/api/payment-gateways/vnpay/return",
+                "/payment/vnpay-personal-qr.png");
 
         PaymentGatewayResponse response = service.createVnpayPayment(
                 new PaymentGatewayRequest(9L, new BigDecimal("70000"), null, "Parking payment"),
@@ -57,6 +58,33 @@ class PaymentGatewayServiceTest {
         assertTrue(signedData.contains("vnp_TmnCode=TESTCODE"));
         assertTrue(signedData.contains("vnp_Version=2.1.0"));
         assertTrue(signedData.contains("vnp_ReturnUrl=https%3A%2F%2Fmerchant.example%2Fapi%2Fpayment-gateways%2Fvnpay%2Freturn"));
+    }
+
+    @Test
+    void createsPendingPersonalQrPaymentForManualConfirmation() {
+        PaymentService paymentService = mock(PaymentService.class);
+        when(paymentService.create(any())).thenReturn(new PaymentResponse(
+                128L, 9L, new BigDecimal("70000"), "PERSONAL_QR",
+                LocalDateTime.now(), "PENDING"));
+        PaymentGatewayService service = new PaymentGatewayService(
+                paymentService,
+                mock(PaymentRepository.class),
+                mock(TransactionHistoryRepository.class),
+                mock(RealtimeEventService.class),
+                "TESTCODE",
+                "test-hash-secret",
+                "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html",
+                "https://merchant.example/api/payment-gateways/vnpay/return",
+                "/payment/vnpay-personal-qr.png");
+
+        PaymentGatewayResponse response = service.createPersonalQrPayment(
+                new PaymentGatewayRequest(9L, new BigDecimal("70000"), null, "Parking payment"));
+
+        assertEquals("PERSONAL_QR", response.gateway());
+        assertEquals("PENDING", response.status());
+        assertEquals("/payment/vnpay-personal-qr.png", response.qrImageUrl());
+        assertEquals("PARKING-128", response.transferContent());
+        assertEquals(new BigDecimal("70000"), response.amount());
     }
 
     @Test
@@ -81,7 +109,8 @@ class PaymentGatewayServiceTest {
                 mock(PaymentService.class), paymentRepository, transactionRepository,
                 mock(RealtimeEventService.class), "TESTCODE", secret,
                 "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html",
-                "https://merchant.example/api/payment-gateways/vnpay/return");
+                "https://merchant.example/api/payment-gateways/vnpay/return",
+                "/payment/vnpay-personal-qr.png");
 
         Map<String, String> callback = new TreeMap<>();
         callback.put("vnp_Amount", "7000000");
@@ -118,5 +147,4 @@ class PaymentGatewayServiceTest {
                 .orElse("");
     }
 }
-
 
