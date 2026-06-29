@@ -42,6 +42,7 @@ public class PaymentGatewayService {
     private final String vnpayHashSecret;
     private final String vnpayPaymentUrl;
     private final String vnpayReturnUrl;
+    private final String personalQrImageUrl;
 
     public PaymentGatewayService(
             PaymentService paymentService,
@@ -51,7 +52,8 @@ public class PaymentGatewayService {
             @Value("${vnpay.tmn-code:}") String vnpayTmnCode,
             @Value("${vnpay.hash-secret:}") String vnpayHashSecret,
             @Value("${vnpay.payment-url:https://sandbox.vnpayment.vn/paymentv2/vpcpay.html}") String vnpayPaymentUrl,
-            @Value("${vnpay.return-url:http://localhost:8080/api/payment-gateways/vnpay/return}") String vnpayReturnUrl) {
+            @Value("${vnpay.return-url:http://localhost:8080/api/payment-gateways/vnpay/return}") String vnpayReturnUrl,
+            @Value("${personal-qr.image-url:/payment/vnpay-personal-qr.png}") String personalQrImageUrl) {
         this.paymentService = paymentService;
         this.paymentRepository = paymentRepository;
         this.transactionHistoryRepository = transactionHistoryRepository;
@@ -60,6 +62,7 @@ public class PaymentGatewayService {
         this.vnpayHashSecret = vnpayHashSecret;
         this.vnpayPaymentUrl = vnpayPaymentUrl;
         this.vnpayReturnUrl = vnpayReturnUrl;
+        this.personalQrImageUrl = personalQrImageUrl;
     }
 
     @Transactional
@@ -74,9 +77,29 @@ public class PaymentGatewayService {
                 referenceCode, payment.amount(), request.orderInfo(), clientIp);
         PaymentGatewayResponse response = new PaymentGatewayResponse(
                 "VNPAY", payment.id(), referenceCode, payment.status(), paymentUrl,
-                paymentUrl, "VNPay sandbox payment created", payment, null);
+                paymentUrl, "VNPay sandbox payment created", payment, null,
+                null, null, payment.amount());
         realtimeEventService.publish(
                 "/topic/payments", "VNPAY_PAYMENT_CREATED", "VNPay payment created", response);
+        return response;
+    }
+
+    @Transactional
+    public PaymentGatewayResponse createPersonalQrPayment(PaymentGatewayRequest request) {
+        validateRequest(request);
+        String referenceCode = buildReferenceCode("PERSONALQR");
+        PaymentResponse payment = paymentService.create(new PaymentCreateRequest(
+                request.sessionId(), request.amount(), "PERSONAL_QR", LocalDateTime.now(),
+                "PENDING", "PERSONAL_QR", referenceCode));
+        String transferContent = "PARKING-" + payment.id();
+        PaymentGatewayResponse response = new PaymentGatewayResponse(
+                "PERSONAL_QR", payment.id(), referenceCode, payment.status(), null,
+                transferContent,
+                "Personal QR payment created. Staff must verify the wallet transfer manually.",
+                payment, null, personalQrImageUrl, transferContent, payment.amount());
+        realtimeEventService.publish(
+                "/topic/payments", "PERSONAL_QR_PAYMENT_CREATED",
+                "Personal QR payment created", response);
         return response;
     }
 
@@ -91,7 +114,8 @@ public class PaymentGatewayService {
                 "CASH", payment.id(), referenceCode, payment.status(), null,
                 "CASH:" + referenceCode,
                 "Cash payment confirmed. Vehicle must exit within 15 minutes",
-                payment, payment.paymentTime().plusMinutes(EXIT_WINDOW_MINUTES));
+                payment, payment.paymentTime().plusMinutes(EXIT_WINDOW_MINUTES),
+                null, null, payment.amount());
         realtimeEventService.publish(
                 "/topic/payments", "CASH_PAYMENT_COMPLETED", "Cash payment completed", response);
         return response;
@@ -136,7 +160,8 @@ public class PaymentGatewayService {
                 paymentResponse,
                 "COMPLETED".equalsIgnoreCase(payment.getStatus())
                         ? paymentResponse.paymentTime().plusMinutes(EXIT_WINDOW_MINUTES)
-                        : null);
+                        : null,
+                null, null, paymentResponse.amount());
         realtimeEventService.publish(
                 "/topic/payments", "VNPAY_PAYMENT_" + payment.getStatus(),
                 "VNPay callback processed", response);
@@ -276,5 +301,4 @@ public class PaymentGatewayService {
         return URLEncoder.encode(value, StandardCharsets.UTF_8);
     }
 }
-
 

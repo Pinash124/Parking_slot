@@ -1,5 +1,6 @@
 package com.example.pricing_calculation.dto;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 public record PaymentGatewayResponse(
@@ -11,6 +12,9 @@ public record PaymentGatewayResponse(
         String qrContent,
         String message,
         PaymentResponse payment,
-        LocalDateTime exitDeadline
+        LocalDateTime exitDeadline,
+        String qrImageUrl,
+        String transferContent,
+        BigDecimal amount
 ) {
 }
