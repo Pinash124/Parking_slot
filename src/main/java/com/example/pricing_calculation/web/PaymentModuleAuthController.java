@@ -29,7 +29,8 @@ public class PaymentModuleAuthController {
 
     @PostMapping("/forgot-password") public OtpChallengeResponse forgotPassword(@RequestBody ForgotPasswordRequest r){return auth.forgotPassword(r);}
     @PostMapping("/reset-password") public AuthLogoutResponse resetPassword(@RequestBody ResetPasswordRequest r){return auth.resetPassword(r);}
-    @PostMapping("/change-password") @SecurityRequirement(name="bearerAuth") public AuthLogoutResponse changePassword(@RequestHeader("Authorization")String h,@RequestBody ChangePasswordRequest r){return auth.changePassword(h,r);}
+    @PostMapping("/change-password") @SecurityRequirement(name="bearerAuth") public OtpChallengeResponse changePassword(@RequestHeader("Authorization")String h,@RequestBody ChangePasswordRequest r){return auth.changePassword(h,r);}
+    @PostMapping("/verify-otp") public AuthLoginResponse verifyOtp(@RequestBody VerifyOtpRequest r){return auth.verifyOtp(r);}
     @GetMapping("/me") @SecurityRequirement(name="bearerAuth") public UserProfileResponse me(@RequestHeader("Authorization")String h){return auth.profile(h);}
     @PatchMapping("/profile") @SecurityRequirement(name="bearerAuth") public UserProfileResponse updateProfile(@RequestHeader("Authorization")String h,@RequestBody UpdateProfileRequest r){return auth.updateProfile(h,r);}
     @PostMapping("/logout") @SecurityRequirement(name="bearerAuth") public AuthLogoutResponse logout(@RequestHeader("Authorization")String h){return auth.logout(h);}
