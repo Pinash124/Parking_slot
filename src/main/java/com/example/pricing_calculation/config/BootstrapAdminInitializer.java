@@ -15,5 +15,17 @@ public class BootstrapAdminInitializer implements CommandLineRunner {
     public BootstrapAdminInitializer(UserAccountRepository users,PasswordHashService passwords,
             @Value("${parking.bootstrap.admin-email:admin@smartparking.local}")String email,
             @Value("${parking.bootstrap.admin-password:Admin@12345}")String password){this.users=users;this.passwords=passwords;this.email=email;this.password=password;}
-    @Override public void run(String...args){if(users.count()==0){UserAccount admin=new UserAccount();admin.setFullName("System Administrator");admin.setEmail(email);admin.setPasswordHash(passwords.hash(password));admin.setStatus("ACTIVE");admin.setRole(UserRole.ADMINISTRATOR.code());users.save(admin);}}
+    @Override
+    public void run(String... args) {
+        String normalizedEmail = email.trim().toLowerCase();
+        if (!users.existsByEmailIgnoreCase(normalizedEmail)) {
+            UserAccount admin = new UserAccount();
+            admin.setFullName("System Administrator");
+            admin.setEmail(normalizedEmail);
+            admin.setPasswordHash(passwords.hash(password));
+            admin.setStatus("ACTIVE");
+            admin.setRole(UserRole.ADMINISTRATOR.code());
+            users.save(admin);
+        }
+    }
 }

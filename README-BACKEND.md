@@ -15,6 +15,10 @@ Yeu cau Java 17+ va Maven.
 mvn spring-boot:run
 ```
 
+Neu dung PostgreSQL, sao chep `.env.example` thanh `.env`, dien dung
+`DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, sau do khoi dong lai backend. Runtime tu
+dong nap file `.env` o thu muc goc du an.
+
 Mac dinh he thong dung H2 file tai `./data/smartparking` va tu tao/cap nhat schema. Tai khoan khoi tao:
 
 - Email: `admin@smartparking.local`
@@ -58,5 +62,4 @@ VNPay Sandbox uses HMAC-SHA512 signing and verifies the callback signature, amou
 - Dang xuat: `/api/auth/logout`
 
 Dev mac dinh tra OTP trong truong `developmentOtp`. Production dat `EXPOSE_DEVELOPMENT_OTP=false` va cau hinh SMTP.
-
 

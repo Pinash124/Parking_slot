@@ -7,6 +7,7 @@ import java.security.spec.InvalidKeySpecException;
 import java.util.Base64;
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -19,6 +20,7 @@ public class PasswordHashService {
     private static final int HASH_BYTES = 32;
 
     private final SecureRandom secureRandom = new SecureRandom();
+    private final BCryptPasswordEncoder bcrypt = new BCryptPasswordEncoder();
 
     public String hash(String rawPassword) {
         if (rawPassword == null || rawPassword.isBlank()) {
@@ -35,6 +37,15 @@ public class PasswordHashService {
     public boolean matches(String rawPassword, String encodedPassword) {
         if (rawPassword == null || encodedPassword == null) {
             return false;
+        }
+        if (encodedPassword.startsWith("$2a$")
+                || encodedPassword.startsWith("$2b$")
+                || encodedPassword.startsWith("$2y$")) {
+            try {
+                return bcrypt.matches(rawPassword, encodedPassword);
+            } catch (IllegalArgumentException exception) {
+                return false;
+            }
         }
         try {
             String[] parts = encodedPassword.split("\\$");
