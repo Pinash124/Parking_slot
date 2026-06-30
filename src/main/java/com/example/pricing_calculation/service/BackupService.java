@@ -51,11 +51,14 @@ public class BackupService {
                       "createdAt": "%s",
                       "note": "This checkpoint records backup readiness metadata. Use SQL Server/MySQL tools for full production database dumps."
                     }
-                    """.formatted(now);
+                    """
+                    .formatted(now);
             Files.writeString(file, content);
             lastBackup = new BackupResponse("SUCCESS", file.toAbsolutePath().toString(), now,
                     "Backup checkpoint created");
-            auditLogService.record(user, action, "SystemBackup", null);
+            if (user != null) {
+                auditLogService.record(user, action, "SystemBackup", null);
+            }
             return lastBackup;
         } catch (IOException exception) {
             lastBackup = new BackupResponse("FAILED", null, now, exception.getMessage());
