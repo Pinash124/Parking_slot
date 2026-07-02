@@ -30,6 +30,8 @@ public class PaymentModuleParkingSessionService {
     private final PricingService pricingService;
     private final RealtimeEventService realtimeEventService;
     private final SessionServiceUsageRepository serviceUsageRepository;
+    private final GateService gateService;
+    private final NotificationService notificationService;
 
     public PaymentModuleParkingSessionService(
             PaymentModuleParkingSessionRepository parkingSessionRepository,
@@ -38,7 +40,9 @@ public class PaymentModuleParkingSessionService {
             PaymentModuleParkingSlotRepository parkingSlotRepository,
             PricingService pricingService,
             RealtimeEventService realtimeEventService,
-            SessionServiceUsageRepository serviceUsageRepository) {
+            SessionServiceUsageRepository serviceUsageRepository,
+            GateService gateService,
+            NotificationService notificationService) {
         this.parkingSessionRepository = parkingSessionRepository;
         this.reservationRepository = reservationRepository;
         this.vehicleRepository = vehicleRepository;
@@ -46,6 +50,8 @@ public class PaymentModuleParkingSessionService {
         this.pricingService = pricingService;
         this.realtimeEventService = realtimeEventService;
         this.serviceUsageRepository = serviceUsageRepository;
+        this.gateService = gateService;
+        this.notificationService = notificationService;
     }
 
     @Transactional
@@ -58,6 +64,7 @@ public class PaymentModuleParkingSessionService {
         if (request == null || request.vehicleId() == null || request.slotId() == null) {
             throw new BadRequestException("vehicleId and slotId are required");
         }
+        gateService.validateGateCode(entryGateCode, "ENTRY");
         Vehicle vehicle = vehicleRepository.findById(request.vehicleId())
                 .orElseThrow(() -> new ResourceNotFoundException("Vehicle not found: " + request.vehicleId()));
         PaymentModuleParkingSlot slot = parkingSlotRepository.findByIdForUpdate(request.slotId())
@@ -110,6 +117,10 @@ public class PaymentModuleParkingSessionService {
         ParkingSessionResponse response = ParkingSessionResponse.from(saved);
         realtimeEventService.publish("/topic/parking-sessions", "SESSION_STARTED", "Parking session started", response);
         realtimeEventService.publish("/topic/parking-slots", "SLOT_OCCUPIED", "Parking slot occupied", response);
+        notificationService.notifyUser(
+                vehicle.getUser(),
+                "Parking check-in completed",
+                "Your vehicle " + vehicle.getPlateNumber() + " has checked in at gate " + entryGateCode);
         return response;
     }
 
@@ -149,6 +160,7 @@ public class PaymentModuleParkingSessionService {
     @Transactional
     public ParkingSessionResponse completePaidExit(Long id, Long staffId, String exitGateCode) {
         PaymentModuleParkingSession session = findSession(id);
+        gateService.validateGateCode(exitGateCode, "EXIT");
         session.setExitStaffId(staffId);
         session.setExitGateCode(exitGateCode);
         session.setStatus("COMPLETED");
@@ -157,6 +169,10 @@ public class PaymentModuleParkingSessionService {
         ParkingSessionResponse response = ParkingSessionResponse.from(parkingSessionRepository.save(session));
         realtimeEventService.publish("/topic/parking-sessions", "EXIT_COMPLETED", "Paid vehicle exited", response);
         realtimeEventService.publish("/topic/parking-slots", "SLOT_AVAILABLE", "Parking slot available", response);
+        notificationService.notifyUser(
+                session.getVehicle().getUser(),
+                "Vehicle exited",
+                "Your vehicle " + session.getVehicle().getPlateNumber() + " has exited through gate " + exitGateCode);
         return response;
     }
 

@@ -55,6 +55,15 @@ DDL_AUTO=update
 - Neu xe co ve thang con hieu luc, he thong tu tinh `parkingFee = 0` khi checkout
 - Neu tong phi = 0, backend tu tao payment cash 0 dong de barrier/validate khong bi ket
 
+## Cong, vi pham va thong bao
+
+- Manager quan ly cong vao/ra tai `GET /api/manager/gates`
+- Staff ghi nhan vi pham tai `POST /api/staff/violations`
+- User xem thong bao cua minh tai `GET /api/user/notifications`
+- Khi tao reservation, dang ky ve thang, check-in va exit hoan tat, he thong tu dong tao notification cho chu xe
+- Khi tao/resolve violation, he thong tu dong tao notification cho chu xe lien quan
+- Check-in va exit co the validate `entryGateCode` / `exitGateCode` neu gate da duoc cau hinh trong bang `Gates`
+
 VNPay Sandbox uses HMAC-SHA512 signing and verifies the callback signature, amount and transaction reference before completing a payment.
 
 ## Authentication day du
