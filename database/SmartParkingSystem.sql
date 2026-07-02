@@ -218,6 +218,25 @@ CREATE TABLE LicensePlateScans(
     FOREIGN KEY(session_id) REFERENCES ParkingSessions(session_id)
 );
 
+CREATE TABLE MonthlyParkingPasses(
+    pass_id BIGINT IDENTITY(1,1) PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    vehicle_id BIGINT NOT NULL,
+    vehicle_type_id BIGINT NOT NULL,
+    months INT,
+    monthly_rate DECIMAL(18,2),
+    total_amount DECIMAL(18,2),
+    start_date DATE,
+    end_date DATE,
+    status VARCHAR(20),
+    note NVARCHAR(500),
+    created_at DATETIME2 DEFAULT GETDATE(),
+    updated_at DATETIME2 DEFAULT GETDATE(),
+    FOREIGN KEY(user_id) REFERENCES Users(user_id),
+    FOREIGN KEY(vehicle_id) REFERENCES Vehicles(vehicle_id),
+    FOREIGN KEY(vehicle_type_id) REFERENCES VehicleTypes(vehicle_type_id)
+);
+
 ALTER TABLE Users
 ADD role VARCHAR(20) NOT NULL DEFAULT 'CUSTOMER';
 

@@ -2,12 +2,16 @@ package com.example.pricing_calculation.service;
 
 import com.example.pricing_calculation.domain.PaymentModulePricingPolicy;
 import com.example.pricing_calculation.domain.VehicleTypeEntity;
+import com.example.pricing_calculation.domain.Vehicle;
 import com.example.pricing_calculation.dto.PricingQuoteResponse;
 import com.example.pricing_calculation.repository.PaymentModulePricingPolicyRepository;
 import com.example.pricing_calculation.repository.PaymentModuleVehicleTypeRepository;
+import com.example.pricing_calculation.repository.MonthlyParkingPassRepository;
+import com.example.pricing_calculation.repository.VehicleRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Duration;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.stereotype.Service;
@@ -18,12 +22,18 @@ public class PricingService {
 
     private final PaymentModulePricingPolicyRepository pricingPolicyRepository;
     private final PaymentModuleVehicleTypeRepository vehicleTypeRepository;
+    private final VehicleRepository vehicleRepository;
+    private final MonthlyParkingPassRepository monthlyParkingPassRepository;
 
     public PricingService(
             PaymentModulePricingPolicyRepository pricingPolicyRepository,
-            PaymentModuleVehicleTypeRepository vehicleTypeRepository) {
+            PaymentModuleVehicleTypeRepository vehicleTypeRepository,
+            VehicleRepository vehicleRepository,
+            MonthlyParkingPassRepository monthlyParkingPassRepository) {
         this.pricingPolicyRepository = pricingPolicyRepository;
         this.vehicleTypeRepository = vehicleTypeRepository;
+        this.vehicleRepository = vehicleRepository;
+        this.monthlyParkingPassRepository = monthlyParkingPassRepository;
     }
 
     @Transactional(readOnly = true)
@@ -43,6 +53,72 @@ public class PricingService {
             throw new BadRequestException("exitTime must be after entryTime");
         }
 
+        return estimateInternal(
+                vehicleTypeId,
+                entryTime,
+                exitTime,
+                lostTicket,
+                overtimeMinutes,
+                false
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public PricingQuoteResponse estimateForVehicle(
+            Long vehicleId,
+            LocalDateTime entryTime,
+            LocalDateTime exitTime,
+            boolean lostTicket,
+            Integer overtimeMinutes) {
+        if (vehicleId == null) {
+            throw new BadRequestException("vehicleId is required");
+        }
+        if (entryTime == null || exitTime == null) {
+            throw new BadRequestException("entryTime and exitTime are required");
+        }
+        if (!exitTime.isAfter(entryTime)) {
+            throw new BadRequestException("exitTime must be after entryTime");
+        }
+        Vehicle vehicle = vehicleRepository.findById(vehicleId)
+                .orElseThrow(() -> new ResourceNotFoundException("Vehicle not found: " + vehicleId));
+        boolean monthlyPassActive = hasActiveMonthlyPass(vehicleId, entryTime);
+        return estimateInternal(
+                vehicle.getVehicleType().getId(),
+                entryTime,
+                exitTime,
+                lostTicket,
+                overtimeMinutes,
+                monthlyPassActive
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public BigDecimal monthlyRateForVehicleType(Long vehicleTypeId, LocalDateTime atTime) {
+        if (vehicleTypeId == null) {
+            throw new BadRequestException("vehicleTypeId is required");
+        }
+        PaymentModulePricingPolicy policy = findPolicy(vehicleTypeId, atTime == null ? LocalDateTime.now() : atTime);
+        return firstPositive(policy == null ? null : policy.getMonthlyRate(), BigDecimal.ZERO);
+    }
+
+    @Transactional(readOnly = true)
+    public List<PaymentModulePricingPolicy> activePolicies(Long vehicleTypeId, LocalDateTime atTime) {
+        if (vehicleTypeId == null) {
+            throw new BadRequestException("vehicleTypeId is required");
+        }
+        return pricingPolicyRepository.findActivePolicies(
+                vehicleTypeId,
+                atTime == null ? LocalDateTime.now() : atTime
+        );
+    }
+
+    private PricingQuoteResponse estimateInternal(
+            Long vehicleTypeId,
+            LocalDateTime entryTime,
+            LocalDateTime exitTime,
+            boolean lostTicket,
+            Integer overtimeMinutes,
+            boolean monthlyPassActive) {
         VehicleTypeEntity vehicleType = vehicleTypeRepository.findById(vehicleTypeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Vehicle type not found: " + vehicleTypeId));
         PaymentModulePricingPolicy policy = findPolicy(vehicleTypeId, entryTime);
@@ -60,7 +136,9 @@ public class PricingService {
         int safeOvertimeMinutes = Math.max(0, overtimeMinutes == null ? 0 : overtimeMinutes);
         long durationMinutes = Duration.between(entryTime, exitTime).toMinutes();
         long billableHours = Math.max(1, divideCeiling(durationMinutes, 60));
-        BigDecimal parkingFee = calculateParkingFee(billableHours, hourlyRate, dailyRate);
+        BigDecimal parkingFee = monthlyPassActive
+                ? BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP)
+                : calculateParkingFee(billableHours, hourlyRate, dailyRate);
         BigDecimal overtimeFee = overtimeFeeRate.multiply(BigDecimal.valueOf(divideCeiling(safeOvertimeMinutes, 60)));
         BigDecimal penaltyFee = lostTicketFee.add(overtimeFee).add(fixedSurcharge);
         BigDecimal totalFee = parkingFee.add(penaltyFee).setScale(2, RoundingMode.HALF_UP);
@@ -86,15 +164,10 @@ public class PricingService {
         );
     }
 
-    @Transactional(readOnly = true)
-    public List<PaymentModulePricingPolicy> activePolicies(Long vehicleTypeId, LocalDateTime atTime) {
-        if (vehicleTypeId == null) {
-            throw new BadRequestException("vehicleTypeId is required");
-        }
-        return pricingPolicyRepository.findActivePolicies(
-                vehicleTypeId,
-                atTime == null ? LocalDateTime.now() : atTime
-        );
+    private boolean hasActiveMonthlyPass(Long vehicleId, LocalDateTime atTime) {
+        LocalDate date = (atTime == null ? LocalDateTime.now() : atTime).toLocalDate();
+        return monthlyParkingPassRepository.findByVehicleIdOrderByCreatedAtDesc(vehicleId).stream()
+                .anyMatch(pass -> pass.isActiveAt(date));
     }
 
     private PaymentModulePricingPolicy findPolicy(Long vehicleTypeId, LocalDateTime atTime) {

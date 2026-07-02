@@ -14,6 +14,7 @@ DROP TABLE IF EXISTS Notifications;
 DROP TABLE IF EXISTS Feedbacks;
 DROP TABLE IF EXISTS IncidentReports;
 DROP TABLE IF EXISTS Violations;
+DROP TABLE IF EXISTS MonthlyParkingPasses;
 DROP TABLE IF EXISTS Transactions;
 DROP TABLE IF EXISTS Payments;
 DROP TABLE IF EXISTS ParkingSessions;
@@ -274,4 +275,26 @@ CREATE TABLE LicensePlateScans (
     scan_time DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6),
     CONSTRAINT FK_LicensePlateScans_ParkingSessions
         FOREIGN KEY (session_id) REFERENCES ParkingSessions(session_id)
+) ENGINE=InnoDB;
+
+CREATE TABLE MonthlyParkingPasses (
+    pass_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    vehicle_id BIGINT NOT NULL,
+    vehicle_type_id BIGINT NOT NULL,
+    months INT,
+    monthly_rate DECIMAL(18,2),
+    total_amount DECIMAL(18,2),
+    start_date DATE,
+    end_date DATE,
+    status VARCHAR(20),
+    note VARCHAR(500),
+    created_at DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6),
+    updated_at DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6),
+    CONSTRAINT FK_MonthlyParkingPasses_Users
+        FOREIGN KEY (user_id) REFERENCES Users(user_id),
+    CONSTRAINT FK_MonthlyParkingPasses_Vehicles
+        FOREIGN KEY (vehicle_id) REFERENCES Vehicles(vehicle_id),
+    CONSTRAINT FK_MonthlyParkingPasses_VehicleTypes
+        FOREIGN KEY (vehicle_type_id) REFERENCES VehicleTypes(vehicle_type_id)
 ) ENGINE=InnoDB;

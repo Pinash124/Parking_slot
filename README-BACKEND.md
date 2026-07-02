@@ -48,6 +48,13 @@ DDL_AUTO=update
 9. Thanh toan Cash/VNPay tai `/api/payment-gateways`.
 10. Staff goi `complete-exit`; chi cho ra khi payment da hoan tat, sau do slot ve `AVAILABLE`.
 
+## Ve thang
+
+- User dang ky ve thang tai `POST /api/user/monthly-passes`
+- User xem cac ve thang cua minh tai `GET /api/user/monthly-passes`
+- Neu xe co ve thang con hieu luc, he thong tu tinh `parkingFee = 0` khi checkout
+- Neu tong phi = 0, backend tu tao payment cash 0 dong de barrier/validate khong bi ket
+
 VNPay Sandbox uses HMAC-SHA512 signing and verifies the callback signature, amount and transaction reference before completing a payment.
 
 ## Authentication day du

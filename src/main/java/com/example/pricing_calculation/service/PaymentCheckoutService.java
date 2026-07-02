@@ -7,9 +7,11 @@ import com.example.pricing_calculation.dto.PaymentCheckoutPrepareRequest;
 import com.example.pricing_calculation.dto.PaymentCheckoutResponse;
 import com.example.pricing_calculation.dto.PaymentExitValidationRequest;
 import com.example.pricing_calculation.dto.PaymentExitValidationResponse;
+import com.example.pricing_calculation.dto.PaymentGatewayRequest;
 import com.example.pricing_calculation.dto.SessionCheckoutRequest;
 import com.example.pricing_calculation.repository.PaymentModuleParkingSessionRepository;
 import com.example.pricing_calculation.repository.PaymentRepository;
+import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -25,16 +27,19 @@ public class PaymentCheckoutService {
     private final PaymentModuleParkingSessionRepository parkingSessionRepository;
     private final PaymentRepository paymentRepository;
     private final PaymentModuleParkingSessionService parkingSessionService;
+    private final PaymentGatewayService paymentGatewayService;
     private final RealtimeEventService realtimeEventService;
 
     public PaymentCheckoutService(
             PaymentModuleParkingSessionRepository parkingSessionRepository,
             PaymentRepository paymentRepository,
             PaymentModuleParkingSessionService parkingSessionService,
+            PaymentGatewayService paymentGatewayService,
             RealtimeEventService realtimeEventService) {
         this.parkingSessionRepository = parkingSessionRepository;
         this.paymentRepository = paymentRepository;
         this.parkingSessionService = parkingSessionService;
+        this.paymentGatewayService = paymentGatewayService;
         this.realtimeEventService = realtimeEventService;
     }
 
@@ -54,6 +59,16 @@ public class PaymentCheckoutService {
                             request.overtimeMinutes()
                     )
             );
+            if (sessionResponse.totalFee() != null
+                    && sessionResponse.totalFee().compareTo(BigDecimal.ZERO) == 0
+                    && findRelevantPayment(session.getId()).isEmpty()) {
+                paymentGatewayService.createCashPayment(new PaymentGatewayRequest(
+                        session.getId(),
+                        BigDecimal.ZERO,
+                        null,
+                        "Monthly pass / zero-fee checkout"
+                ));
+            }
         } else if ("PAYMENT_PENDING".equalsIgnoreCase(session.getStatus()) || "COMPLETED".equalsIgnoreCase(session.getStatus())) {
             sessionResponse = ParkingSessionResponse.from(session);
         } else {
