@@ -5,6 +5,7 @@ import com.example.pricing_calculation.dto.*;
 import com.example.pricing_calculation.service.PaymentModuleAuthService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.Hidden;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -21,10 +22,12 @@ public class PaymentModuleAuthController {
 
     @PostMapping("/register") public OtpChallengeResponse register(@RequestBody AuthRegistrationRequest r){return auth.requestRegistration(r);}
     @PostMapping("/register/verify") public ResponseEntity<AuthRegistrationResponse> verifyRegistration(@RequestBody VerifyOtpRequest r){return ResponseEntity.status(HttpStatus.CREATED).body(auth.verifyRegistration(r));}
+    @Hidden
     @PostMapping("/register/direct") public ResponseEntity<AuthRegistrationResponse> registerDirect(@RequestBody AuthRegistrationRequest r){return ResponseEntity.status(HttpStatus.CREATED).body(auth.registerDirect(r));}
 
     @PostMapping("/login") public OtpChallengeResponse login(@RequestBody AuthLoginRequest r){return auth.requestLogin(r);}
     @PostMapping("/login/verify") public AuthLoginResponse verifyLogin(@RequestBody VerifyOtpRequest r){return auth.verifyLogin(r);}
+    @Hidden
     @PostMapping("/login/direct") public AuthLoginResponse loginDirect(@RequestBody AuthLoginRequest r){return auth.loginDirect(r);}
 
     @PostMapping("/forgot-password") public OtpChallengeResponse forgotPassword(@RequestBody ForgotPasswordRequest r){return auth.forgotPassword(r);}

@@ -13,6 +13,7 @@ public record DashboardOverviewResponse(
         long pendingPayments,
         long completedPayments,
         BigDecimal todayRevenue,
+        BigDecimal monthRevenue,
         long totalTransactions
 ) {
 }
