@@ -125,8 +125,8 @@ public class PaymentModuleParkingSessionService {
             throw new BadRequestException("Only ACTIVE sessions can be checked out");
         }
         LocalDateTime exitTime = request == null || request.exitTime() == null ? LocalDateTime.now() : request.exitTime();
-        PricingQuoteResponse quote = pricingService.estimate(
-                session.getVehicle().getVehicleType().getId(),
+        PricingQuoteResponse quote = pricingService.estimateForVehicle(
+                session.getVehicle().getId(),
                 session.getEntryTime(),
                 exitTime,
                 request != null && request.lostTicket(),

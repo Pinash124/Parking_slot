@@ -68,6 +68,9 @@ public class PaymentGatewayService {
     @Transactional
     public PaymentGatewayResponse createVnpayPayment(PaymentGatewayRequest request, String clientIp) {
         validateRequest(request);
+        if (request.amount() == null || request.amount().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BadRequestException("VNPay is not available for zero-fee monthly-pass checkout");
+        }
         requireVnpayConfiguration();
         String referenceCode = buildReferenceCode("VNPAY");
         PaymentResponse payment = paymentService.create(new PaymentCreateRequest(
