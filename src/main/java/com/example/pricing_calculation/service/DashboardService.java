@@ -38,7 +38,10 @@ public class DashboardService {
     public DashboardOverviewResponse overview() {
         LocalDateTime startOfToday = LocalDate.now().atStartOfDay();
         LocalDateTime startOfTomorrow = startOfToday.plusDays(1);
+        LocalDateTime startOfMonth = LocalDate.now().withDayOfMonth(1).atStartOfDay();
+        LocalDateTime startOfNextMonth = startOfMonth.plusMonths(1);
         BigDecimal todayRevenue = paymentRepository.sumCompletedAmountBetween(startOfToday, startOfTomorrow);
+        BigDecimal monthRevenue = paymentRepository.sumCompletedAmountBetween(startOfMonth, startOfNextMonth);
         return new DashboardOverviewResponse(
                 reservationRepository.count(),
                 reservationRepository.countByStatusIgnoreCase("PENDING"),
@@ -50,6 +53,7 @@ public class DashboardService {
                 paymentRepository.countByStatusIgnoreCase("PENDING"),
                 paymentRepository.countByStatusIgnoreCase("COMPLETED"),
                 todayRevenue == null ? BigDecimal.ZERO : todayRevenue,
+                monthRevenue == null ? BigDecimal.ZERO : monthRevenue,
                 transactionHistoryRepository.count()
         );
     }
