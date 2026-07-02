@@ -7,6 +7,10 @@ public record SessionCheckInRequest(
         Long vehicleId,
         Long slotId,
         String ticketCode,
-        LocalDateTime entryTime
+        LocalDateTime entryTime,
+        String licensePlate
 ) {
+    public SessionCheckInRequest(Long reservationId, Long vehicleId, Long slotId, String ticketCode, LocalDateTime entryTime) {
+        this(reservationId, vehicleId, slotId, ticketCode, entryTime, null);
+    }
 }

@@ -4,6 +4,8 @@ import com.example.pricing_calculation.domain.PaymentModuleParkingSession;
 import com.example.pricing_calculation.domain.PaymentModuleParkingSlot;
 import com.example.pricing_calculation.domain.Reservation;
 import com.example.pricing_calculation.domain.Vehicle;
+import com.example.pricing_calculation.domain.UserAccount;
+import com.example.pricing_calculation.domain.VehicleTypeEntity;
 import com.example.pricing_calculation.dto.ParkingSessionResponse;
 import com.example.pricing_calculation.dto.PricingQuoteResponse;
 import com.example.pricing_calculation.dto.SessionCheckInRequest;
@@ -13,6 +15,8 @@ import com.example.pricing_calculation.repository.PaymentModuleParkingSlotReposi
 import com.example.pricing_calculation.repository.ReservationRepository;
 import com.example.pricing_calculation.repository.VehicleRepository;
 import com.example.pricing_calculation.repository.SessionServiceUsageRepository;
+import com.example.pricing_calculation.repository.UserAccountRepository;
+import com.example.pricing_calculation.repository.PaymentModuleVehicleTypeRepository;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -30,6 +34,8 @@ public class PaymentModuleParkingSessionService {
     private final PricingService pricingService;
     private final RealtimeEventService realtimeEventService;
     private final SessionServiceUsageRepository serviceUsageRepository;
+    private final UserAccountRepository userAccountRepository;
+    private final PaymentModuleVehicleTypeRepository vehicleTypeRepository;
 
     public PaymentModuleParkingSessionService(
             PaymentModuleParkingSessionRepository parkingSessionRepository,
@@ -38,7 +44,9 @@ public class PaymentModuleParkingSessionService {
             PaymentModuleParkingSlotRepository parkingSlotRepository,
             PricingService pricingService,
             RealtimeEventService realtimeEventService,
-            SessionServiceUsageRepository serviceUsageRepository) {
+            SessionServiceUsageRepository serviceUsageRepository,
+            UserAccountRepository userAccountRepository,
+            PaymentModuleVehicleTypeRepository vehicleTypeRepository) {
         this.parkingSessionRepository = parkingSessionRepository;
         this.reservationRepository = reservationRepository;
         this.vehicleRepository = vehicleRepository;
@@ -46,6 +54,8 @@ public class PaymentModuleParkingSessionService {
         this.pricingService = pricingService;
         this.realtimeEventService = realtimeEventService;
         this.serviceUsageRepository = serviceUsageRepository;
+        this.userAccountRepository = userAccountRepository;
+        this.vehicleTypeRepository = vehicleTypeRepository;
     }
 
     @Transactional
@@ -55,11 +65,39 @@ public class PaymentModuleParkingSessionService {
 
     @Transactional
     public ParkingSessionResponse checkIn(SessionCheckInRequest request, Long staffId, String entryGateCode) {
-        if (request == null || request.vehicleId() == null || request.slotId() == null) {
-            throw new BadRequestException("vehicleId and slotId are required");
+        if (request == null || request.slotId() == null) {
+            throw new BadRequestException("slotId is required");
         }
-        Vehicle vehicle = vehicleRepository.findById(request.vehicleId())
-                .orElseThrow(() -> new ResourceNotFoundException("Vehicle not found: " + request.vehicleId()));
+        Vehicle vehicle = null;
+        if (request.vehicleId() != null) {
+            vehicle = vehicleRepository.findById(request.vehicleId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Vehicle not found: " + request.vehicleId()));
+        } else if (request.licensePlate() != null && !request.licensePlate().isBlank()) {
+            String plate = request.licensePlate().trim().toUpperCase();
+            vehicle = vehicleRepository.findByPlateNumberIgnoreCase(plate).orElse(null);
+            if (vehicle == null) {
+                Vehicle guestVehicle = new Vehicle();
+                guestVehicle.setPlateNumber(plate);
+                
+                UserAccount owner = userAccountRepository.findByEmailIgnoreCase("customer@example.com").orElse(null);
+                if (owner == null && staffId != null) {
+                    owner = userAccountRepository.findById(staffId).orElse(null);
+                }
+                guestVehicle.setUser(owner);
+                
+                VehicleTypeEntity defaultType = vehicleTypeRepository.findById(1L)
+                        .orElseThrow(() -> new ResourceNotFoundException("Default vehicle type not found"));
+                guestVehicle.setVehicleType(defaultType);
+                guestVehicle.setBrand("Guest");
+                guestVehicle.setColor("Unknown");
+                guestVehicle.setStatus("ACTIVE");
+                
+                vehicle = vehicleRepository.save(guestVehicle);
+            }
+        } else {
+            throw new BadRequestException("vehicleId or licensePlate is required");
+        }
+
         PaymentModuleParkingSlot slot = parkingSlotRepository.findByIdForUpdate(request.slotId())
                 .orElseThrow(() -> new ResourceNotFoundException("Parking slot not found: " + request.slotId()));
         if (slot.getStatus() != null

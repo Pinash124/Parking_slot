@@ -24,9 +24,35 @@ public class UserPortalService {
     private final PaymentModuleParkingSessionRepository sessions; private final PricingService pricing;
     private final MonthlyParkingPassRepository monthlyPasses;
     private final AdditionalServiceRepository services; private final SessionServiceUsageRepository usages;
+    private final PaymentModulePricingPolicyRepository pricingPolicies;
+
     public UserPortalService(VehicleRepository vehicles,PaymentModuleVehicleTypeRepository vehicleTypes,
             PaymentModuleParkingSessionRepository sessions,PricingService pricing,
-            MonthlyParkingPassRepository monthlyPasses,AdditionalServiceRepository services,SessionServiceUsageRepository usages){this.vehicles=vehicles;this.vehicleTypes=vehicleTypes;this.sessions=sessions;this.pricing=pricing;this.monthlyPasses=monthlyPasses;this.services=services;this.usages=usages;}
+            MonthlyParkingPassRepository monthlyPasses,AdditionalServiceRepository services,
+            SessionServiceUsageRepository usages, PaymentModulePricingPolicyRepository pricingPolicies){
+        this.vehicles=vehicles;
+        this.vehicleTypes=vehicleTypes;
+        this.sessions=sessions;
+        this.pricing=pricing;
+        this.monthlyPasses=monthlyPasses;
+        this.services=services;
+        this.usages=usages;
+        this.pricingPolicies=pricingPolicies;
+    }
+
+    @Transactional(readOnly=true)
+    public List<com.example.pricing_calculation.dto.ManagementDtos.PricingPolicyView> pricingPolicies() {
+        return pricingPolicies.findAll().stream()
+                .map(com.example.pricing_calculation.dto.ManagementDtos.PricingPolicyView::from)
+                .toList();
+    }
+
+    @Transactional(readOnly=true)
+    public List<com.example.pricing_calculation.dto.ManagementDtos.VehicleTypeView> vehicleTypes() {
+        return vehicleTypes.findAll().stream()
+                .map(com.example.pricing_calculation.dto.ManagementDtos.VehicleTypeView::from)
+                .toList();
+    }
 
     @Transactional(readOnly=true) public List<VehicleView> vehicles(UserAccount user){return vehicles.findByUserIdOrderByPlateNumberAsc(user.getId()).stream().map(VehicleView::from).toList();}
     @Transactional public VehicleView saveVehicle(UserAccount user,Long id,VehicleRequest r){if(r==null||r.vehicleTypeId()==null||r.plateNumber()==null||r.plateNumber().isBlank())throw new BadRequestException("vehicleTypeId and plateNumber are required");Vehicle x=id==null?new Vehicle():ownedVehicle(user,id);vehicles.findByPlateNumberIgnoreCase(r.plateNumber()).filter(v->id==null||!v.getId().equals(id)).ifPresent(v->{throw new BadRequestException("License plate already exists");});x.setUser(user);x.setVehicleType(vehicleTypes.findById(r.vehicleTypeId()).orElseThrow(()->new ResourceNotFoundException("Vehicle type not found: "+r.vehicleTypeId())));x.setPlateNumber(r.plateNumber());x.setBrand(r.brand());x.setColor(r.color());x.setStatus("ACTIVE");return VehicleView.from(vehicles.save(x));}

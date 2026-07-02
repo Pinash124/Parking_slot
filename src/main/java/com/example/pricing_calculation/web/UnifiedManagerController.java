@@ -2,6 +2,7 @@ package com.example.pricing_calculation.web;
 
 import static com.example.pricing_calculation.dto.ManagementDtos.*;
 import com.example.pricing_calculation.domain.UserRole;
+import com.example.pricing_calculation.repository.VehicleRepository;
 import com.example.pricing_calculation.service.PaymentModuleAuthService;
 import com.example.pricing_calculation.service.UnifiedManagementService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -16,8 +17,8 @@ import org.springframework.web.bind.annotation.*;
 @SecurityRequirement(name="bearerAuth")
 @Tag(name="Parking Manager")
 public class UnifiedManagerController {
-    private final UnifiedManagementService service; private final PaymentModuleAuthService auth;
-    public UnifiedManagerController(UnifiedManagementService service,PaymentModuleAuthService auth){this.service=service;this.auth=auth;}
+    private final UnifiedManagementService service; private final PaymentModuleAuthService auth; private final VehicleRepository vehicleRepo;
+    public UnifiedManagerController(UnifiedManagementService service,PaymentModuleAuthService auth,VehicleRepository vehicleRepo){this.service=service;this.auth=auth;this.vehicleRepo=vehicleRepo;}
     private void manager(String h){auth.requireAnyRole(h,UserRole.PARKING_MANAGER,UserRole.ADMINISTRATOR);}
 
     @GetMapping("/buildings") public List<BuildingView> buildings(@RequestHeader("Authorization")String h){manager(h);return service.buildings();}
@@ -55,4 +56,6 @@ public class UnifiedManagerController {
     @PostMapping("/additional-services") public AdditionalServiceView createAdditionalService(@RequestHeader("Authorization")String h,@RequestBody AdditionalServiceRequest r){manager(h);return service.saveAdditionalService(null,r);}
     @PutMapping("/additional-services/{id}") public AdditionalServiceView updateAdditionalService(@RequestHeader("Authorization")String h,@PathVariable Long id,@RequestBody AdditionalServiceRequest r){manager(h);return service.saveAdditionalService(id,r);}
     @DeleteMapping("/additional-services/{id}") public void deleteAdditionalService(@RequestHeader("Authorization")String h,@PathVariable Long id){manager(h);service.deleteAdditionalService(id);}
+
+    @GetMapping("/vehicles") public List<VehicleView> allVehicles(@RequestHeader("Authorization")String h){manager(h);return vehicleRepo.findAll().stream().map(VehicleView::from).toList();}
 }

@@ -30,4 +30,6 @@ public class UserPortalController {
     @GetMapping("/parking-sessions/current") public CurrentParkingSessionResponse current(@RequestHeader("Authorization")String h){return portal.current(user(h));}
     @GetMapping("/parking-sessions/history") public List<ParkingSessionResponse> history(@RequestHeader("Authorization")String h){return portal.history(user(h));}
     @PostMapping("/parking-sessions/{id}/additional-services") public CurrentParkingSessionResponse addService(@RequestHeader("Authorization")String h,@PathVariable Long id,@RequestBody ServiceUsageRequest r){return portal.addService(user(h),id,r);}
+    @GetMapping("/pricing-policies") public List<com.example.pricing_calculation.dto.ManagementDtos.PricingPolicyView> pricingPolicies(@RequestHeader("Authorization")String h){return portal.pricingPolicies();}
+    @GetMapping("/vehicle-types") public List<com.example.pricing_calculation.dto.ManagementDtos.VehicleTypeView> vehicleTypes(@RequestHeader("Authorization")String h){return portal.vehicleTypes();}
 }
