@@ -31,7 +31,6 @@ public class ReservationService {
     private final ZoneRepository zoneRepository;
     private final PaymentModuleParkingSlotRepository parkingSlotRepository;
     private final RealtimeEventService realtimeEventService;
-    private final NotificationService notificationService;
 
     public ReservationService(
             ReservationRepository reservationRepository,
@@ -39,15 +38,13 @@ public class ReservationService {
             VehicleRepository vehicleRepository,
             ZoneRepository zoneRepository,
             PaymentModuleParkingSlotRepository parkingSlotRepository,
-            RealtimeEventService realtimeEventService,
-            NotificationService notificationService) {
+            RealtimeEventService realtimeEventService) {
         this.reservationRepository = reservationRepository;
         this.userAccountRepository = userAccountRepository;
         this.vehicleRepository = vehicleRepository;
         this.zoneRepository = zoneRepository;
         this.parkingSlotRepository = parkingSlotRepository;
         this.realtimeEventService = realtimeEventService;
-        this.notificationService = notificationService;
     }
 
     @Transactional
@@ -94,10 +91,6 @@ public class ReservationService {
                 "Reservation created",
                 response
         );
-        notificationService.notifyUser(
-                user,
-                "Reservation created",
-                "Reservation for vehicle " + vehicle.getPlateNumber() + " was created successfully");
         return response;
     }
 
@@ -153,10 +146,6 @@ public class ReservationService {
         reservation.setStatus("APPROVED");
         ReservationResponse response = ReservationResponse.from(reservationRepository.save(reservation));
         realtimeEventService.publish("/topic/reservations", "RESERVATION_APPROVED", "Reservation approved", response);
-        notificationService.notifyUser(
-                reservation.getUser(),
-                "Reservation approved",
-                "Reservation for vehicle " + reservation.getVehicle().getPlateNumber() + " was approved");
         return response;
     }
 
@@ -170,10 +159,6 @@ public class ReservationService {
         }
         ReservationResponse response = ReservationResponse.from(reservationRepository.save(reservation));
         realtimeEventService.publish("/topic/reservations", "RESERVATION_CANCELLED", "Reservation cancelled", response);
-        notificationService.notifyUser(
-                reservation.getUser(),
-                "Reservation cancelled",
-                "Reservation for vehicle " + reservation.getVehicle().getPlateNumber() + " was cancelled");
         return response;
     }
 

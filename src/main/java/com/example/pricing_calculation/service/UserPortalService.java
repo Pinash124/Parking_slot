@@ -24,11 +24,35 @@ public class UserPortalService {
     private final PaymentModuleParkingSessionRepository sessions; private final PricingService pricing;
     private final MonthlyParkingPassRepository monthlyPasses;
     private final AdditionalServiceRepository services; private final SessionServiceUsageRepository usages;
-    private final NotificationService notifications;
+    private final PaymentModulePricingPolicyRepository pricingPolicies;
+
     public UserPortalService(VehicleRepository vehicles,PaymentModuleVehicleTypeRepository vehicleTypes,
             PaymentModuleParkingSessionRepository sessions,PricingService pricing,
-            MonthlyParkingPassRepository monthlyPasses,AdditionalServiceRepository services,SessionServiceUsageRepository usages,
-            NotificationService notifications){this.vehicles=vehicles;this.vehicleTypes=vehicleTypes;this.sessions=sessions;this.pricing=pricing;this.monthlyPasses=monthlyPasses;this.services=services;this.usages=usages;this.notifications=notifications;}
+            MonthlyParkingPassRepository monthlyPasses,AdditionalServiceRepository services,
+            SessionServiceUsageRepository usages, PaymentModulePricingPolicyRepository pricingPolicies){
+        this.vehicles=vehicles;
+        this.vehicleTypes=vehicleTypes;
+        this.sessions=sessions;
+        this.pricing=pricing;
+        this.monthlyPasses=monthlyPasses;
+        this.services=services;
+        this.usages=usages;
+        this.pricingPolicies=pricingPolicies;
+    }
+
+    @Transactional(readOnly=true)
+    public List<com.example.pricing_calculation.dto.ManagementDtos.PricingPolicyView> pricingPolicies() {
+        return pricingPolicies.findAll().stream()
+                .map(com.example.pricing_calculation.dto.ManagementDtos.PricingPolicyView::from)
+                .toList();
+    }
+
+    @Transactional(readOnly=true)
+    public List<com.example.pricing_calculation.dto.ManagementDtos.VehicleTypeView> vehicleTypes() {
+        return vehicleTypes.findAll().stream()
+                .map(com.example.pricing_calculation.dto.ManagementDtos.VehicleTypeView::from)
+                .toList();
+    }
 
     @Transactional(readOnly=true) public List<VehicleView> vehicles(UserAccount user){return vehicles.findByUserIdOrderByPlateNumberAsc(user.getId()).stream().map(VehicleView::from).toList();}
     @Transactional public VehicleView saveVehicle(UserAccount user,Long id,VehicleRequest r){if(r==null||r.vehicleTypeId()==null||r.plateNumber()==null||r.plateNumber().isBlank())throw new BadRequestException("vehicleTypeId and plateNumber are required");Vehicle x=id==null?new Vehicle():ownedVehicle(user,id);vehicles.findByPlateNumberIgnoreCase(r.plateNumber()).filter(v->id==null||!v.getId().equals(id)).ifPresent(v->{throw new BadRequestException("License plate already exists");});x.setUser(user);x.setVehicleType(vehicleTypes.findById(r.vehicleTypeId()).orElseThrow(()->new ResourceNotFoundException("Vehicle type not found: "+r.vehicleTypeId())));x.setPlateNumber(r.plateNumber());x.setBrand(r.brand());x.setColor(r.color());x.setStatus("ACTIVE");return VehicleView.from(vehicles.save(x));}
@@ -74,9 +98,7 @@ public class UserPortalService {
         pass.setNote(request.note());
         pass.setCreatedAt(now);
         pass.setUpdatedAt(now);
-        MonthlyParkingPassResponse response = MonthlyParkingPassResponse.from(monthlyPasses.save(pass));
-        notifications.notifyUser(user, "Monthly pass registered", "Your monthly pass for vehicle " + vehicle.getPlateNumber() + " is " + response.status());
-        return response;
+        return MonthlyParkingPassResponse.from(monthlyPasses.save(pass));
     }
 
     @Transactional(readOnly=true) public CurrentParkingSessionResponse current(UserAccount user){PaymentModuleParkingSession s=sessions.findFirstByVehicleUserIdAndStatusInOrderByEntryTimeDesc(user.getId(),List.of("ACTIVE","PAYMENT_PENDING","CHECKED_OUT")).orElseThrow(()->new ResourceNotFoundException("No active parking session"));return currentResponse(s);}
