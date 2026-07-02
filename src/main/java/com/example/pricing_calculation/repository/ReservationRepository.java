@@ -24,4 +24,6 @@ public interface ReservationRepository extends
             @Param("zoneId") Long zoneId,
             @Param("startTime") LocalDateTime startTime,
             @Param("endTime") LocalDateTime endTime);
+
+    java.util.List<Reservation> findByVehicleIdAndStatusIgnoreCase(Long vehicleId, String status);
 }

@@ -11,15 +11,23 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestParam;
 
 @RestController
 @RequestMapping("/api/payment-checkout")
 public class PaymentCheckoutController {
 
     private final PaymentCheckoutService paymentCheckoutService;
+    private final com.example.pricing_calculation.service.QrCodeService qrCodeService;
+    private final com.example.pricing_calculation.repository.PaymentModuleParkingSessionRepository sessionsRepository;
 
-    public PaymentCheckoutController(PaymentCheckoutService paymentCheckoutService) {
+    public PaymentCheckoutController(
+            PaymentCheckoutService paymentCheckoutService,
+            com.example.pricing_calculation.service.QrCodeService qrCodeService,
+            com.example.pricing_calculation.repository.PaymentModuleParkingSessionRepository sessionsRepository) {
         this.paymentCheckoutService = paymentCheckoutService;
+        this.qrCodeService = qrCodeService;
+        this.sessionsRepository = sessionsRepository;
     }
 
     @PostMapping("/prepare")
@@ -34,6 +42,44 @@ public class PaymentCheckoutController {
 
     @PostMapping("/validate-exit")
     public PaymentExitValidationResponse validateExit(@RequestBody PaymentExitValidationRequest request) {
+        return paymentCheckoutService.validateExit(request);
+    }
+
+    @PostMapping(value = "/prepare/scan-qr", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public PaymentCheckoutResponse prepareWithQr(
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file,
+            @RequestParam(defaultValue = "false") boolean lostTicket,
+            @RequestParam(defaultValue = "0") Integer overtimeMinutes) {
+        String decodedText = qrCodeService.decodeQrCode(file);
+        String plate = decodedText.trim();
+        if (plate.toUpperCase().startsWith("TICKET-")) {
+            final String ticketCode = plate;
+            com.example.pricing_calculation.domain.PaymentModuleParkingSession session = sessionsRepository.findByTicketCodeIgnoreCase(ticketCode)
+                    .orElseThrow(() -> new com.example.pricing_calculation.service.ResourceNotFoundException("Parking session not found for ticket: " + ticketCode));
+            plate = session.getVehicle().getPlateNumber();
+        }
+        
+        PaymentCheckoutPrepareRequest request = new PaymentCheckoutPrepareRequest(
+                plate, java.time.LocalDateTime.now(), lostTicket, overtimeMinutes
+        );
+        return paymentCheckoutService.prepare(request);
+    }
+
+    @PostMapping(value = "/validate-exit/scan-qr", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public PaymentExitValidationResponse validateExitWithQr(
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
+        String decodedText = qrCodeService.decodeQrCode(file);
+        String plate = decodedText.trim();
+        if (plate.toUpperCase().startsWith("TICKET-")) {
+            final String ticketCode = plate;
+            com.example.pricing_calculation.domain.PaymentModuleParkingSession session = sessionsRepository.findByTicketCodeIgnoreCase(ticketCode)
+                    .orElseThrow(() -> new com.example.pricing_calculation.service.ResourceNotFoundException("Parking session not found for ticket: " + ticketCode));
+            plate = session.getVehicle().getPlateNumber();
+        }
+        
+        PaymentExitValidationRequest request = new PaymentExitValidationRequest(
+                plate, java.time.LocalDateTime.now()
+        );
         return paymentCheckoutService.validateExit(request);
     }
 }

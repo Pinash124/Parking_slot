@@ -12,6 +12,7 @@ import com.example.pricing_calculation.service.PaymentModuleAuthService;
 import com.example.pricing_calculation.service.PaymentCheckoutService;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -30,12 +31,29 @@ public class PaymentModuleParkingSessionController {
     private final PaymentModuleParkingSessionService parkingSessionService;
     private final PaymentModuleAuthService authService;
     private final PaymentCheckoutService paymentCheckoutService;
+    private final com.example.pricing_calculation.service.QrCodeService qrCodeService;
+    private final com.example.pricing_calculation.repository.VehicleRepository vehicleRepository;
+    private final com.example.pricing_calculation.repository.ReservationRepository reservationRepository;
+    private final com.example.pricing_calculation.repository.PaymentModuleVehicleTypeRepository vehicleTypeRepository;
+    private final com.example.pricing_calculation.repository.UserAccountRepository userRepository;
 
-    public PaymentModuleParkingSessionController(PaymentModuleParkingSessionService parkingSessionService,
-            PaymentModuleAuthService authService, PaymentCheckoutService paymentCheckoutService) {
+    public PaymentModuleParkingSessionController(
+            PaymentModuleParkingSessionService parkingSessionService,
+            PaymentModuleAuthService authService,
+            PaymentCheckoutService paymentCheckoutService,
+            com.example.pricing_calculation.service.QrCodeService qrCodeService,
+            com.example.pricing_calculation.repository.VehicleRepository vehicleRepository,
+            com.example.pricing_calculation.repository.ReservationRepository reservationRepository,
+            com.example.pricing_calculation.repository.PaymentModuleVehicleTypeRepository vehicleTypeRepository,
+            com.example.pricing_calculation.repository.UserAccountRepository userRepository) {
         this.parkingSessionService = parkingSessionService;
         this.authService = authService;
         this.paymentCheckoutService = paymentCheckoutService;
+        this.qrCodeService = qrCodeService;
+        this.vehicleRepository = vehicleRepository;
+        this.reservationRepository = reservationRepository;
+        this.vehicleTypeRepository = vehicleTypeRepository;
+        this.userRepository = userRepository;
     }
 
     private UserAccount staff(String header) {
@@ -68,5 +86,62 @@ public class PaymentModuleParkingSessionController {
             @PathVariable Long id, @RequestParam String exitGateCode) {
         UserAccount staff = staff(header);
         return paymentCheckoutService.completeExit(id, staff.getId(), exitGateCode);
+    }
+
+    @PostMapping(value = "/check-in/scan-qr", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ParkingSessionResponse> checkInWithQr(
+            @RequestHeader("Authorization") String header,
+            @RequestParam String entryGateCode,
+            @RequestParam Long slotId,
+            @RequestParam(required = false) String ticketCode,
+            @RequestPart("file") org.springframework.web.multipart.MultipartFile file) {
+        UserAccount staff = staff(header);
+        String decodedText = qrCodeService.decodeQrCode(file);
+        
+        Long reservationId = null;
+        Long vehicleId = null;
+
+        if (decodedText.matches("^\\d+$")) {
+            Long resId = Long.parseLong(decodedText);
+            com.example.pricing_calculation.domain.Reservation reservation = reservationRepository.findById(resId)
+                    .orElseThrow(() -> new com.example.pricing_calculation.service.ResourceNotFoundException("Reservation not found: " + resId));
+            reservationId = reservation.getId();
+            vehicleId = reservation.getVehicle().getId();
+        } else {
+            String plate = decodedText.trim().toUpperCase();
+            java.util.Optional<com.example.pricing_calculation.domain.Vehicle> optVehicle = vehicleRepository.findByPlateNumberIgnoreCase(plate);
+            
+            if (optVehicle.isPresent()) {
+                vehicleId = optVehicle.get().getId();
+                java.util.List<com.example.pricing_calculation.domain.Reservation> activeReservations = 
+                        reservationRepository.findByVehicleIdAndStatusIgnoreCase(vehicleId, "APPROVED");
+                if (!activeReservations.isEmpty()) {
+                    reservationId = activeReservations.get(0).getId();
+                }
+            } else {
+                com.example.pricing_calculation.domain.Vehicle guestVehicle = new com.example.pricing_calculation.domain.Vehicle();
+                guestVehicle.setPlateNumber(plate);
+                
+                com.example.pricing_calculation.domain.UserAccount owner = userRepository.findByEmailIgnoreCase("customer@example.com")
+                        .orElse(staff);
+                guestVehicle.setUser(owner);
+                
+                com.example.pricing_calculation.domain.VehicleTypeEntity defaultType = vehicleTypeRepository.findById(1L)
+                        .orElseThrow(() -> new com.example.pricing_calculation.service.ResourceNotFoundException("Default vehicle type not found"));
+                guestVehicle.setVehicleType(defaultType);
+                guestVehicle.setBrand("Guest");
+                guestVehicle.setColor("Unknown");
+                guestVehicle.setStatus("ACTIVE");
+                
+                com.example.pricing_calculation.domain.Vehicle savedGuest = vehicleRepository.save(guestVehicle);
+                vehicleId = savedGuest.getId();
+            }
+        }
+
+        SessionCheckInRequest request = new SessionCheckInRequest(
+                reservationId, vehicleId, slotId, ticketCode, java.time.LocalDateTime.now()
+        );
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(parkingSessionService.checkIn(request, staff.getId(), entryGateCode));
     }
 }
