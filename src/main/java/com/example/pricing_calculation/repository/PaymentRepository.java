@@ -31,4 +31,16 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     java.math.BigDecimal sumCompletedAmountBetween(
             @Param("from") LocalDateTime from,
             @Param("to") LocalDateTime to);
+
+    @Query("""
+            select payment
+            from Payment payment
+            where upper(payment.status) in ('COMPLETED', 'SUCCESS')
+              and payment.paymentTime >= :from
+              and payment.paymentTime < :to
+            order by payment.paymentTime asc
+            """)
+    List<Payment> findCompletedPaymentsBetween(
+            @Param("from") LocalDateTime from,
+            @Param("to") LocalDateTime to);
 }
