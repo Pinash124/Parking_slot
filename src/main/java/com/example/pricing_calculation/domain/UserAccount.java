@@ -34,6 +34,9 @@ public class UserAccount {
     @Column(name = "role", length = 20)
     private String role;
 
+    @Column(name = "created_at")
+    private java.time.LocalDateTime createdAt;
+
     public Long getId() {
         return id;
     }
@@ -84,6 +87,14 @@ public class UserAccount {
 
     public void setRole(String role) {
         this.role = normalize(role);
+    }
+
+    public java.time.LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(java.time.LocalDateTime createdAt) {
+        this.createdAt = createdAt;
     }
 
     private String normalize(String value) {

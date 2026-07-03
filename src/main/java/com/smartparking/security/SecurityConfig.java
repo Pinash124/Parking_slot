@@ -28,6 +28,13 @@ public class SecurityConfig {
             .cors(Customizer.withDefaults())
             .csrf(csrf -> csrf.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
+            .exceptionHandling(exception -> exception
+                .authenticationEntryPoint((req, res, authException) -> {
+                    res.setStatus(jakarta.servlet.http.HttpServletResponse.SC_UNAUTHORIZED);
+                    res.setContentType("application/json;charset=UTF-8");
+                    res.getWriter().write("{\"message\":\"Session expired or unauthorized. Please login again.\"}");
+                })
+            )
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/api/auth/**", "/api/parking-info/**", "/api/pricing/estimate", "/api/roles/**", "/ws/**", "/payment/**").permitAll()
                 .requestMatchers("/api/payment-gateways/vnpay/return", "/api/payment-gateways/vnpay/ipn").permitAll()

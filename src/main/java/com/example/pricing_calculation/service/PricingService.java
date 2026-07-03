@@ -97,8 +97,9 @@ public class PricingService {
         if (vehicleTypeId == null) {
             throw new BadRequestException("vehicleTypeId is required");
         }
-        PaymentModulePricingPolicy policy = findPolicy(vehicleTypeId, atTime == null ? LocalDateTime.now() : atTime);
-        return firstPositive(policy == null ? null : policy.getMonthlyRate(), BigDecimal.ZERO);
+        VehicleTypeEntity vehicleType = vehicleTypeRepository.findById(vehicleTypeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Vehicle type not found: " + vehicleTypeId));
+        return firstPositive(vehicleType.getMonthlyRate(), BigDecimal.ZERO);
     }
 
     @Transactional(readOnly = true)
@@ -121,33 +122,27 @@ public class PricingService {
             boolean monthlyPassActive) {
         VehicleTypeEntity vehicleType = vehicleTypeRepository.findById(vehicleTypeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Vehicle type not found: " + vehicleTypeId));
-        PaymentModulePricingPolicy policy = findPolicy(vehicleTypeId, entryTime);
-        BigDecimal hourlyRate = firstPositive(
-                policy == null ? null : policy.getHourlyRate(),
-                vehicleType.getDefaultHourlyFee(),
-                BigDecimal.ZERO
-        );
-        BigDecimal dailyRate = firstPositive(policy == null ? null : policy.getDailyRate(), BigDecimal.ZERO);
-        BigDecimal lostTicketFee = lostTicket
-                ? firstPositive(policy == null ? null : policy.getLostTicketFee(), BigDecimal.ZERO)
-                : BigDecimal.ZERO;
-        BigDecimal overtimeFeeRate = firstPositive(policy == null ? null : policy.getOvertimeFee(), BigDecimal.ZERO);
-        BigDecimal fixedSurcharge = firstPositive(policy == null ? null : policy.getFixedSurcharge(), BigDecimal.ZERO);
+        BigDecimal hourlyRate = BigDecimal.ZERO;
+        BigDecimal dailyRate = firstPositive(vehicleType.getDailyRate(), BigDecimal.ZERO);
+        BigDecimal lostTicketFee = lostTicket ? BigDecimal.valueOf(50000) : BigDecimal.ZERO;
+        BigDecimal overtimeFeeRate = BigDecimal.ZERO;
+        BigDecimal fixedSurcharge = BigDecimal.ZERO;
         int safeOvertimeMinutes = Math.max(0, overtimeMinutes == null ? 0 : overtimeMinutes);
         long durationMinutes = Duration.between(entryTime, exitTime).toMinutes();
+        long billableDays = Math.max(1, (durationMinutes + 1439) / 1440);
         long billableHours = Math.max(1, divideCeiling(durationMinutes, 60));
         BigDecimal parkingFee = monthlyPassActive
                 ? BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP)
-                : calculateParkingFee(billableHours, hourlyRate, dailyRate);
-        BigDecimal overtimeFee = overtimeFeeRate.multiply(BigDecimal.valueOf(divideCeiling(safeOvertimeMinutes, 60)));
-        BigDecimal penaltyFee = lostTicketFee.add(overtimeFee).add(fixedSurcharge);
+                : dailyRate.multiply(BigDecimal.valueOf(billableDays)).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal overtimeFee = BigDecimal.ZERO;
+        BigDecimal penaltyFee = lostTicketFee;
         BigDecimal totalFee = parkingFee.add(penaltyFee).setScale(2, RoundingMode.HALF_UP);
 
         return new PricingQuoteResponse(
                 vehicleType.getId(),
                 vehicleType.getName(),
-                policy == null ? null : policy.getId(),
-                policy == null ? "Default vehicle type fee" : policy.getPolicyName(),
+                null,
+                "Default vehicle type fee",
                 entryTime,
                 exitTime,
                 durationMinutes,

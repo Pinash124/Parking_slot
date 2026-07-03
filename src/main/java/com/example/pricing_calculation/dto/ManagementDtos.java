@@ -15,9 +15,9 @@ public final class ManagementDtos {
     public record FloorView(Long id, Long buildingId, String buildingName, String floorName, Integer floorNumber) {
         public static FloorView from(Floor x) { return new FloorView(x.getId(), x.getBuilding().getId(), x.getBuilding().getName(), x.getFloorName(), x.getFloorNumber()); }
     }
-    public record VehicleTypeRequest(String name, String description, BigDecimal defaultHourlyFee) { }
-    public record VehicleTypeView(Long id, String name, String description, BigDecimal defaultHourlyFee) {
-        public static VehicleTypeView from(VehicleTypeEntity x) { return new VehicleTypeView(x.getId(), x.getName(), x.getDescription(), x.getDefaultHourlyFee()); }
+    public record VehicleTypeRequest(String name, String description, BigDecimal defaultHourlyFee, BigDecimal dailyRate, BigDecimal monthlyRate) { }
+    public record VehicleTypeView(Long id, String name, String description, BigDecimal defaultHourlyFee, BigDecimal dailyRate, BigDecimal monthlyRate) {
+        public static VehicleTypeView from(VehicleTypeEntity x) { return new VehicleTypeView(x.getId(), x.getName(), x.getDescription(), x.getDefaultHourlyFee(), x.getDailyRate(), x.getMonthlyRate()); }
     }
     public record ZoneRequest(Long floorId, Long vehicleTypeId, String zoneName) { }
     public record ZoneView(Long id, Long floorId, String floorName, Long vehicleTypeId, String vehicleTypeName, String zoneName) {
@@ -44,8 +44,8 @@ public final class ManagementDtos {
     public record VehicleView(Long id, Long vehicleTypeId, String vehicleTypeName, String plateNumber, String brand, String color, String status) {
         public static VehicleView from(Vehicle x) { return new VehicleView(x.getId(), x.getVehicleType().getId(), x.getVehicleType().getName(), x.getPlateNumber(), x.getBrand(), x.getColor(), x.getStatus()); }
     }
-    public record UserView(Long id, String fullName, String email, String phone, String status, String role) {
-        public static UserView from(UserAccount x) { return new UserView(x.getId(), x.getFullName(), x.getEmail(), x.getPhone(), x.getStatus(), UserRole.fromCode(x.getRole()).code()); }
+    public record UserView(Long id, String fullName, String email, String phone, String status, String role, LocalDateTime createdAt) {
+        public static UserView from(UserAccount x) { return new UserView(x.getId(), x.getFullName(), x.getEmail(), x.getPhone(), x.getStatus(), UserRole.fromCode(x.getRole()).code(), x.getCreatedAt()); }
     }
     public record UserUpdateRequest(String fullName, String phone, String status, String role, String newPassword) { }
     public record AdminUserCreateRequest(String fullName, String email, String phone, String password, String role) { }

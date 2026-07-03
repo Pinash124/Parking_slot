@@ -156,9 +156,9 @@ public class PaymentModuleParkingSessionService {
         return ParkingSessionResponse.from(findSession(id));
     }
 
-    @Transactional
+    @Transactional(isolation = org.springframework.transaction.annotation.Isolation.SERIALIZABLE)
     public ParkingSessionResponse checkout(Long id, SessionCheckoutRequest request) {
-        PaymentModuleParkingSession session = findSession(id);
+        PaymentModuleParkingSession session = findSessionForUpdate(id);
         if (!"ACTIVE".equalsIgnoreCase(session.getStatus())) {
             throw new BadRequestException("Only ACTIVE sessions can be checked out");
         }
@@ -184,9 +184,9 @@ public class PaymentModuleParkingSessionService {
         return response;
     }
 
-    @Transactional
+    @Transactional(isolation = org.springframework.transaction.annotation.Isolation.SERIALIZABLE)
     public ParkingSessionResponse completePaidExit(Long id, Long staffId, String exitGateCode) {
-        PaymentModuleParkingSession session = findSession(id);
+        PaymentModuleParkingSession session = findSessionForUpdate(id);
         session.setExitStaffId(staffId);
         session.setExitGateCode(exitGateCode);
         session.setStatus("COMPLETED");
@@ -200,6 +200,11 @@ public class PaymentModuleParkingSessionService {
 
     private PaymentModuleParkingSession findSession(Long id) {
         return parkingSessionRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Parking session not found: " + id));
+    }
+
+    private PaymentModuleParkingSession findSessionForUpdate(Long id) {
+        return parkingSessionRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Parking session not found: " + id));
     }
 
