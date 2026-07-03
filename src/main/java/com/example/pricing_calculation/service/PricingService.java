@@ -109,7 +109,7 @@ public class PricingService {
         }
         return pricingPolicyRepository.findActivePolicies(
                 vehicleTypeId,
-                atTime == null ? LocalDateTime.now() : atTime
+                atTime == null ? LocalDateTime.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh")) : atTime
         );
     }
 
@@ -122,27 +122,50 @@ public class PricingService {
             boolean monthlyPassActive) {
         VehicleTypeEntity vehicleType = vehicleTypeRepository.findById(vehicleTypeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Vehicle type not found: " + vehicleTypeId));
+        
+        PaymentModulePricingPolicy policy = findPolicy(vehicleTypeId, entryTime);
+        
         BigDecimal hourlyRate = BigDecimal.ZERO;
         BigDecimal dailyRate = firstPositive(vehicleType.getDailyRate(), BigDecimal.ZERO);
         BigDecimal lostTicketFee = lostTicket ? BigDecimal.valueOf(50000) : BigDecimal.ZERO;
         BigDecimal overtimeFeeRate = BigDecimal.ZERO;
         BigDecimal fixedSurcharge = BigDecimal.ZERO;
+
+        if (policy != null) {
+            hourlyRate = firstPositive(policy.getHourlyRate(), BigDecimal.ZERO);
+            dailyRate = firstPositive(policy.getDailyRate(), dailyRate);
+            fixedSurcharge = firstPositive(policy.getFixedSurcharge(), BigDecimal.ZERO);
+            if (lostTicket && policy.getLostTicketFee() != null && policy.getLostTicketFee().compareTo(BigDecimal.ZERO) > 0) {
+                lostTicketFee = policy.getLostTicketFee();
+            } else if (lostTicket) {
+                lostTicketFee = BigDecimal.valueOf(50000);
+            }
+            overtimeFeeRate = firstPositive(policy.getOvertimeFee(), BigDecimal.ZERO);
+        }
+
         int safeOvertimeMinutes = Math.max(0, overtimeMinutes == null ? 0 : overtimeMinutes);
         long durationMinutes = Duration.between(entryTime, exitTime).toMinutes();
-        long billableDays = Math.max(1, (durationMinutes + 1439) / 1440);
         long billableHours = Math.max(1, divideCeiling(durationMinutes, 60));
-        BigDecimal parkingFee = monthlyPassActive
-                ? BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP)
-                : dailyRate.multiply(BigDecimal.valueOf(billableDays)).setScale(2, RoundingMode.HALF_UP);
-        BigDecimal overtimeFee = BigDecimal.ZERO;
+        
+        BigDecimal parkingFee;
+        if (monthlyPassActive) {
+            parkingFee = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        } else if (hourlyRate.compareTo(BigDecimal.ZERO) == 0) {
+            long billableDays = Math.max(1, (durationMinutes + 1439) / 1440);
+            parkingFee = dailyRate.multiply(BigDecimal.valueOf(billableDays)).setScale(2, RoundingMode.HALF_UP);
+        } else {
+            parkingFee = calculateParkingFee(billableHours, hourlyRate, dailyRate);
+        }
+
+        BigDecimal overtimeFee = overtimeFeeRate.multiply(BigDecimal.valueOf(safeOvertimeMinutes)).setScale(2, RoundingMode.HALF_UP);
         BigDecimal penaltyFee = lostTicketFee;
-        BigDecimal totalFee = parkingFee.add(penaltyFee).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal totalFee = parkingFee.add(penaltyFee).add(fixedSurcharge).add(overtimeFee).setScale(2, RoundingMode.HALF_UP);
 
         return new PricingQuoteResponse(
                 vehicleType.getId(),
                 vehicleType.getName(),
-                null,
-                "Default vehicle type fee",
+                policy != null ? policy.getId() : null,
+                policy != null ? policy.getPolicyName() : "Default vehicle type fee",
                 entryTime,
                 exitTime,
                 durationMinutes,
@@ -160,7 +183,7 @@ public class PricingService {
     }
 
     private boolean hasActiveMonthlyPass(Long vehicleId, LocalDateTime atTime) {
-        LocalDate date = (atTime == null ? LocalDateTime.now() : atTime).toLocalDate();
+        LocalDate date = (atTime == null ? LocalDateTime.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh")) : atTime).toLocalDate();
         return monthlyParkingPassRepository.findByVehicleIdOrderByCreatedAtDesc(vehicleId).stream()
                 .anyMatch(pass -> pass.isActiveAt(date));
     }

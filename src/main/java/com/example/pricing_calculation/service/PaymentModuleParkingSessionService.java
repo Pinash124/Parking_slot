@@ -137,7 +137,7 @@ public class PaymentModuleParkingSessionService {
         session.setTicketCode(request.ticketCode() == null || request.ticketCode().isBlank()
                 ? generateTicketCode()
                 : request.ticketCode());
-        session.setEntryTime(request.entryTime() == null ? LocalDateTime.now() : request.entryTime());
+        session.setEntryTime(request.entryTime() == null ? LocalDateTime.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh")) : request.entryTime());
         session.setStatus("ACTIVE");
         session.setEntryStaffId(staffId);
         session.setEntryGateCode(entryGateCode);
@@ -162,7 +162,7 @@ public class PaymentModuleParkingSessionService {
         if (!"ACTIVE".equalsIgnoreCase(session.getStatus())) {
             throw new BadRequestException("Only ACTIVE sessions can be checked out");
         }
-        LocalDateTime exitTime = request == null || request.exitTime() == null ? LocalDateTime.now() : request.exitTime();
+        LocalDateTime exitTime = request == null || request.exitTime() == null ? LocalDateTime.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh")) : request.exitTime();
         PricingQuoteResponse quote = pricingService.estimateForVehicle(
                 session.getVehicle().getId(),
                 session.getEntryTime(),
@@ -209,7 +209,7 @@ public class PaymentModuleParkingSessionService {
     }
 
     private String generateTicketCode() {
-        return "TICKET-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"))
+        return "TICKET-" + LocalDateTime.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh")).format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"))
                 + "-" + UUID.randomUUID().toString().substring(0, 6).toUpperCase();
     }
 }

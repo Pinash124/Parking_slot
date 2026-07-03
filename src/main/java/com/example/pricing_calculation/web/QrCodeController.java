@@ -10,11 +10,15 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 @RestController
 @RequestMapping("/api/qr")
 @Tag(name = "QR Utility", description = "Tien ich doc va giai ma QR code tu hinh anh")
 public class QrCodeController {
 
+    private static final Logger log = LoggerFactory.getLogger(QrCodeController.class);
     private final QrCodeService qrCodeService;
 
     public QrCodeController(QrCodeService qrCodeService) {
@@ -23,7 +27,12 @@ public class QrCodeController {
 
     @PostMapping("/decode")
     public ResponseEntity<Map<String, String>> decode(@RequestParam("file") MultipartFile file) {
-        String decodedText = qrCodeService.decodeQrCode(file);
-        return ResponseEntity.ok(Map.of("text", decodedText));
+        try {
+            String decodedText = qrCodeService.decodeQrCode(file);
+            return ResponseEntity.ok(Map.of("text", decodedText));
+        } catch (Exception e) {
+            log.error("Check-in failed for QR with error: {}", e.getMessage());
+            throw e;
+        }
     }
 }

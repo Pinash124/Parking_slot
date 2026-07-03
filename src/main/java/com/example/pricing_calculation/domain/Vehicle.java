@@ -27,7 +27,7 @@ public class Vehicle {
     @JoinColumn(name = "vehicle_type_id")
     private VehicleTypeEntity vehicleType;
 
-    @Column(name = "plate_number", nullable = false, length = 20)
+    @Column(name = "plate_number", nullable = false, length = 20, unique = true)
     private String plateNumber;
 
     @Column(name = "brand", length = 50)
