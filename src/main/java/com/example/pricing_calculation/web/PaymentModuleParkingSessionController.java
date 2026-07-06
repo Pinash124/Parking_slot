@@ -109,14 +109,27 @@ public class PaymentModuleParkingSessionController {
         Long reservationId = null;
         Long vehicleId = null;
 
-        if (decodedText.matches("^\\d+$")) {
+        Long qrVehicleId = qrCodeService.parseVehicleId(decodedText);
+        if (qrVehicleId != null) {
+            com.example.pricing_calculation.domain.Vehicle vehicle = vehicleRepository.findById(qrVehicleId)
+                    .orElseThrow(() -> new com.example.pricing_calculation.service.ResourceNotFoundException("Vehicle not found from QR: " + qrVehicleId));
+            vehicleId = vehicle.getId();
+            java.util.List<com.example.pricing_calculation.domain.Reservation> activeReservations =
+                    reservationRepository.findByVehicleIdAndStatusIgnoreCase(vehicleId, "APPROVED");
+            if (!activeReservations.isEmpty()) {
+                reservationId = activeReservations.get(0).getId();
+            }
+        } else if (decodedText.matches("^\\d+$")) {
             Long resId = Long.parseLong(decodedText);
             com.example.pricing_calculation.domain.Reservation reservation = reservationRepository.findById(resId)
                     .orElseThrow(() -> new com.example.pricing_calculation.service.ResourceNotFoundException("Reservation not found: " + resId));
             reservationId = reservation.getId();
             vehicleId = reservation.getVehicle().getId();
         } else {
-            String plate = decodedText.trim().toUpperCase();
+            String plate = qrCodeService.parseVehiclePlate(decodedText);
+            if (plate == null) {
+                plate = decodedText.trim().toUpperCase();
+            }
             java.util.Optional<com.example.pricing_calculation.domain.Vehicle> optVehicle = vehicleRepository.findByPlateNumberIgnoreCase(plate);
             
             if (optVehicle.isPresent()) {
@@ -142,6 +155,8 @@ public class PaymentModuleParkingSessionController {
                 guestVehicle.setStatus("ACTIVE");
                 
                 com.example.pricing_calculation.domain.Vehicle savedGuest = vehicleRepository.save(guestVehicle);
+                savedGuest.setQrCode(qrCodeService.buildVehicleQrContent(savedGuest));
+                savedGuest = vehicleRepository.save(savedGuest);
                 vehicleId = savedGuest.getId();
             }
         }

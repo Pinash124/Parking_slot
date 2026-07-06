@@ -14,6 +14,7 @@ import com.example.pricing_calculation.domain.Vehicle;
 import com.example.pricing_calculation.domain.VehicleTypeEntity;
 import com.example.pricing_calculation.domain.Zone;
 import com.example.pricing_calculation.dto.MonthlyParkingPassDtos.MonthlyParkingPassCreateRequest;
+import com.example.pricing_calculation.dto.MonthlyParkingPassDtos.MonthlyParkingPassPaymentRequest;
 import com.example.pricing_calculation.repository.MonthlyParkingPassRepository;
 import com.example.pricing_calculation.repository.PaymentModuleParkingSlotRepository;
 import com.example.pricing_calculation.repository.VehicleRepository;
@@ -88,5 +89,23 @@ class MonthlyParkingPassServiceTest {
         assertEquals("PENDING_PAYMENT", response.status());
         assertEquals("PENDING", response.paymentStatus());
         verify(slot).setStatus("MONTHLY_HELD");
+    }
+
+    @Test
+    void rejectsCashPaymentForMonthlyPasses() {
+        MonthlyParkingPassRepository passes = mock(MonthlyParkingPassRepository.class);
+        VehicleRepository vehicles = mock(VehicleRepository.class);
+        PaymentModuleParkingSlotRepository slots = mock(PaymentModuleParkingSlotRepository.class);
+        PricingService pricing = mock(PricingService.class);
+        MonthlyParkingPassService service = new MonthlyParkingPassService(passes, vehicles, slots, pricing);
+        MonthlyParkingPass pass = mock(MonthlyParkingPass.class);
+        when(pass.getPaymentStatus()).thenReturn("PENDING");
+        when(pass.getStatus()).thenReturn("PENDING_PAYMENT");
+        when(passes.findById(99L)).thenReturn(Optional.of(pass));
+
+        BadRequestException error = assertThrows(BadRequestException.class,
+                () -> service.confirmPayment(99L, new MonthlyParkingPassPaymentRequest("CASH", "CASH-001")));
+
+        assertEquals("Monthly pass only supports ONLINE_QR transfer payment", error.getMessage());
     }
 }

@@ -41,8 +41,8 @@ public final class ManagementDtos {
         public static AdditionalServiceView from(AdditionalService x) { return new AdditionalServiceView(x.getId(), x.getName(), x.getPrice(), x.getStatus()); }
     }
     public record VehicleRequest(Long vehicleTypeId, String plateNumber, String brand, String color) { }
-    public record VehicleView(Long id, Long vehicleTypeId, String vehicleTypeName, String plateNumber, String brand, String color, String status) {
-        public static VehicleView from(Vehicle x) { return new VehicleView(x.getId(), x.getVehicleType().getId(), x.getVehicleType().getName(), x.getPlateNumber(), x.getBrand(), x.getColor(), x.getStatus()); }
+    public record VehicleView(Long id, Long vehicleTypeId, String vehicleTypeName, String plateNumber, String brand, String color, String status, String qrCode) {
+        public static VehicleView from(Vehicle x) { return new VehicleView(x.getId(), x.getVehicleType().getId(), x.getVehicleType().getName(), x.getPlateNumber(), x.getBrand(), x.getColor(), x.getStatus(), x.getQrCode()); }
     }
     public record UserView(Long id, String fullName, String email, String phone, String status, String role, LocalDateTime createdAt) {
         public static UserView from(UserAccount x) { return new UserView(x.getId(), x.getFullName(), x.getEmail(), x.getPhone(), x.getStatus(), UserRole.fromCode(x.getRole()).code(), x.getCreatedAt()); }

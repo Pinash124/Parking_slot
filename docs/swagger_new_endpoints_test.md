@@ -178,6 +178,8 @@ Luu y chot moi:
 - Khong con auto-renew/tu dong gia han.
 - Khong can lien ket bank/tai khoan de tru tien.
 - Moi lan gia han/thanh toan la mot ky rieng.
+- Ve thang chi thanh toan bang chuyen khoan/ONLINE_QR.
+- Tien mat chi dung cho xe vao theo luot/vang lai khi xe ra.
 
 ### 5.1 Online QR - thanh toan ky hien tai
 
@@ -203,29 +205,14 @@ Response mau:
 }
 ```
 
-### 5.2 Tien mat - bill cho staff quet
+### 5.2 Tien mat cho ve thang - khong dung nua
 
 `POST /api/user/monthly-passes/{id}/payment/cash-bill`
 
-Body: khong can.
-
 Expected:
 
-- Tra bill text + QR content cho staff quet/xac nhan.
-- Chi thanh toan ky hien tai, khong tu gia han.
-- Response khong co `autoRenew`.
-
-Response mau:
-
-```json
-{
-  "paymentMethod": "CASH",
-  "paymentReference": "MTHCASH-1-ABCDEFGH",
-  "amount": 500000,
-  "qrContent": "MONTHLY_PASS|passId=1|ref=...",
-  "billContent": "BILL VE THANG..."
-}
-```
+- Reject.
+- Message: `Monthly pass only supports ONLINE_QR transfer payment`.
 
 ### 5.3 Manager xac nhan thanh toan theo id
 
@@ -255,8 +242,8 @@ Body:
 ```json
 {
   "qrContent": "MONTHLY_PASS|passId=1|ref=...",
-  "paymentMethod": "CASH",
-  "referenceCode": "STAFF-SCAN-001"
+  "paymentMethod": "ONLINE_QR",
+  "referenceCode": "BANK-TXN-001"
 }
 ```
 
@@ -265,6 +252,66 @@ Expected:
 - Tim dung ve thang tu QR content.
 - Xac nhan thanh toan thanh cong.
 - Slot thanh `MONTHLY_RESERVED`.
+
+## 5A. QR rieng cho tung phuong tien
+
+### 5A.1 User tao/them phuong tien
+
+`POST /api/user/vehicles`
+
+Body:
+
+```json
+{
+  "vehicleTypeId": 1,
+  "plateNumber": "59A-12345",
+  "brand": "Toyota",
+  "color": "Black"
+}
+```
+
+Expected:
+
+- BE tu sinh QR content cho phuong tien.
+- Response co `qrCode`.
+
+```json
+{
+  "id": 10,
+  "plateNumber": "59A-12345",
+  "qrCode": "VEHICLE|vehicleId=10|plate=59A-12345"
+}
+```
+
+FE render QR tu `qrCode`; nhan vien bai xe (`PARKING_STAFF`) quet QR nay de check-in/check-out.
+
+### 5A.2 Nhan vien check-in bang QR phuong tien
+
+`POST /api/staff/parking-sessions/check-in/scan-qr?entryGateCode=GATE_IN_01`
+
+Form-data:
+
+- `file`: anh QR cua phuong tien
+- `slotId`: optional/legacy
+- `ticketCode`: optional
+
+Expected:
+
+- QR `VEHICLE|vehicleId=...|plate=...` tim dung phuong tien.
+- Neu xe co dat truoc hop le/ve thang hop le thi BE dung flow tuong ung.
+- Neu xe vang lai thi BE tu xep slot phu hop.
+
+### 5A.3 Nhan vien checkout/validate exit bang QR phuong tien
+
+Dung QR phuong tien cho:
+
+- `POST /api/payment-checkout/prepare/scan-qr`
+- `POST /api/payment-checkout/validate-exit/scan-qr`
+
+Expected:
+
+- BE doc QR phuong tien ra bien so.
+- Tien mat chi ap dung cho xe theo luot/vang lai khi thanh toan ra.
 
 ## 6. Nhac ve thang sap het han truoc 3 ngay
 
@@ -366,7 +413,9 @@ Expected:
 - [ ] Vang lai chi vao khi con suc chua; full thi khong nhan them.
 - [ ] Ve thang tra `slotId`, `slotCode`, `slotStatus`.
 - [ ] Online QR khong can body auto-renew.
-- [ ] Cash bill khong tu gia han.
+- [ ] Cash bill ve thang bi reject, chi con ONLINE_QR.
 - [ ] Manager scan QR xac nhan duoc payment.
 - [ ] Car ve thang gia `500000/thang`.
 - [ ] Ve thang con <= 3 ngay het han tra `expiryReminderDue=true`.
+- [ ] Tao xe moi response co `qrCode`.
+- [ ] Nhan vien bai xe scan QR phuong tien check-in/checkout duoc.

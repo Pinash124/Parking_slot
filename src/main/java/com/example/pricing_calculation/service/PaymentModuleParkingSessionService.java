@@ -41,6 +41,7 @@ public class PaymentModuleParkingSessionService {
     private final PaymentModuleVehicleTypeRepository vehicleTypeRepository;
     private final MonthlyParkingPassRepository monthlyPassRepository;
     private final ParkingRuleProperties rules;
+    private final QrCodeService qrCodeService;
 
     public PaymentModuleParkingSessionService(
             PaymentModuleParkingSessionRepository parkingSessionRepository,
@@ -53,7 +54,8 @@ public class PaymentModuleParkingSessionService {
             UserAccountRepository userAccountRepository,
             PaymentModuleVehicleTypeRepository vehicleTypeRepository,
             MonthlyParkingPassRepository monthlyPassRepository,
-            ParkingRuleProperties rules) {
+            ParkingRuleProperties rules,
+            QrCodeService qrCodeService) {
         this.parkingSessionRepository = parkingSessionRepository;
         this.reservationRepository = reservationRepository;
         this.vehicleRepository = vehicleRepository;
@@ -65,6 +67,7 @@ public class PaymentModuleParkingSessionService {
         this.vehicleTypeRepository = vehicleTypeRepository;
         this.monthlyPassRepository = monthlyPassRepository;
         this.rules = rules;
+        this.qrCodeService = qrCodeService;
     }
 
     @Transactional
@@ -102,6 +105,8 @@ public class PaymentModuleParkingSessionService {
                 guestVehicle.setStatus("ACTIVE");
                 
                 vehicle = vehicleRepository.save(guestVehicle);
+                vehicle.setQrCode(qrCodeService.buildVehicleQrContent(vehicle));
+                vehicle = vehicleRepository.save(vehicle);
             }
         } else {
             throw new BadRequestException("vehicleId or licensePlate is required");

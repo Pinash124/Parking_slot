@@ -138,23 +138,7 @@ public class MonthlyParkingPassService {
 
     @Transactional
     public MonthlyParkingPassPaymentInstructionResponse prepareCashBill(UserAccount user, Long id) {
-        MonthlyParkingPass pass = findOwnedPendingPass(user, id);
-        String referenceCode = buildReferenceCode("MTHCASH", pass.getId());
-        pass.setPaymentMethod("CASH");
-        pass.setPaymentReference(referenceCode);
-        pass.setUpdatedAt(LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh")));
-        MonthlyParkingPass saved = passes.save(pass);
-        String qrContent = buildQrContent(saved, "CASH", referenceCode);
-        String billContent = buildCashBill(saved, referenceCode, qrContent);
-        return new MonthlyParkingPassPaymentInstructionResponse(
-                MonthlyParkingPassResponse.from(saved),
-                "CASH",
-                referenceCode,
-                saved.getTotalAmount(),
-                qrContent,
-                billContent,
-                saved.getUpdatedAt()
-        );
+        throw new BadRequestException("Monthly pass only supports ONLINE_QR transfer payment");
     }
 
     @Transactional(isolation = Isolation.SERIALIZABLE)
@@ -167,7 +151,10 @@ public class MonthlyParkingPassService {
             throw new BadRequestException("Only a pending monthly pass can be paid");
         }
         String method = request == null || request.paymentMethod() == null || request.paymentMethod().isBlank()
-                ? "CASH" : request.paymentMethod().trim().toUpperCase();
+                ? "ONLINE_QR" : request.paymentMethod().trim().toUpperCase();
+        if (!"ONLINE_QR".equals(method)) {
+            throw new BadRequestException("Monthly pass only supports ONLINE_QR transfer payment");
+        }
         LocalDate today = LocalDate.now(ZoneId.of("Asia/Ho_Chi_Minh"));
         pass.setPaymentStatus("PAID");
         pass.setPaymentMethod(method);
@@ -190,7 +177,7 @@ public class MonthlyParkingPassService {
         Long id = parsePassId(qrContent);
         MonthlyParkingPass pass = find(id);
         String method = paymentMethod == null || paymentMethod.isBlank()
-                ? pass.getPaymentMethod() == null ? "CASH" : pass.getPaymentMethod()
+                ? pass.getPaymentMethod() == null ? "ONLINE_QR" : pass.getPaymentMethod()
                 : paymentMethod;
         String reference = referenceCode == null || referenceCode.isBlank()
                 ? pass.getPaymentReference()
@@ -249,22 +236,6 @@ public class MonthlyParkingPassService {
                 + "|amount=" + safeAmount(pass.getTotalAmount())
                 + "|plate=" + text(pass.getVehicle() == null ? null : pass.getVehicle().getPlateNumber())
                 + "|slot=" + text(pass.getReservedSlot() == null ? null : pass.getReservedSlot().getSlotCode());
-    }
-
-    private String buildCashBill(MonthlyParkingPass pass, String referenceCode, String qrContent) {
-        return String.join("\n",
-                "BILL VE THANG",
-                "Ma ve: #" + pass.getId(),
-                "Bien so: " + text(pass.getVehicle() == null ? null : pass.getVehicle().getPlateNumber()),
-                "Slot: " + text(pass.getReservedSlot() == null ? null : pass.getReservedSlot().getSlotCode()),
-                "Thoi han: " + pass.getMonths() + " thang",
-                "Tu ngay: " + pass.getStartDate(),
-                "Den ngay: " + pass.getEndDate(),
-                "So tien: " + safeAmount(pass.getTotalAmount()) + " VND",
-                "Hinh thuc: TIEN MAT",
-                "Ma tham chieu: " + referenceCode,
-                "QR staff scan: " + qrContent
-        );
     }
 
     private Long parsePassId(String qrContent) {

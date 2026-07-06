@@ -25,11 +25,13 @@ public class UserPortalService {
     private final MonthlyParkingPassService monthlyPassService;
     private final AdditionalServiceRepository services; private final SessionServiceUsageRepository usages;
     private final PaymentModulePricingPolicyRepository pricingPolicies;
+    private final QrCodeService qrCodeService;
 
     public UserPortalService(VehicleRepository vehicles,PaymentModuleVehicleTypeRepository vehicleTypes,
             PaymentModuleParkingSessionRepository sessions,PricingService pricing,
             MonthlyParkingPassService monthlyPassService,AdditionalServiceRepository services,
-            SessionServiceUsageRepository usages, PaymentModulePricingPolicyRepository pricingPolicies){
+            SessionServiceUsageRepository usages, PaymentModulePricingPolicyRepository pricingPolicies,
+            QrCodeService qrCodeService){
         this.vehicles=vehicles;
         this.vehicleTypes=vehicleTypes;
         this.sessions=sessions;
@@ -38,6 +40,7 @@ public class UserPortalService {
         this.services=services;
         this.usages=usages;
         this.pricingPolicies=pricingPolicies;
+        this.qrCodeService=qrCodeService;
     }
 
     @Transactional(readOnly=true)
@@ -55,7 +58,7 @@ public class UserPortalService {
     }
 
     @Transactional(readOnly=true) public List<VehicleView> vehicles(UserAccount user){return vehicles.findByUserIdOrderByPlateNumberAsc(user.getId()).stream().map(VehicleView::from).toList();}
-    @Transactional public VehicleView saveVehicle(UserAccount user,Long id,VehicleRequest r){if(r==null||r.vehicleTypeId()==null||r.plateNumber()==null||r.plateNumber().isBlank())throw new BadRequestException("vehicleTypeId and plateNumber are required");Vehicle x=id==null?new Vehicle():ownedVehicle(user,id);vehicles.findByPlateNumberIgnoreCase(r.plateNumber()).filter(v->id==null||!v.getId().equals(id)).ifPresent(v->{throw new BadRequestException("License plate already exists");});x.setUser(user);x.setVehicleType(vehicleTypes.findById(r.vehicleTypeId()).orElseThrow(()->new ResourceNotFoundException("Vehicle type not found: "+r.vehicleTypeId())));x.setPlateNumber(r.plateNumber());x.setBrand(r.brand());x.setColor(r.color());x.setStatus("ACTIVE");return VehicleView.from(vehicles.save(x));}
+    @Transactional public VehicleView saveVehicle(UserAccount user,Long id,VehicleRequest r){if(r==null||r.vehicleTypeId()==null||r.plateNumber()==null||r.plateNumber().isBlank())throw new BadRequestException("vehicleTypeId and plateNumber are required");Vehicle x=id==null?new Vehicle():ownedVehicle(user,id);vehicles.findByPlateNumberIgnoreCase(r.plateNumber()).filter(v->id==null||!v.getId().equals(id)).ifPresent(v->{throw new BadRequestException("License plate already exists");});x.setUser(user);x.setVehicleType(vehicleTypes.findById(r.vehicleTypeId()).orElseThrow(()->new ResourceNotFoundException("Vehicle type not found: "+r.vehicleTypeId())));x.setPlateNumber(r.plateNumber());x.setBrand(r.brand());x.setColor(r.color());x.setStatus("ACTIVE");Vehicle saved=vehicles.save(x);saved.setQrCode(qrCodeService.buildVehicleQrContent(saved));return VehicleView.from(vehicles.save(saved));}
     @Transactional public void deleteVehicle(UserAccount user,Long id){vehicles.delete(ownedVehicle(user,id));}
 
     @Transactional(readOnly=true)

@@ -45,9 +45,10 @@ class PaymentModuleParkingSessionServiceTest {
         PaymentModuleVehicleTypeRepository vehicleTypes = mock(PaymentModuleVehicleTypeRepository.class);
         MonthlyParkingPassRepository monthlyPasses = mock(MonthlyParkingPassRepository.class);
         ParkingRuleProperties rules = new ParkingRuleProperties();
+        QrCodeService qrCodeService = mock(QrCodeService.class);
         PaymentModuleParkingSessionService service = new PaymentModuleParkingSessionService(
                 sessions, reservations, vehicles, slots, pricing, realtime, usages, users, vehicleTypes,
-                monthlyPasses, rules);
+                monthlyPasses, rules, qrCodeService);
 
         Vehicle vehicle = mock(Vehicle.class);
         VehicleTypeEntity vehicleType = mock(VehicleTypeEntity.class);

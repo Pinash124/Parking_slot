@@ -10,9 +10,12 @@ import java.awt.image.BufferedImage;
 import javax.imageio.ImageIO;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import com.example.pricing_calculation.domain.Vehicle;
 
 @Service
 public class QrCodeService {
+
+    private static final String VEHICLE_PREFIX = "VEHICLE";
 
     public String decodeQrCode(MultipartFile file) {
         if (file == null || file.isEmpty()) {
@@ -39,5 +42,47 @@ public class QrCodeService {
         } catch (Exception e) {
             throw new BadRequestException("Lỗi khi xử lý giải mã hình ảnh QR: " + e.getMessage());
         }
+    }
+
+    public String buildVehicleQrContent(Vehicle vehicle) {
+        if (vehicle == null || vehicle.getId() == null) {
+            throw new BadRequestException("Vehicle id is required to generate QR");
+        }
+        return VEHICLE_PREFIX
+                + "|vehicleId=" + vehicle.getId()
+                + "|plate=" + safe(vehicle.getPlateNumber());
+    }
+
+    public Long parseVehicleId(String qrContent) {
+        if (qrContent == null || qrContent.isBlank() || !qrContent.trim().toUpperCase().startsWith(VEHICLE_PREFIX + "|")) {
+            return null;
+        }
+        for (String part : qrContent.split("\\|")) {
+            if (part.startsWith("vehicleId=")) {
+                try {
+                    return Long.parseLong(part.substring("vehicleId=".length()));
+                } catch (NumberFormatException ex) {
+                    throw new BadRequestException("Invalid vehicle QR content");
+                }
+            }
+        }
+        return null;
+    }
+
+    public String parseVehiclePlate(String qrContent) {
+        if (qrContent == null || qrContent.isBlank() || !qrContent.trim().toUpperCase().startsWith(VEHICLE_PREFIX + "|")) {
+            return null;
+        }
+        for (String part : qrContent.split("\\|")) {
+            if (part.startsWith("plate=")) {
+                String plate = part.substring("plate=".length()).trim();
+                return plate.isBlank() ? null : plate.toUpperCase();
+            }
+        }
+        return null;
+    }
+
+    private String safe(String value) {
+        return value == null ? "" : value.trim().toUpperCase();
     }
 }

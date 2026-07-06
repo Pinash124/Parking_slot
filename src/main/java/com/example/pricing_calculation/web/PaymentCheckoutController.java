@@ -20,14 +20,17 @@ public class PaymentCheckoutController {
     private final PaymentCheckoutService paymentCheckoutService;
     private final com.example.pricing_calculation.service.QrCodeService qrCodeService;
     private final com.example.pricing_calculation.repository.PaymentModuleParkingSessionRepository sessionsRepository;
+    private final com.example.pricing_calculation.repository.VehicleRepository vehicleRepository;
 
     public PaymentCheckoutController(
             PaymentCheckoutService paymentCheckoutService,
             com.example.pricing_calculation.service.QrCodeService qrCodeService,
-            com.example.pricing_calculation.repository.PaymentModuleParkingSessionRepository sessionsRepository) {
+            com.example.pricing_calculation.repository.PaymentModuleParkingSessionRepository sessionsRepository,
+            com.example.pricing_calculation.repository.VehicleRepository vehicleRepository) {
         this.paymentCheckoutService = paymentCheckoutService;
         this.qrCodeService = qrCodeService;
         this.sessionsRepository = sessionsRepository;
+        this.vehicleRepository = vehicleRepository;
     }
 
     @PostMapping("/prepare")
@@ -51,7 +54,7 @@ public class PaymentCheckoutController {
             @RequestParam(defaultValue = "false") boolean lostTicket,
             @RequestParam(defaultValue = "0") Integer overtimeMinutes) {
         String decodedText = qrCodeService.decodeQrCode(file);
-        String plate = decodedText.trim();
+        String plate = plateFromQrOrText(decodedText);
         if (plate.toUpperCase().startsWith("TICKET-")) {
             final String ticketCode = plate;
             com.example.pricing_calculation.domain.PaymentModuleParkingSession session = sessionsRepository.findByTicketCodeIgnoreCase(ticketCode)
@@ -69,7 +72,7 @@ public class PaymentCheckoutController {
     public PaymentExitValidationResponse validateExitWithQr(
             @RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
         String decodedText = qrCodeService.decodeQrCode(file);
-        String plate = decodedText.trim();
+        String plate = plateFromQrOrText(decodedText);
         if (plate.toUpperCase().startsWith("TICKET-")) {
             final String ticketCode = plate;
             com.example.pricing_calculation.domain.PaymentModuleParkingSession session = sessionsRepository.findByTicketCodeIgnoreCase(ticketCode)
@@ -81,5 +84,16 @@ public class PaymentCheckoutController {
                 plate, java.time.LocalDateTime.now()
         );
         return paymentCheckoutService.validateExit(request);
+    }
+
+    private String plateFromQrOrText(String decodedText) {
+        Long vehicleId = qrCodeService.parseVehicleId(decodedText);
+        if (vehicleId != null) {
+            return vehicleRepository.findById(vehicleId)
+                    .orElseThrow(() -> new com.example.pricing_calculation.service.ResourceNotFoundException("Vehicle not found from QR: " + vehicleId))
+                    .getPlateNumber();
+        }
+        String qrPlate = qrCodeService.parseVehiclePlate(decodedText);
+        return qrPlate == null ? decodedText.trim() : qrPlate;
     }
 }

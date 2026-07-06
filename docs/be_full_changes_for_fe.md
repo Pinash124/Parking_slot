@@ -125,6 +125,12 @@ Response co them field de FE hien chỗ va reminder:
 
 ## 6. Thanh toan ve thang
 
+Chot moi:
+
+- Ve thang chi thanh toan bang chuyen khoan/ONLINE_QR.
+- Khong su dung tien mat cho ve thang.
+- Tien mat chi dung cho xe vao theo luot/vang lai khi xe ra.
+
 ### Online QR
 
 ```http
@@ -151,21 +157,13 @@ Response:
 POST /api/user/monthly-passes/{id}/payment/cash-bill
 ```
 
-Body: khong can.
+Endpoint nay khong dung nua cho ve thang. BE se reject:
 
-Response:
-
-```json
-{
-  "paymentMethod": "CASH",
-  "paymentReference": "MTHCASH-1-ABCDEFGH",
-  "amount": 500000,
-  "qrContent": "MONTHLY_PASS|passId=1|ref=...",
-  "billContent": "BILL VE THANG..."
-}
+```text
+Monthly pass only supports ONLINE_QR transfer payment
 ```
 
-### Manager/staff xac nhan bang QR
+### Manager/nhan vien xac nhan bang QR
 
 ```http
 POST /api/manager/monthly-passes/confirm-payment/scan
@@ -176,8 +174,8 @@ Body:
 ```json
 {
   "qrContent": "MONTHLY_PASS|passId=1|ref=...",
-  "paymentMethod": "CASH",
-  "referenceCode": "MTHCASH-1-ABCDEFGH"
+  "paymentMethod": "ONLINE_QR",
+  "referenceCode": "BANK-TXN-001"
 }
 ```
 
@@ -186,6 +184,41 @@ Ket qua:
 - `paymentStatus = PAID`
 - Pass thanh `ACTIVE` hoac `SCHEDULED`
 - Slot thanh `MONTHLY_RESERVED`
+
+## 6A. QR rieng cho tung phuong tien
+
+Khi user tao/them phuong tien:
+
+```http
+POST /api/user/vehicles
+GET /api/user/vehicles
+```
+
+Response vehicle co them:
+
+```json
+{
+  "id": 10,
+  "plateNumber": "59A-12345",
+  "qrCode": "VEHICLE|vehicleId=10|plate=59A-12345"
+}
+```
+
+FE render QR tu field `qrCode`. QR nay dung cho nhan vien bai xe (`PARKING_STAFF`) quet xe vao/ra.
+
+Nhan vien scan QR phuong tien:
+
+```http
+POST /api/staff/parking-sessions/check-in/scan-qr?entryGateCode=GATE_IN_01
+POST /api/payment-checkout/prepare/scan-qr
+POST /api/payment-checkout/validate-exit/scan-qr
+```
+
+Ghi chu:
+
+- QR phuong tien co format `VEHICLE|vehicleId=...|plate=...`.
+- Bien so text cu van duoc ho tro de khong pha flow cu.
+- Reservation id QR cu van duoc ho tro.
 
 ## 7. Reminder het han ve thang truoc 3 ngay
 
@@ -215,6 +248,8 @@ Neu khong can nhac:
 - Backend hien khong dung `auto_renew`.
 - Neu DB da tung them cot `auto_renew` thi co the de nguyen, khong anh huong.
 - Khong can migration lien ket bank.
+- Them cot `vehicles.qr_code` de luu QR rieng cho tung phuong tien.
+- File migration: `src/main/resources/db/vehicle_qr_and_monthly_online_only_supabase.sql`.
 
 ## 9. Test
 
