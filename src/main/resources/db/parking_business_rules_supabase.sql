@@ -80,8 +80,8 @@ with ranked_slots as (
 update parking_slots slot
 set slot_code = case
     when ranked.zone_type = 'CAR_MONTHLY'
-        then ranked.floor_code || '-CAR-MONTHLY-' || lpad(ranked.zone_rank::text, 3, '0')
-    else ranked.floor_code || '-CAR-NORMAL-' || lpad((ranked.monthly_count + ranked.zone_rank)::text, 3, '0')
+        then ranked.floor_code || '-CAR-' || lpad(ranked.zone_rank::text, 3, '0')
+    else ranked.floor_code || '-CAR-' || lpad((ranked.monthly_count + ranked.zone_rank)::text, 3, '0')
 end
 from ranked_slots ranked
 where slot.slot_id = ranked.slot_id;

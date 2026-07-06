@@ -53,7 +53,7 @@ Response co them:
 {
   "zoneType": "CAR_MONTHLY",
   "zoneName": "Car Monthly",
-  "slotCode": "F1-CAR-MONTHLY-001"
+  "slotCode": "F1-CAR-001"
 }
 ```
 
@@ -113,7 +113,7 @@ Response co them field de FE hien chỗ va reminder:
 ```json
 {
   "slotId": 1,
-  "slotCode": "F1-CAR-MONTHLY-001",
+  "slotCode": "F1-CAR-001",
   "slotStatus": "MONTHLY_HELD",
   "monthlyRate": 500000,
   "totalAmount": 500000,

@@ -25,16 +25,16 @@ class ParkingInfoServiceTest {
         ParkingInfoService service = new ParkingInfoService(buildings, vehicleTypes, policies, slots,
                 "24/7", "SmartParking", "Address");
 
-        PaymentModuleParkingSlot normalSlot = slot(11L, "F1-CAR-NORMAL-011", "CAR_NORMAL");
-        PaymentModuleParkingSlot monthlySlot = slot(1L, "F1-CAR-MONTHLY-001", "CAR_MONTHLY");
+        PaymentModuleParkingSlot normalSlot = slot(11L, "F1-CAR-011", "CAR_NORMAL");
+        PaymentModuleParkingSlot monthlySlot = slot(1L, "F1-CAR-001", "CAR_MONTHLY");
         when(slots.searchAvailableSlots(null, 1L, "AVAILABLE"))
                 .thenReturn(List.of(normalSlot, monthlySlot));
 
         var reservation = service.availableSlots(null, 1L, "RESERVATION");
         var monthly = service.availableSlots(null, 1L, "MONTHLY");
 
-        assertEquals(List.of("F1-CAR-NORMAL-011"), reservation.stream().map(x -> x.slotCode()).toList());
-        assertEquals(List.of("F1-CAR-MONTHLY-001"), monthly.stream().map(x -> x.slotCode()).toList());
+        assertEquals(List.of("F1-CAR-011"), reservation.stream().map(x -> x.slotCode()).toList());
+        assertEquals(List.of("F1-CAR-001"), monthly.stream().map(x -> x.slotCode()).toList());
     }
 
     private PaymentModuleParkingSlot slot(Long id, String code, String zoneType) {

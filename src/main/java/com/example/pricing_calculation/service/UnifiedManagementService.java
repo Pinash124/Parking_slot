@@ -306,9 +306,9 @@ public class UnifiedManagementService {
         slots.saveAll(carSlots);
         slots.flush();
         for (int i = 0; i < monthly.size(); i++)
-            monthly.get(i).setSlotCode(prefix + "-CAR-MONTHLY-" + String.format("%03d", i + 1));
+            monthly.get(i).setSlotCode(prefix + "-CAR-" + String.format("%03d", i + 1));
         for (int i = 0; i < normalSlots.size(); i++)
-            normalSlots.get(i).setSlotCode(prefix + "-CAR-NORMAL-" + String.format("%03d", monthly.size() + i + 1));
+            normalSlots.get(i).setSlotCode(prefix + "-CAR-" + String.format("%03d", monthly.size() + i + 1));
         slots.saveAll(carSlots);
     }
 
