@@ -12,9 +12,9 @@ public final class MonthlyParkingPassDtos {
 
     public record MonthlyParkingPassCreateRequest(Long vehicleId, Long slotId, LocalDate startDate, Integer months, String note) { }
 
-    public record MonthlyParkingPassPaymentRequest(String paymentMethod, String referenceCode) { }
+    public record MonthlyParkingPassPaymentRequest(String referenceCode) { }
 
-    public record MonthlyParkingPassQrConfirmRequest(String qrContent, String paymentMethod, String referenceCode) { }
+    public record MonthlyParkingPassQrConfirmRequest(String qrContent, String referenceCode) { }
 
     public record MonthlyParkingPassPaymentInstructionResponse(
             MonthlyParkingPassResponse pass,

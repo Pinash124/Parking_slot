@@ -130,6 +130,7 @@ Chot moi:
 - Ve thang chi thanh toan bang chuyen khoan/ONLINE_QR.
 - Khong su dung tien mat cho ve thang.
 - Tien mat chi dung cho xe vao theo luot/vang lai khi xe ra.
+- Khong con endpoint tien mat cho ve thang.
 
 ### Online QR
 
@@ -149,18 +150,6 @@ Response:
   "qrContent": "MONTHLY_PASS|passId=1|ref=...",
   "billContent": null
 }
-```
-
-### Tien mat
-
-```http
-POST /api/user/monthly-passes/{id}/payment/cash-bill
-```
-
-Endpoint nay khong dung nua cho ve thang. BE se reject:
-
-```text
-Monthly pass only supports ONLINE_QR transfer payment
 ```
 
 ### Admin xac nhan thanh toan ve thang
@@ -188,7 +177,6 @@ Body:
 ```json
 {
   "qrContent": "MONTHLY_PASS|passId=1|ref=...",
-  "paymentMethod": "ONLINE_QR",
   "referenceCode": "BANK-TXN-001"
 }
 ```
@@ -196,6 +184,7 @@ Body:
 Ket qua:
 
 - `paymentStatus = PAID`
+- `paymentMethod = ONLINE_QR` do BE tu set
 - Pass thanh `ACTIVE` hoac `SCHEDULED`
 - Slot thanh `MONTHLY_RESERVED`
 

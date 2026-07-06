@@ -92,20 +92,28 @@ class MonthlyParkingPassServiceTest {
     }
 
     @Test
-    void rejectsCashPaymentForMonthlyPasses() {
+    void confirmsMonthlyPassPaymentAsOnlineQr() {
         MonthlyParkingPassRepository passes = mock(MonthlyParkingPassRepository.class);
         VehicleRepository vehicles = mock(VehicleRepository.class);
         PaymentModuleParkingSlotRepository slots = mock(PaymentModuleParkingSlotRepository.class);
         PricingService pricing = mock(PricingService.class);
         MonthlyParkingPassService service = new MonthlyParkingPassService(passes, vehicles, slots, pricing);
         MonthlyParkingPass pass = mock(MonthlyParkingPass.class);
+        PaymentModuleParkingSlot slot = mock(PaymentModuleParkingSlot.class);
         when(pass.getPaymentStatus()).thenReturn("PENDING");
         when(pass.getStatus()).thenReturn("PENDING_PAYMENT");
+        when(pass.getStartDate()).thenReturn(LocalDate.now());
+        when(pass.getReservedSlot()).thenReturn(slot);
+        when(slot.getId()).thenReturn(20L);
+        when(slot.getStatus()).thenReturn("MONTHLY_HELD");
         when(passes.findById(99L)).thenReturn(Optional.of(pass));
+        when(slots.findByIdForUpdate(20L)).thenReturn(Optional.of(slot));
+        when(passes.save(pass)).thenReturn(pass);
 
-        BadRequestException error = assertThrows(BadRequestException.class,
-                () -> service.confirmPayment(99L, new MonthlyParkingPassPaymentRequest("CASH", "CASH-001")));
+        service.confirmPayment(99L, new MonthlyParkingPassPaymentRequest("BANK-001"));
 
-        assertEquals("Monthly pass only supports ONLINE_QR transfer payment", error.getMessage());
+        verify(pass).setPaymentMethod("ONLINE_QR");
+        verify(pass).setPaymentReference("BANK-001");
+        verify(slot).setStatus("MONTHLY_RESERVED");
     }
 }

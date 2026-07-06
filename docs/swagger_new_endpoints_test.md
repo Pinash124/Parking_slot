@@ -180,6 +180,7 @@ Luu y chot moi:
 - Moi lan gia han/thanh toan la mot ky rieng.
 - Ve thang chi thanh toan bang chuyen khoan/ONLINE_QR.
 - Tien mat chi dung cho xe vao theo luot/vang lai khi xe ra.
+- BE khong con endpoint tien mat cho ve thang.
 
 ### 5.1 Online QR - thanh toan ky hien tai
 
@@ -205,16 +206,7 @@ Response mau:
 }
 ```
 
-### 5.2 Tien mat cho ve thang - khong dung nua
-
-`POST /api/user/monthly-passes/{id}/payment/cash-bill`
-
-Expected:
-
-- Reject.
-- Message: `Monthly pass only supports ONLINE_QR transfer payment`.
-
-### 5.3 Manager xac nhan thanh toan theo id
+### 5.2 Admin xac nhan thanh toan theo id
 
 `POST /api/manager/monthly-passes/{id}/confirm-payment`
 
@@ -224,7 +216,6 @@ Body:
 
 ```json
 {
-  "paymentMethod": "ONLINE_QR",
   "referenceCode": "TEST-PAID-001"
 }
 ```
@@ -234,8 +225,9 @@ Expected:
 - `paymentStatus = PAID`.
 - Ve chuyen `ACTIVE` neu toi ngay bat dau, hoac `SCHEDULED` neu start date o tuong lai.
 - Slot chuyen sang `MONTHLY_RESERVED`.
+- BE tu set `paymentMethod = ONLINE_QR`.
 
-### 5.4 Manager xac nhan bang QR scan
+### 5.3 Admin xac nhan bang QR scan
 
 `POST /api/manager/monthly-passes/confirm-payment/scan`
 
@@ -246,7 +238,6 @@ Body:
 ```json
 {
   "qrContent": "MONTHLY_PASS|passId=1|ref=...",
-  "paymentMethod": "ONLINE_QR",
   "referenceCode": "BANK-TXN-001"
 }
 ```
@@ -256,6 +247,7 @@ Expected:
 - Tim dung ve thang tu QR content.
 - Xac nhan thanh toan thanh cong.
 - Slot thanh `MONTHLY_RESERVED`.
+- BE tu set `paymentMethod = ONLINE_QR`.
 
 ## 5A. QR rieng cho tung phuong tien
 
@@ -417,7 +409,7 @@ Expected:
 - [ ] Vang lai chi vao khi con suc chua; full thi khong nhan them.
 - [ ] Ve thang tra `slotId`, `slotCode`, `slotStatus`.
 - [ ] Online QR khong can body auto-renew.
-- [ ] Cash bill ve thang bi reject, chi con ONLINE_QR.
+- [ ] Swagger khong con endpoint cash bill ve thang, chi con ONLINE_QR.
 - [ ] Manager scan QR xac nhan duoc payment.
 - [ ] Car ve thang gia `500000/thang`.
 - [ ] Ve thang con <= 3 ngay het han tra `expiryReminderDue=true`.

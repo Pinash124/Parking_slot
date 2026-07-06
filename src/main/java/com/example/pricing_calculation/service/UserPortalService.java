@@ -78,11 +78,6 @@ public class UserPortalService {
         return monthlyPassService.prepareOnlinePayment(user, id);
     }
 
-    @Transactional
-    public MonthlyParkingPassPaymentInstructionResponse prepareMonthlyPassCashBill(UserAccount user, Long id) {
-        return monthlyPassService.prepareCashBill(user, id);
-    }
-
     @Transactional(readOnly=true) public CurrentParkingSessionResponse current(UserAccount user){PaymentModuleParkingSession s=sessions.findFirstByVehicleUserIdAndStatusInOrderByEntryTimeDesc(user.getId(),List.of("ACTIVE","PAYMENT_PENDING","CHECKED_OUT")).orElseThrow(()->new ResourceNotFoundException("No active parking session"));return currentResponse(s);}
     @Transactional(readOnly=true) public List<ParkingSessionResponse> history(UserAccount user){return sessions.findByVehicleUserIdOrderByEntryTimeDesc(user.getId()).stream().map(ParkingSessionResponse::from).toList();}
     @Transactional public CurrentParkingSessionResponse addService(UserAccount user,Long sessionId,ServiceUsageRequest r){PaymentModuleParkingSession s=ownedSession(user,sessionId);if(!"ACTIVE".equalsIgnoreCase(s.getStatus()))throw new BadRequestException("Additional services can only be added to ACTIVE sessions");if(r==null||r.serviceId()==null)throw new BadRequestException("serviceId is required");AdditionalService service=services.findById(r.serviceId()).orElseThrow(()->new ResourceNotFoundException("Additional service not found: "+r.serviceId()));if(!"ACTIVE".equalsIgnoreCase(service.getStatus()))throw new BadRequestException("Additional service is not active");SessionServiceUsage u=new SessionServiceUsage();u.setSession(s);u.setService(service);u.setQuantity(r.quantity()==null?1:Math.max(1,r.quantity()));u.setUnitPrice(service.getPrice());usages.save(u);return currentResponse(s);}

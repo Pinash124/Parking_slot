@@ -65,6 +65,6 @@ public class UnifiedManagerController {
 
     @GetMapping("/monthly-passes") public List<MonthlyParkingPassDtos.MonthlyParkingPassResponse> monthlyPasses(@RequestHeader("Authorization")String h){monthlyPassAdmin(h);return monthlyPasses.listAll();}
     @PostMapping("/monthly-passes/{id}/confirm-payment") public MonthlyParkingPassDtos.MonthlyParkingPassResponse confirmMonthlyPassPayment(@RequestHeader("Authorization")String h,@PathVariable Long id,@RequestBody(required=false) MonthlyParkingPassDtos.MonthlyParkingPassPaymentRequest r){monthlyPassAdmin(h);return monthlyPasses.confirmPayment(id,r);}
-    @PostMapping("/monthly-passes/confirm-payment/scan") public MonthlyParkingPassDtos.MonthlyParkingPassResponse confirmMonthlyPassPaymentByQr(@RequestHeader("Authorization")String h,@RequestBody MonthlyParkingPassDtos.MonthlyParkingPassQrConfirmRequest r){monthlyPassAdmin(h);return monthlyPasses.confirmPaymentFromQr(r.qrContent(),r.paymentMethod(),r.referenceCode());}
+    @PostMapping("/monthly-passes/confirm-payment/scan") public MonthlyParkingPassDtos.MonthlyParkingPassResponse confirmMonthlyPassPaymentByQr(@RequestHeader("Authorization")String h,@RequestBody MonthlyParkingPassDtos.MonthlyParkingPassQrConfirmRequest r){monthlyPassAdmin(h);return monthlyPasses.confirmPaymentFromQr(r.qrContent(),r.referenceCode());}
     @PostMapping("/monthly-passes/{id}/cancel") public MonthlyParkingPassDtos.MonthlyParkingPassResponse cancelMonthlyPass(@RequestHeader("Authorization")String h,@PathVariable Long id){monthlyPassAdmin(h);return monthlyPasses.cancel(id);}
 }

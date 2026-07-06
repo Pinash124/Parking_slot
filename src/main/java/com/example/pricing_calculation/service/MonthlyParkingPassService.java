@@ -124,7 +124,7 @@ public class MonthlyParkingPassService {
         pass.setPaymentReference(referenceCode);
         pass.setUpdatedAt(LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh")));
         MonthlyParkingPass saved = passes.save(pass);
-        String qrContent = buildQrContent(saved, "ONLINE_QR", referenceCode);
+        String qrContent = buildQrContent(saved, referenceCode);
         return new MonthlyParkingPassPaymentInstructionResponse(
                 MonthlyParkingPassResponse.from(saved),
                 "ONLINE_QR",
@@ -136,11 +136,6 @@ public class MonthlyParkingPassService {
         );
     }
 
-    @Transactional
-    public MonthlyParkingPassPaymentInstructionResponse prepareCashBill(UserAccount user, Long id) {
-        throw new BadRequestException("Monthly pass only supports ONLINE_QR transfer payment");
-    }
-
     @Transactional(isolation = Isolation.SERIALIZABLE)
     public MonthlyParkingPassResponse confirmPayment(Long id, MonthlyParkingPassPaymentRequest request) {
         MonthlyParkingPass pass = find(id);
@@ -150,15 +145,13 @@ public class MonthlyParkingPassService {
         if (!"PENDING_PAYMENT".equalsIgnoreCase(pass.getStatus())) {
             throw new BadRequestException("Only a pending monthly pass can be paid");
         }
-        String method = request == null || request.paymentMethod() == null || request.paymentMethod().isBlank()
-                ? "ONLINE_QR" : request.paymentMethod().trim().toUpperCase();
-        if (!"ONLINE_QR".equals(method)) {
-            throw new BadRequestException("Monthly pass only supports ONLINE_QR transfer payment");
-        }
+        String reference = request == null || request.referenceCode() == null || request.referenceCode().isBlank()
+                ? pass.getPaymentReference()
+                : request.referenceCode();
         LocalDate today = LocalDate.now(ZoneId.of("Asia/Ho_Chi_Minh"));
         pass.setPaymentStatus("PAID");
-        pass.setPaymentMethod(method);
-        pass.setPaymentReference(request == null ? null : request.referenceCode());
+        pass.setPaymentMethod("ONLINE_QR");
+        pass.setPaymentReference(reference);
         pass.setPaidAt(LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh")));
         pass.setStatus(pass.getStartDate().isAfter(today) ? "SCHEDULED" : "ACTIVE");
         pass.setUpdatedAt(LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh")));
@@ -173,16 +166,13 @@ public class MonthlyParkingPassService {
     }
 
     @Transactional(isolation = Isolation.SERIALIZABLE)
-    public MonthlyParkingPassResponse confirmPaymentFromQr(String qrContent, String paymentMethod, String referenceCode) {
+    public MonthlyParkingPassResponse confirmPaymentFromQr(String qrContent, String referenceCode) {
         Long id = parsePassId(qrContent);
         MonthlyParkingPass pass = find(id);
-        String method = paymentMethod == null || paymentMethod.isBlank()
-                ? pass.getPaymentMethod() == null ? "ONLINE_QR" : pass.getPaymentMethod()
-                : paymentMethod;
         String reference = referenceCode == null || referenceCode.isBlank()
                 ? pass.getPaymentReference()
                 : referenceCode;
-        return confirmPayment(id, new MonthlyParkingPassPaymentRequest(method, reference));
+        return confirmPayment(id, new MonthlyParkingPassPaymentRequest(reference));
     }
 
     @Transactional(isolation = Isolation.SERIALIZABLE)
@@ -228,11 +218,11 @@ public class MonthlyParkingPassService {
         return prefix + "-" + passId + "-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
     }
 
-    private String buildQrContent(MonthlyParkingPass pass, String method, String referenceCode) {
+    private String buildQrContent(MonthlyParkingPass pass, String referenceCode) {
         return "MONTHLY_PASS"
                 + "|passId=" + pass.getId()
                 + "|ref=" + referenceCode
-                + "|method=" + method
+                + "|method=ONLINE_QR"
                 + "|amount=" + safeAmount(pass.getTotalAmount())
                 + "|plate=" + text(pass.getVehicle() == null ? null : pass.getVehicle().getPlateNumber())
                 + "|slot=" + text(pass.getReservedSlot() == null ? null : pass.getReservedSlot().getSlotCode());
