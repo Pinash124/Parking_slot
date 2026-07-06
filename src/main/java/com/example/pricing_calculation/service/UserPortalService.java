@@ -4,6 +4,8 @@ import com.example.pricing_calculation.domain.*;
 import com.example.pricing_calculation.dto.CurrentParkingSessionResponse;
 import com.example.pricing_calculation.dto.CurrentParkingSessionResponse.ServiceUsageView;
 import com.example.pricing_calculation.dto.MonthlyParkingPassDtos.MonthlyParkingPassCreateRequest;
+import com.example.pricing_calculation.dto.MonthlyParkingPassDtos.MonthlyParkingPassPaymentInstructionResponse;
+import com.example.pricing_calculation.dto.MonthlyParkingPassDtos.MonthlyParkingPassPaymentPrepareRequest;
 import com.example.pricing_calculation.dto.MonthlyParkingPassDtos.MonthlyParkingPassResponse;
 import com.example.pricing_calculation.dto.ManagementDtos.VehicleRequest;
 import com.example.pricing_calculation.dto.ManagementDtos.VehicleView;
@@ -12,7 +14,6 @@ import com.example.pricing_calculation.dto.PricingQuoteResponse;
 import com.example.pricing_calculation.dto.ServiceUsageRequest;
 import com.example.pricing_calculation.repository.*;
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.stereotype.Service;
@@ -22,19 +23,19 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserPortalService {
     private final VehicleRepository vehicles; private final PaymentModuleVehicleTypeRepository vehicleTypes;
     private final PaymentModuleParkingSessionRepository sessions; private final PricingService pricing;
-    private final MonthlyParkingPassRepository monthlyPasses;
+    private final MonthlyParkingPassService monthlyPassService;
     private final AdditionalServiceRepository services; private final SessionServiceUsageRepository usages;
     private final PaymentModulePricingPolicyRepository pricingPolicies;
 
     public UserPortalService(VehicleRepository vehicles,PaymentModuleVehicleTypeRepository vehicleTypes,
             PaymentModuleParkingSessionRepository sessions,PricingService pricing,
-            MonthlyParkingPassRepository monthlyPasses,AdditionalServiceRepository services,
+            MonthlyParkingPassService monthlyPassService,AdditionalServiceRepository services,
             SessionServiceUsageRepository usages, PaymentModulePricingPolicyRepository pricingPolicies){
         this.vehicles=vehicles;
         this.vehicleTypes=vehicleTypes;
         this.sessions=sessions;
         this.pricing=pricing;
-        this.monthlyPasses=monthlyPasses;
+        this.monthlyPassService=monthlyPassService;
         this.services=services;
         this.usages=usages;
         this.pricingPolicies=pricingPolicies;
@@ -60,45 +61,25 @@ public class UserPortalService {
 
     @Transactional(readOnly=true)
     public List<MonthlyParkingPassResponse> monthlyPasses(UserAccount user) {
-        return monthlyPasses.findByVehicleUserIdOrderByCreatedAtDesc(user.getId()).stream()
-                .map(MonthlyParkingPassResponse::from)
-                .toList();
+        return monthlyPassService.listForUser(user);
     }
 
     @Transactional
     public MonthlyParkingPassResponse registerMonthlyPass(UserAccount user, MonthlyParkingPassCreateRequest request) {
-        if (request == null || request.vehicleId() == null) {
-            throw new BadRequestException("vehicleId is required");
-        }
-        Vehicle vehicle = ownedVehicle(user, request.vehicleId());
-        int months = request.months() == null ? 1 : request.months();
-        if (months < 1 || months > 12) {
-            throw new BadRequestException("months must be between 1 and 12");
-        }
-        LocalDate startDate = request.startDate() == null ? LocalDate.now() : request.startDate();
-        LocalDate endDate = startDate.plusMonths(months).minusDays(1);
-        boolean hasActive = monthlyPasses.findByVehicleIdOrderByCreatedAtDesc(vehicle.getId()).stream()
-                .anyMatch(pass -> pass.isActiveAt(startDate));
-        if (hasActive) {
-            throw new BadRequestException("Vehicle already has an active monthly pass");
-        }
+        return monthlyPassService.register(user, request);
+    }
 
-        BigDecimal monthlyRate = pricing.monthlyRateForVehicleType(vehicle.getVehicleType().getId(), startDate.atStartOfDay());
-        LocalDateTime now = LocalDateTime.now();
-        MonthlyParkingPass pass = new MonthlyParkingPass();
-        pass.setUser(user);
-        pass.setVehicle(vehicle);
-        pass.setVehicleType(vehicle.getVehicleType());
-        pass.setMonths(months);
-        pass.setMonthlyRate(monthlyRate);
-        pass.setTotalAmount(monthlyRate.multiply(BigDecimal.valueOf(months)).setScale(2, java.math.RoundingMode.HALF_UP));
-        pass.setStartDate(startDate);
-        pass.setEndDate(endDate);
-        pass.setStatus(startDate.isAfter(LocalDate.now()) ? "SCHEDULED" : "ACTIVE");
-        pass.setNote(request.note());
-        pass.setCreatedAt(now);
-        pass.setUpdatedAt(now);
-        return MonthlyParkingPassResponse.from(monthlyPasses.save(pass));
+    @Transactional
+    public MonthlyParkingPassPaymentInstructionResponse prepareMonthlyPassOnlinePayment(
+            UserAccount user,
+            Long id,
+            MonthlyParkingPassPaymentPrepareRequest request) {
+        return monthlyPassService.prepareOnlinePayment(user, id, request);
+    }
+
+    @Transactional
+    public MonthlyParkingPassPaymentInstructionResponse prepareMonthlyPassCashBill(UserAccount user, Long id) {
+        return monthlyPassService.prepareCashBill(user, id);
     }
 
     @Transactional(readOnly=true) public CurrentParkingSessionResponse current(UserAccount user){PaymentModuleParkingSession s=sessions.findFirstByVehicleUserIdAndStatusInOrderByEntryTimeDesc(user.getId(),List.of("ACTIVE","PAYMENT_PENDING","CHECKED_OUT")).orElseThrow(()->new ResourceNotFoundException("No active parking session"));return currentResponse(s);}

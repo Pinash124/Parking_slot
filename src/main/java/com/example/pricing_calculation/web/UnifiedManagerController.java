@@ -4,7 +4,9 @@ import static com.example.pricing_calculation.dto.ManagementDtos.*;
 import com.example.pricing_calculation.domain.UserRole;
 import com.example.pricing_calculation.repository.VehicleRepository;
 import com.example.pricing_calculation.service.PaymentModuleAuthService;
+import com.example.pricing_calculation.service.MonthlyParkingPassService;
 import com.example.pricing_calculation.service.UnifiedManagementService;
+import com.example.pricing_calculation.dto.MonthlyParkingPassDtos;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
@@ -17,8 +19,8 @@ import org.springframework.web.bind.annotation.*;
 @SecurityRequirement(name="bearerAuth")
 @Tag(name="Parking Manager")
 public class UnifiedManagerController {
-    private final UnifiedManagementService service; private final PaymentModuleAuthService auth; private final VehicleRepository vehicleRepo;
-    public UnifiedManagerController(UnifiedManagementService service,PaymentModuleAuthService auth,VehicleRepository vehicleRepo){this.service=service;this.auth=auth;this.vehicleRepo=vehicleRepo;}
+    private final UnifiedManagementService service; private final PaymentModuleAuthService auth; private final VehicleRepository vehicleRepo; private final MonthlyParkingPassService monthlyPasses;
+    public UnifiedManagerController(UnifiedManagementService service,PaymentModuleAuthService auth,VehicleRepository vehicleRepo,MonthlyParkingPassService monthlyPasses){this.service=service;this.auth=auth;this.vehicleRepo=vehicleRepo;this.monthlyPasses=monthlyPasses;}
     private void manager(String h){auth.requireAnyRole(h,UserRole.PARKING_MANAGER,UserRole.ADMINISTRATOR);}
 
     @GetMapping("/buildings") public List<BuildingView> buildings(@RequestHeader("Authorization")String h){manager(h);return service.buildings();}
@@ -40,6 +42,7 @@ public class UnifiedManagerController {
     @PostMapping("/zones") public ZoneView createZone(@RequestHeader("Authorization")String h,@RequestBody ZoneRequest r){manager(h);return service.saveZone(null,r);}
     @PutMapping("/zones/{id}") public ZoneView updateZone(@RequestHeader("Authorization")String h,@PathVariable Long id,@RequestBody ZoneRequest r){manager(h);return service.saveZone(id,r);}
     @DeleteMapping("/zones/{id}") public void deleteZone(@RequestHeader("Authorization")String h,@PathVariable Long id){manager(h);service.deleteZone(id);}
+    @PostMapping("/zones/rebalance-car") public List<ZoneView> rebalanceCarZones(@RequestHeader("Authorization")String h,@RequestParam Long floorId){manager(h);return service.rebalanceCarSlots(floorId);}
 
     @GetMapping("/slots") public List<SlotView> slots(@RequestHeader("Authorization")String h,@RequestParam(required=false)Long zoneId,@RequestParam(required=false)Long vehicleTypeId,@RequestParam(required=false)String status){manager(h);return service.slots(zoneId,vehicleTypeId,status);}
     @PostMapping("/slots") public SlotView createSlot(@RequestHeader("Authorization")String h,@RequestBody SlotRequest r){manager(h);return service.saveSlot(null,r);}
@@ -58,4 +61,9 @@ public class UnifiedManagerController {
     @DeleteMapping("/additional-services/{id}") public void deleteAdditionalService(@RequestHeader("Authorization")String h,@PathVariable Long id){manager(h);service.deleteAdditionalService(id);}
 
     @GetMapping("/vehicles") public List<VehicleView> allVehicles(@RequestHeader("Authorization")String h){manager(h);return vehicleRepo.findAll().stream().map(VehicleView::from).toList();}
+
+    @GetMapping("/monthly-passes") public List<MonthlyParkingPassDtos.MonthlyParkingPassResponse> monthlyPasses(@RequestHeader("Authorization")String h){manager(h);return monthlyPasses.listAll();}
+    @PostMapping("/monthly-passes/{id}/confirm-payment") public MonthlyParkingPassDtos.MonthlyParkingPassResponse confirmMonthlyPassPayment(@RequestHeader("Authorization")String h,@PathVariable Long id,@RequestBody(required=false) MonthlyParkingPassDtos.MonthlyParkingPassPaymentRequest r){manager(h);return monthlyPasses.confirmPayment(id,r);}
+    @PostMapping("/monthly-passes/confirm-payment/scan") public MonthlyParkingPassDtos.MonthlyParkingPassResponse confirmMonthlyPassPaymentByQr(@RequestHeader("Authorization")String h,@RequestBody MonthlyParkingPassDtos.MonthlyParkingPassQrConfirmRequest r){manager(h);return monthlyPasses.confirmPaymentFromQr(r.qrContent(),r.paymentMethod(),r.referenceCode());}
+    @PostMapping("/monthly-passes/{id}/cancel") public MonthlyParkingPassDtos.MonthlyParkingPassResponse cancelMonthlyPass(@RequestHeader("Authorization")String h,@PathVariable Long id){manager(h);return monthlyPasses.cancel(id);}
 }

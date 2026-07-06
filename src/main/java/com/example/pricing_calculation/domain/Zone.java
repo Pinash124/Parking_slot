@@ -30,6 +30,9 @@ public class Zone {
     @Column(name = "zone_name", length = 50)
     private String zoneName;
 
+    @Column(name = "zone_type", length = 30)
+    private String zoneType;
+
     public Long getId() {
         return id;
     }
@@ -46,7 +49,10 @@ public class Zone {
         return zoneName;
     }
 
+    public String getZoneType() { return zoneType; }
+
     public void setFloor(Floor floor) { this.floor = floor; }
     public void setVehicleType(VehicleTypeEntity vehicleType) { this.vehicleType = vehicleType; }
     public void setZoneName(String zoneName) { this.zoneName = zoneName; }
+    public void setZoneType(String zoneType) { this.zoneType = zoneType == null ? null : zoneType.trim().toUpperCase(); }
 }

@@ -9,4 +9,6 @@ public interface MonthlyParkingPassRepository extends JpaRepository<MonthlyParki
     List<MonthlyParkingPass> findByVehicleUserIdOrderByCreatedAtDesc(Long userId);
 
     List<MonthlyParkingPass> findByVehicleIdOrderByCreatedAtDesc(Long vehicleId);
+
+    List<MonthlyParkingPass> findAllByOrderByCreatedAtDesc();
 }

@@ -32,6 +32,9 @@ public class VehicleTypeEntity {
     @Column(name = "monthly_rate", precision = 18, scale = 2)
     private BigDecimal monthlyRate;
 
+    @Column(name = "wheel_count")
+    private Integer wheelCount;
+
     public Long getId() {
         return id;
     }
@@ -56,9 +59,12 @@ public class VehicleTypeEntity {
         return monthlyRate;
     }
 
+    public Integer getWheelCount() { return wheelCount; }
+
     public void setName(String name) { this.name = name; }
     public void setDescription(String description) { this.description = description; }
     public void setDefaultHourlyFee(BigDecimal defaultHourlyFee) { this.defaultHourlyFee = defaultHourlyFee; }
     public void setDailyRate(BigDecimal dailyRate) { this.dailyRate = dailyRate; }
     public void setMonthlyRate(BigDecimal monthlyRate) { this.monthlyRate = monthlyRate; }
+    public void setWheelCount(Integer wheelCount) { this.wheelCount = wheelCount; }
 }

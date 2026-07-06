@@ -60,6 +60,14 @@ public class PaymentModuleParkingSessionController {
         return authService.requireAnyRole(header, UserRole.PARKING_STAFF, UserRole.PARKING_MANAGER, UserRole.ADMINISTRATOR);
     }
 
+    @GetMapping
+    public java.util.List<ParkingSessionResponse> list(
+            @RequestHeader("Authorization") String header,
+            @RequestParam(required = false) String status) {
+        staff(header);
+        return parkingSessionService.list(status);
+    }
+
     @GetMapping("/{id}")
     public ParkingSessionResponse getById(@RequestHeader("Authorization") String header, @PathVariable Long id) {
         staff(header);

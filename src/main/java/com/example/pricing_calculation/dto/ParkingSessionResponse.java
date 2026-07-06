@@ -9,6 +9,7 @@ import java.time.LocalDateTime;
 public record ParkingSessionResponse(
         Long id,
         Long reservationId,
+        Long monthlyPassId,
         Long vehicleId,
         String licensePlate,
         Long vehicleTypeId,
@@ -38,6 +39,7 @@ public record ParkingSessionResponse(
         return new ParkingSessionResponse(
                 session.getId(),
                 session.getReservation() == null ? null : session.getReservation().getId(),
+                session.getMonthlyPass() == null ? null : session.getMonthlyPass().getId(),
                 vehicle == null ? null : vehicle.getId(),
                 vehicle == null ? null : vehicle.getPlateNumber(),
                 vehicle == null || vehicle.getVehicleType() == null ? null : vehicle.getVehicleType().getId(),

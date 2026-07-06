@@ -6,6 +6,8 @@ import com.example.pricing_calculation.domain.Reservation;
 import com.example.pricing_calculation.domain.Vehicle;
 import com.example.pricing_calculation.domain.UserAccount;
 import com.example.pricing_calculation.domain.VehicleTypeEntity;
+import com.example.pricing_calculation.domain.MonthlyParkingPass;
+import com.example.pricing_calculation.config.ParkingRuleProperties;
 import com.example.pricing_calculation.dto.ParkingSessionResponse;
 import com.example.pricing_calculation.dto.PricingQuoteResponse;
 import com.example.pricing_calculation.dto.SessionCheckInRequest;
@@ -17,6 +19,7 @@ import com.example.pricing_calculation.repository.VehicleRepository;
 import com.example.pricing_calculation.repository.SessionServiceUsageRepository;
 import com.example.pricing_calculation.repository.UserAccountRepository;
 import com.example.pricing_calculation.repository.PaymentModuleVehicleTypeRepository;
+import com.example.pricing_calculation.repository.MonthlyParkingPassRepository;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -36,6 +39,8 @@ public class PaymentModuleParkingSessionService {
     private final SessionServiceUsageRepository serviceUsageRepository;
     private final UserAccountRepository userAccountRepository;
     private final PaymentModuleVehicleTypeRepository vehicleTypeRepository;
+    private final MonthlyParkingPassRepository monthlyPassRepository;
+    private final ParkingRuleProperties rules;
 
     public PaymentModuleParkingSessionService(
             PaymentModuleParkingSessionRepository parkingSessionRepository,
@@ -46,7 +51,9 @@ public class PaymentModuleParkingSessionService {
             RealtimeEventService realtimeEventService,
             SessionServiceUsageRepository serviceUsageRepository,
             UserAccountRepository userAccountRepository,
-            PaymentModuleVehicleTypeRepository vehicleTypeRepository) {
+            PaymentModuleVehicleTypeRepository vehicleTypeRepository,
+            MonthlyParkingPassRepository monthlyPassRepository,
+            ParkingRuleProperties rules) {
         this.parkingSessionRepository = parkingSessionRepository;
         this.reservationRepository = reservationRepository;
         this.vehicleRepository = vehicleRepository;
@@ -56,6 +63,8 @@ public class PaymentModuleParkingSessionService {
         this.serviceUsageRepository = serviceUsageRepository;
         this.userAccountRepository = userAccountRepository;
         this.vehicleTypeRepository = vehicleTypeRepository;
+        this.monthlyPassRepository = monthlyPassRepository;
+        this.rules = rules;
     }
 
     @Transactional
@@ -65,8 +74,8 @@ public class PaymentModuleParkingSessionService {
 
     @Transactional
     public ParkingSessionResponse checkIn(SessionCheckInRequest request, Long staffId, String entryGateCode) {
-        if (request == null || request.slotId() == null) {
-            throw new BadRequestException("slotId is required");
+        if (request == null) {
+            throw new BadRequestException("Check-in request is required");
         }
         Vehicle vehicle = null;
         if (request.vehicleId() != null) {
@@ -98,23 +107,59 @@ public class PaymentModuleParkingSessionService {
             throw new BadRequestException("vehicleId or licensePlate is required");
         }
 
-        PaymentModuleParkingSlot slot = parkingSlotRepository.findByIdForUpdate(request.slotId())
-                .orElseThrow(() -> new ResourceNotFoundException("Parking slot not found: " + request.slotId()));
+        LocalDateTime entryTime = request.entryTime() == null
+                ? LocalDateTime.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh"))
+                : request.entryTime();
+        MonthlyParkingPass monthlyPass = findActiveMonthlyPass(vehicle.getId(), entryTime);
+        ReservationResolution reservationResolution = monthlyPass == null
+                ? resolveReservation(request, vehicle, entryTime)
+                : new ReservationResolution(null, false);
+        Reservation reservation = reservationResolution.reservation();
+        Long slotId = monthlyPass != null && monthlyPass.getReservedSlot() != null
+                ? monthlyPass.getReservedSlot().getId()
+                : reservation != null
+                        ? reservation.getReservedSlot() != null
+                                ? reservation.getReservedSlot().getId()
+                                : randomAvailableSlotIdForReservation(vehicle.getVehicleType().getId(), reservation.getZone().getId())
+                        : reservationResolution.invalidated() ? null : request.slotId();
+        if (slotId == null) {
+            slotId = randomAvailableSlotIdForWalkIn(vehicle.getVehicleType().getId(), entryTime);
+        }
+        Long selectedSlotId = slotId;
+        PaymentModuleParkingSlot slot = parkingSlotRepository.findByIdForUpdate(selectedSlotId)
+                .orElseThrow(() -> new ResourceNotFoundException("Parking slot not found: " + selectedSlotId));
+        boolean assignedReservationSlot = reservation != null
+                && reservation.getReservedSlot() != null
+                && reservation.getReservedSlot().getId().equals(slot.getId());
+        boolean assignedMonthlySlot = monthlyPass != null
+                && monthlyPass.getReservedSlot() != null
+                && monthlyPass.getReservedSlot().getId().equals(slot.getId());
+        if ("RESERVED".equalsIgnoreCase(slot.getStatus()) && !assignedReservationSlot) {
+            throw new BadRequestException("Parking slot is reserved for another reservation");
+        }
+        if (("MONTHLY_HELD".equalsIgnoreCase(slot.getStatus()) || "MONTHLY_RESERVED".equalsIgnoreCase(slot.getStatus()))
+                && !assignedMonthlySlot) {
+            throw new BadRequestException("Parking slot is assigned to another monthly pass");
+        }
+        if (monthlyPass == null && "CAR_MONTHLY".equalsIgnoreCase(slot.getZone().getZoneType())) {
+            throw new BadRequestException("CAR_MONTHLY slots are reserved for paid monthly passes");
+        }
         if (slot.getStatus() != null
                 && !slot.getStatus().equalsIgnoreCase("AVAILABLE")
-                && !slot.getStatus().equalsIgnoreCase("RESERVED")) {
+                && !slot.getStatus().equalsIgnoreCase("RESERVED")
+                && !slot.getStatus().equalsIgnoreCase("MONTHLY_RESERVED")) {
             throw new BadRequestException("Parking slot is not available");
         }
         if (!slot.getZone().getVehicleType().getId().equals(vehicle.getVehicleType().getId())) {
             throw new BadRequestException("Vehicle type is not allowed in selected slot zone");
         }
+        if (reservation == null && monthlyPass == null) {
+            ensureWalkInCapacity(slot, entryTime);
+        }
         if (parkingSessionRepository.countByVehicleIdAndStatusIn(vehicle.getId(), java.util.List.of("ACTIVE", "PAYMENT_PENDING")) > 0) {
             throw new BadRequestException("Vehicle already has an active parking session");
         }
-        Reservation reservation = null;
-        if (request.reservationId() != null) {
-            reservation = reservationRepository.findById(request.reservationId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Reservation not found: " + request.reservationId()));
+        if (reservation != null) {
             if (!reservation.getVehicle().getId().equals(vehicle.getId())) {
                 throw new BadRequestException("Reservation vehicle does not match check-in vehicle");
             }
@@ -122,26 +167,28 @@ public class PaymentModuleParkingSessionService {
                 throw new BadRequestException("Selected slot is outside the reserved zone");
             }
             if (reservation.getReservedSlot() != null && !reservation.getReservedSlot().getId().equals(slot.getId())) {
-                throw new BadRequestException("Check-in must use the slot assigned to the reservation");
+                throw new BadRequestException("Check-in must use the legacy slot assigned to the reservation");
             }
-            if ("CANCELLED".equalsIgnoreCase(reservation.getStatus())) {
-                throw new BadRequestException("Reservation is cancelled");
+            if (!"PENDING".equalsIgnoreCase(reservation.getStatus())
+                    && !"APPROVED".equalsIgnoreCase(reservation.getStatus())) {
+                throw new BadRequestException("Reservation cannot be checked in from status " + reservation.getStatus());
             }
             reservation.setStatus("CONFIRMED");
         }
 
         PaymentModuleParkingSession session = new PaymentModuleParkingSession();
         session.setReservation(reservation);
+        session.setMonthlyPass(monthlyPass);
         session.setVehicle(vehicle);
         session.setSlot(slot);
         session.setTicketCode(request.ticketCode() == null || request.ticketCode().isBlank()
                 ? generateTicketCode()
                 : request.ticketCode());
-        session.setEntryTime(request.entryTime() == null ? LocalDateTime.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh")) : request.entryTime());
+        session.setEntryTime(entryTime);
         session.setStatus("ACTIVE");
         session.setEntryStaffId(staffId);
         session.setEntryGateCode(entryGateCode);
-        slot.setStatus("OCCUPIED");
+        slot.setStatus(monthlyPass == null ? "OCCUPIED" : "MONTHLY_OCCUPIED");
 
         PaymentModuleParkingSession saved = parkingSessionRepository.save(session);
         parkingSlotRepository.save(slot);
@@ -151,9 +198,118 @@ public class PaymentModuleParkingSessionService {
         return response;
     }
 
+    private ReservationResolution resolveReservation(SessionCheckInRequest request, Vehicle vehicle, LocalDateTime entryTime) {
+        if (request.reservationId() != null) {
+            Reservation reservation = reservationRepository.findById(request.reservationId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Reservation not found: " + request.reservationId()));
+            if (reservation.getVehicle() == null || !vehicle.getId().equals(reservation.getVehicle().getId())) {
+                throw new BadRequestException("Reservation vehicle does not match check-in vehicle");
+            }
+            if (!"PENDING".equalsIgnoreCase(reservation.getStatus())
+                    && !"APPROVED".equalsIgnoreCase(reservation.getStatus())) {
+                throw new BadRequestException("Reservation cannot be checked in from status " + reservation.getStatus());
+            }
+            return evaluateReservationWindow(reservation, entryTime);
+        }
+        for (Reservation reservation : reservationRepository.findByVehicleIdAndStatusInOrderByStartTimeAsc(
+                vehicle.getId(), java.util.List.of("PENDING", "APPROVED"))) {
+            ReservationResolution result = evaluateReservationWindow(reservation, entryTime);
+            if (result.reservation() != null || result.invalidated()) {
+                return result;
+            }
+        }
+        return new ReservationResolution(null, false);
+    }
+
+    private ReservationResolution evaluateReservationWindow(Reservation reservation, LocalDateTime entryTime) {
+        if (reservation.getStartTime() == null) {
+            throw new BadRequestException("Reservation startTime is required");
+        }
+        LocalDateTime earliest = reservation.getStartTime().minusMinutes(rules.getReservationEarlyMinutes());
+        LocalDateTime latest = reservation.getStartTime().plusMinutes(rules.getReservationLateMinutes());
+        if (entryTime.isBefore(earliest) || entryTime.isAfter(latest)) {
+            cancelReservationForArrival(reservation);
+            return new ReservationResolution(null, true);
+        }
+        return new ReservationResolution(reservation, false);
+    }
+
+    private void cancelReservationForArrival(Reservation reservation) {
+        reservation.setStatus("CANCELLED");
+        if (reservation.getReservedSlot() != null
+                && "RESERVED".equalsIgnoreCase(reservation.getReservedSlot().getStatus())) {
+            reservation.getReservedSlot().setStatus("AVAILABLE");
+            parkingSlotRepository.save(reservation.getReservedSlot());
+        }
+        reservationRepository.save(reservation);
+    }
+
+    private Long randomAvailableSlotIdForReservation(Long vehicleTypeId, Long zoneId) {
+        return randomAvailableSlotId(vehicleTypeId, zoneId, null, false);
+    }
+
+    private Long randomAvailableSlotIdForWalkIn(Long vehicleTypeId, LocalDateTime entryTime) {
+        return randomAvailableSlotId(vehicleTypeId, null, entryTime, true);
+    }
+
+    private Long randomAvailableSlotId(Long vehicleTypeId, Long zoneId, LocalDateTime entryTime, boolean protectReservations) {
+        java.util.List<PaymentModuleParkingSlot> available = parkingSlotRepository.searchAvailableSlots(
+                zoneId, vehicleTypeId, "AVAILABLE").stream()
+                .filter(slot -> VehicleTypeClassifier.isCar(slot.getZone().getVehicleType())
+                        ? "CAR_NORMAL".equalsIgnoreCase(slot.getZone().getZoneType())
+                        : "MOTORBIKE".equalsIgnoreCase(slot.getZone().getZoneType()))
+                .filter(slot -> !protectReservations || hasWalkInCapacity(slot, entryTime))
+                .toList();
+        if (available.isEmpty()) {
+            throw new BadRequestException("No available parking slot for this vehicle type");
+        }
+        int index = java.util.concurrent.ThreadLocalRandom.current().nextInt(available.size());
+        return available.get(index).getId();
+    }
+
+    private void ensureWalkInCapacity(PaymentModuleParkingSlot slot, LocalDateTime entryTime) {
+        if (!hasWalkInCapacity(slot, entryTime)) {
+            throw new BadRequestException("No walk-in capacity available because upcoming reservations are holding the remaining normal car slots");
+        }
+    }
+
+    private boolean hasWalkInCapacity(PaymentModuleParkingSlot slot, LocalDateTime entryTime) {
+        if (slot == null || slot.getZone() == null || slot.getZone().getVehicleType() == null) {
+            return true;
+        }
+        if (!VehicleTypeClassifier.isCar(slot.getZone().getVehicleType())
+                || !"CAR_NORMAL".equalsIgnoreCase(slot.getZone().getZoneType())) {
+            return true;
+        }
+        long availableSlots = parkingSlotRepository.countByZoneIdAndStatusIgnoreCase(slot.getZone().getId(), "AVAILABLE");
+        long protectedReservations = reservationRepository.countPendingArrivalsNeedingCapacity(
+                slot.getZone().getId(),
+                entryTime.minusMinutes(rules.getReservationLateMinutes()),
+                entryTime.plusMinutes(rules.getReservationEarlyMinutes()),
+                entryTime);
+        return availableSlots > protectedReservations;
+    }
+
+    private MonthlyParkingPass findActiveMonthlyPass(Long vehicleId, LocalDateTime entryTime) {
+        return monthlyPassRepository.findByVehicleIdOrderByCreatedAtDesc(vehicleId).stream()
+                .filter(pass -> pass.isActiveAt(entryTime.toLocalDate()))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private record ReservationResolution(Reservation reservation, boolean invalidated) { }
+
     @Transactional(readOnly = true)
     public ParkingSessionResponse getById(Long id) {
         return ParkingSessionResponse.from(findSession(id));
+    }
+
+    @Transactional(readOnly = true)
+    public java.util.List<ParkingSessionResponse> list(String status) {
+        java.util.List<PaymentModuleParkingSession> sessions = status == null || status.isBlank()
+                ? parkingSessionRepository.findAllByOrderByEntryTimeDesc()
+                : parkingSessionRepository.findByStatusIgnoreCaseOrderByEntryTimeDesc(status.trim());
+        return sessions.stream().map(ParkingSessionResponse::from).toList();
     }
 
     @Transactional(isolation = org.springframework.transaction.annotation.Isolation.SERIALIZABLE)
@@ -190,7 +346,7 @@ public class PaymentModuleParkingSessionService {
         session.setExitStaffId(staffId);
         session.setExitGateCode(exitGateCode);
         session.setStatus("COMPLETED");
-        session.getSlot().setStatus("AVAILABLE");
+        session.getSlot().setStatus(session.getMonthlyPass() == null ? "AVAILABLE" : "MONTHLY_RESERVED");
         parkingSlotRepository.save(session.getSlot());
         ParkingSessionResponse response = ParkingSessionResponse.from(parkingSessionRepository.save(session));
         realtimeEventService.publish("/topic/parking-sessions", "EXIT_COMPLETED", "Paid vehicle exited", response);

@@ -35,6 +35,10 @@ public class MonthlyParkingPass {
     @JoinColumn(name = "vehicle_type_id")
     private VehicleTypeEntity vehicleType;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "reserved_slot_id")
+    private PaymentModuleParkingSlot reservedSlot;
+
     @Column(name = "months")
     private Integer months;
 
@@ -52,6 +56,21 @@ public class MonthlyParkingPass {
 
     @Column(name = "status", length = 20)
     private String status;
+
+    @Column(name = "payment_status", length = 20)
+    private String paymentStatus;
+
+    @Column(name = "payment_method", length = 30)
+    private String paymentMethod;
+
+    @Column(name = "payment_reference", length = 100)
+    private String paymentReference;
+
+    @Column(name = "auto_renew")
+    private Boolean autoRenew;
+
+    @Column(name = "paid_at")
+    private LocalDateTime paidAt;
 
     @Column(name = "note")
     private String note;
@@ -89,6 +108,9 @@ public class MonthlyParkingPass {
     public void setVehicleType(VehicleTypeEntity vehicleType) {
         this.vehicleType = vehicleType;
     }
+
+    public PaymentModuleParkingSlot getReservedSlot() { return reservedSlot; }
+    public void setReservedSlot(PaymentModuleParkingSlot reservedSlot) { this.reservedSlot = reservedSlot; }
 
     public Integer getMonths() {
         return months;
@@ -138,6 +160,17 @@ public class MonthlyParkingPass {
         this.status = normalize(status);
     }
 
+    public String getPaymentStatus() { return paymentStatus; }
+    public void setPaymentStatus(String paymentStatus) { this.paymentStatus = normalize(paymentStatus); }
+    public String getPaymentMethod() { return paymentMethod; }
+    public void setPaymentMethod(String paymentMethod) { this.paymentMethod = normalize(paymentMethod); }
+    public String getPaymentReference() { return paymentReference; }
+    public void setPaymentReference(String paymentReference) { this.paymentReference = normalize(paymentReference); }
+    public Boolean getAutoRenew() { return autoRenew; }
+    public void setAutoRenew(Boolean autoRenew) { this.autoRenew = autoRenew; }
+    public LocalDateTime getPaidAt() { return paidAt; }
+    public void setPaidAt(LocalDateTime paidAt) { this.paidAt = paidAt; }
+
     public String getNote() {
         return note;
     }
@@ -163,10 +196,13 @@ public class MonthlyParkingPass {
     }
 
     public boolean isActiveAt(LocalDate date) {
-        if (date == null || startDate == null || endDate == null) {
+        if (date == null || startDate == null || endDate == null || reservedSlot == null) {
             return false;
         }
         if (status != null && !Set.of("ACTIVE", "SCHEDULED").contains(status.toUpperCase())) {
+            return false;
+        }
+        if (!"PAID".equalsIgnoreCase(paymentStatus)) {
             return false;
         }
         return !date.isBefore(startDate) && !date.isAfter(endDate);

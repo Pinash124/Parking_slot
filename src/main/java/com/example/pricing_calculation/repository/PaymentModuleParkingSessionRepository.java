@@ -25,5 +25,7 @@ public interface PaymentModuleParkingSessionRepository extends
     Optional<PaymentModuleParkingSession> findFirstByVehiclePlateNumberIgnoreCaseOrderByEntryTimeDesc(String plateNumber);
     Optional<PaymentModuleParkingSession> findFirstByVehicleUserIdAndStatusInOrderByEntryTimeDesc(Long userId, List<String> statuses);
     List<PaymentModuleParkingSession> findByVehicleUserIdOrderByEntryTimeDesc(Long userId);
+    List<PaymentModuleParkingSession> findAllByOrderByEntryTimeDesc();
+    List<PaymentModuleParkingSession> findByStatusIgnoreCaseOrderByEntryTimeDesc(String status);
     long countByVehicleIdAndStatusIn(Long vehicleId, List<String> statuses);
 }

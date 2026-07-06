@@ -59,38 +59,31 @@ public class ReservationService {
         if (!vehicle.getUser().getId().equals(user.getId())) {
             throw new BadRequestException("Vehicle does not belong to selected user");
         }
+        if (!VehicleTypeClassifier.isCar(vehicle.getVehicleType())) {
+            throw new BadRequestException("Only cars can reserve a parking slot");
+        }
+        if (!"CAR_NORMAL".equalsIgnoreCase(zone.getZoneType())) {
+            throw new BadRequestException("Reservations must use a CAR_NORMAL zone");
+        }
         if (!zone.getVehicleType().getId().equals(vehicle.getVehicleType().getId())) {
             throw new BadRequestException("Selected zone does not support this vehicle type");
         }
         ensureZoneCapacity(zone.getId(), request.startTime(), request.endTime());
-        var available = parkingSlotRepository.findByZoneIdAndStatusIgnoreCaseOrderBySlotCodeAsc(zone.getId(), "AVAILABLE");
-        if (available.isEmpty()) {
-            throw new BadRequestException("No available slot in selected zone");
-        }
-        var reservedSlot = parkingSlotRepository.findByIdForUpdate(available.get(0).getId())
-                .orElseThrow(() -> new ResourceNotFoundException("Parking slot not found"));
-        if (!"AVAILABLE".equalsIgnoreCase(reservedSlot.getStatus())) {
-            throw new BadRequestException("Selected reservation slot is no longer available");
-        }
 
         Reservation reservation = new Reservation();
         reservation.setUser(user);
         reservation.setVehicle(vehicle);
         reservation.setZone(zone);
-        reservation.setReservedSlot(reservedSlot);
         reservation.setStartTime(request.startTime());
         reservation.setEndTime(request.endTime());
         reservation.setStatus("APPROVED");
-        reservedSlot.setStatus("RESERVED");
-        parkingSlotRepository.save(reservedSlot);
         Reservation saved = reservationRepository.save(reservation);
         ReservationResponse response = ReservationResponse.from(saved);
         realtimeEventService.publish(
                 "/topic/reservations",
                 "RESERVATION_CREATED",
                 "Reservation created",
-                response
-        );
+                response);
         return response;
     }
 
@@ -112,8 +105,7 @@ public class ReservationService {
         PageRequest pageRequest = PageRequest.of(
                 Math.max(0, page),
                 Math.max(1, Math.min(size, 100)),
-                Sort.by(Sort.Direction.DESC, "startTime")
-        );
+                Sort.by(Sort.Direction.DESC, "startTime"));
         Specification<Reservation> specification = (root, query, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
             if (userId != null) {
@@ -126,7 +118,8 @@ public class ReservationService {
                 predicates.add(criteriaBuilder.equal(root.get("zone").get("id"), zoneId));
             }
             if (status != null && !status.isBlank()) {
-                predicates.add(criteriaBuilder.equal(criteriaBuilder.upper(root.get("status")), status.trim().toUpperCase()));
+                predicates.add(
+                        criteriaBuilder.equal(criteriaBuilder.upper(root.get("status")), status.trim().toUpperCase()));
             }
             if (from != null) {
                 predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.get("startTime"), from));
@@ -136,7 +129,8 @@ public class ReservationService {
             }
             return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
         };
-        return PageResponse.from(reservationRepository.findAll(specification, pageRequest).map(ReservationResponse::from));
+        return PageResponse
+                .from(reservationRepository.findAll(specification, pageRequest).map(ReservationResponse::from));
     }
 
     @Transactional
@@ -151,9 +145,22 @@ public class ReservationService {
 
     @Transactional
     public ReservationResponse cancel(Long id) {
+        return cancelReservation(findReservation(id));
+    }
+
+    @Transactional
+    public ReservationResponse cancelForUser(Long id, Long userId) {
         Reservation reservation = findReservation(id);
+        if (reservation.getUser() == null || !reservation.getUser().getId().equals(userId)) {
+            throw new ForbiddenException("Reservation does not belong to current user");
+        }
+        return cancelReservation(reservation);
+    }
+
+    private ReservationResponse cancelReservation(Reservation reservation) {
         reservation.setStatus("CANCELLED");
-        if (reservation.getReservedSlot() != null && "RESERVED".equalsIgnoreCase(reservation.getReservedSlot().getStatus())) {
+        if (reservation.getReservedSlot() != null
+                && "RESERVED".equalsIgnoreCase(reservation.getReservedSlot().getStatus())) {
             reservation.getReservedSlot().setStatus("AVAILABLE");
             parkingSlotRepository.save(reservation.getReservedSlot());
         }

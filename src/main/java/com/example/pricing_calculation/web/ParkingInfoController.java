@@ -29,7 +29,8 @@ public class ParkingInfoController {
     @GetMapping("/available-slots")
     public List<AvailableSlotResponse> availableSlots(
             @RequestParam(required = false) Long zoneId,
-            @RequestParam(required = false) Long vehicleTypeId) {
-        return parkingInfoService.availableSlots(zoneId, vehicleTypeId);
+            @RequestParam(required = false) Long vehicleTypeId,
+            @RequestParam(defaultValue = "PARKING") String purpose) {
+        return parkingInfoService.availableSlots(zoneId, vehicleTypeId, purpose);
     }
 }

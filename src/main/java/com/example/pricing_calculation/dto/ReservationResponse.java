@@ -15,6 +15,7 @@ public record ReservationResponse(
         String zoneName,
         Long reservedSlotId,
         String reservedSlotCode,
+        String reservedSlotStatus,
         LocalDateTime startTime,
         LocalDateTime endTime,
         String status
@@ -33,6 +34,7 @@ public record ReservationResponse(
                 zone == null ? null : zone.getZoneName(),
                 reservation.getReservedSlot() == null ? null : reservation.getReservedSlot().getId(),
                 reservation.getReservedSlot() == null ? null : reservation.getReservedSlot().getSlotCode(),
+                reservation.getReservedSlot() == null ? null : reservation.getReservedSlot().getStatus(),
                 reservation.getStartTime(),
                 reservation.getEndTime(),
                 reservation.getStatus()

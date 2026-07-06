@@ -50,10 +50,34 @@ DDL_AUTO=update
 
 ## Ve thang
 
-- User dang ky ve thang tai `POST /api/user/monthly-passes`
+- User dang ky ve thang tai `POST /api/user/monthly-passes` voi `vehicleId`, `slotId`, `startDate`, `months`
 - User xem cac ve thang cua minh tai `GET /api/user/monthly-passes`
+- Response tra ve ngay `slotId`, `slotCode`, `slotStatus` de FE hien thi cho da chon
+- Ve moi co trang thai `PENDING_PAYMENT`, slot duoc giu o `MONTHLY_HELD`
+- Manager xac nhan tra truoc tai `POST /api/manager/monthly-passes/{id}/confirm-payment`; luc nay slot chuyen `MONTHLY_RESERVED`
+- Manager huy ve tai `POST /api/manager/monthly-passes/{id}/cancel`; slot duoc tra ve `AVAILABLE` neu xe chua vao bai
 - Neu xe co ve thang con hieu luc, he thong tu tinh `parkingFee = 0` khi checkout
 - Neu tong phi = 0, backend tu tao payment cash 0 dong de barrier/validate khong bi ket
+
+## Quy tac vao bai va dat truoc
+
+- Chi xe 4 banh/car duoc dat truoc va dang ky ve thang co cho doc quyen; xe 2 banh vao nhu xe thuong/vang lai
+- Moi tang chia khu car thanh `CAR_MONTHLY` va `CAR_NORMAL`: slot thang = `floor(tong slot car / 3)`, slot thuong nhan phan con lai
+- Ma slot car duoc danh lai lien tuc: `F1-CAR-MONTHLY-001..010` la 1/3 dau, `F1-CAR-NORMAL-011..030` la 2/3 con lai
+- Booking thuong chi duoc chon `CAR_NORMAL`; ve thang chi duoc chon `CAR_MONTHLY`; xe car vang lai cung chi duoc xep vao `CAR_NORMAL`
+- Catalog tach hoan toan bang query `purpose`: `GET /api/user/zones?purpose=RESERVATION|MONTHLY` va `GET /api/parking-info/available-slots?purpose=PARKING|RESERVATION|MONTHLY`; moi purpose chi tra zone/slot dung luong cua no
+- Khi them/xoa slot car, backend tu can bang lai ty le bang cac slot `AVAILABLE`; co the goi lai thu cong `POST /api/manager/zones/rebalance-car?floorId=...`
+- Dat truoc duoc vao som toi da 30 phut va tre toi da 20 phut so voi `startTime`
+- Ngoai cua so tren, booking bi huy, slot da giu duoc giai phong va xe duoc xu ly nhu vang lai
+- Neu khong co booking/ve thang va khong truyen `slotId`, backend tu chon ngau nhien mot slot `AVAILABLE` dung loai xe
+- Response tao booking luon co `reservedSlotId`, `reservedSlotCode`, `reservedSlotStatus`
+
+## Bieu phi ngay/dem
+
+- Ban ngay `07:00-21:59`: 2 banh 5.000 VND/luot, 4 banh 10.000 VND/luot
+- Ban dem `22:00-06:59`: cong 3.000 VND/gio cho 2 banh, 5.000 VND/gio cho 4 banh
+- Co 10 phut grace khi vuot moc bieu phi; gio dem sau grace duoc lam tron len theo gio bat dau
+- Cac gia tri va moc gio co the doi bang bien moi truong `DAY_TARIFF_START`, `NIGHT_TARIFF_START`, `TARIFF_GRACE_MINUTES`, `TWO_WHEEL_DAY_TURN`, `FOUR_WHEEL_DAY_TURN`, `TWO_WHEEL_NIGHT_HOURLY`, `FOUR_WHEEL_NIGHT_HOURLY`
 
 VNPay Sandbox uses HMAC-SHA512 signing and verifies the callback signature, amount and transaction reference before completing a payment.
 

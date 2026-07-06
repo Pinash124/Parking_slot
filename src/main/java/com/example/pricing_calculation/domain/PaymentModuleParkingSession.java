@@ -25,6 +25,10 @@ public class PaymentModuleParkingSession {
     @JoinColumn(name = "reservation_id")
     private Reservation reservation;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "monthly_pass_id")
+    private MonthlyParkingPass monthlyPass;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "vehicle_id")
     private Vehicle vehicle;
@@ -77,6 +81,9 @@ public class PaymentModuleParkingSession {
     public void setReservation(Reservation reservation) {
         this.reservation = reservation;
     }
+
+    public MonthlyParkingPass getMonthlyPass() { return monthlyPass; }
+    public void setMonthlyPass(MonthlyParkingPass monthlyPass) { this.monthlyPass = monthlyPass; }
 
     public Vehicle getVehicle() {
         return vehicle;

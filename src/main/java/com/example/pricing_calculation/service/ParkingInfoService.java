@@ -80,8 +80,21 @@ public class ParkingInfoService {
 
     @Transactional(readOnly = true)
     public List<AvailableSlotResponse> availableSlots(Long zoneId, Long vehicleTypeId) {
+        return availableSlots(zoneId, vehicleTypeId, "PARKING");
+    }
+
+    @Transactional(readOnly = true)
+    public List<AvailableSlotResponse> availableSlots(Long zoneId, Long vehicleTypeId, String purpose) {
+        String normalized = purpose == null || purpose.isBlank() ? "PARKING" : purpose.trim().toUpperCase(java.util.Locale.ROOT);
+        java.util.Set<String> allowedZoneTypes = switch (normalized) {
+            case "RESERVATION" -> java.util.Set.of("CAR_NORMAL");
+            case "MONTHLY" -> java.util.Set.of("CAR_MONTHLY");
+            case "PARKING" -> java.util.Set.of("CAR_NORMAL", "MOTORBIKE");
+            default -> throw new BadRequestException("purpose must be RESERVATION, MONTHLY or PARKING");
+        };
         return parkingSlotRepository.searchAvailableSlots(zoneId, vehicleTypeId, "AVAILABLE")
                 .stream()
+                .filter(slot -> slot.getZone() != null && allowedZoneTypes.contains(slot.getZone().getZoneType()))
                 .map(AvailableSlotResponse::from)
                 .toList();
     }

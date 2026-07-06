@@ -108,7 +108,7 @@ public class BootstrapAdminInitializer implements CommandLineRunner {
             car.setDescription("Xe bốn bánh của cư dân");
             car.setDefaultHourlyFee(BigDecimal.ZERO);
             car.setDailyRate(BigDecimal.valueOf(50000));
-            car.setMonthlyRate(BigDecimal.valueOf(1200000));
+            car.setMonthlyRate(BigDecimal.valueOf(500000));
             car = vehicleTypes.save(car);
         } else {
             List<VehicleTypeEntity> allTypes = vehicleTypes.findAll();

@@ -15,17 +15,17 @@ public final class ManagementDtos {
     public record FloorView(Long id, Long buildingId, String buildingName, String floorName, Integer floorNumber) {
         public static FloorView from(Floor x) { return new FloorView(x.getId(), x.getBuilding().getId(), x.getBuilding().getName(), x.getFloorName(), x.getFloorNumber()); }
     }
-    public record VehicleTypeRequest(String name, String description, BigDecimal defaultHourlyFee, BigDecimal dailyRate, BigDecimal monthlyRate) { }
-    public record VehicleTypeView(Long id, String name, String description, BigDecimal defaultHourlyFee, BigDecimal dailyRate, BigDecimal monthlyRate) {
-        public static VehicleTypeView from(VehicleTypeEntity x) { return new VehicleTypeView(x.getId(), x.getName(), x.getDescription(), x.getDefaultHourlyFee(), x.getDailyRate(), x.getMonthlyRate()); }
+    public record VehicleTypeRequest(String name, String description, BigDecimal defaultHourlyFee, BigDecimal dailyRate, BigDecimal monthlyRate, Integer wheelCount) { }
+    public record VehicleTypeView(Long id, String name, String description, BigDecimal defaultHourlyFee, BigDecimal dailyRate, BigDecimal monthlyRate, Integer wheelCount) {
+        public static VehicleTypeView from(VehicleTypeEntity x) { return new VehicleTypeView(x.getId(), x.getName(), x.getDescription(), x.getDefaultHourlyFee(), x.getDailyRate(), x.getMonthlyRate(), x.getWheelCount()); }
     }
-    public record ZoneRequest(Long floorId, Long vehicleTypeId, String zoneName) { }
-    public record ZoneView(Long id, Long floorId, String floorName, Long vehicleTypeId, String vehicleTypeName, String zoneName) {
-        public static ZoneView from(Zone x) { return new ZoneView(x.getId(), x.getFloor().getId(), x.getFloor().getFloorName(), x.getVehicleType().getId(), x.getVehicleType().getName(), x.getZoneName()); }
+    public record ZoneRequest(Long floorId, Long vehicleTypeId, String zoneName, String zoneType) { }
+    public record ZoneView(Long id, Long floorId, String floorName, Long vehicleTypeId, String vehicleTypeName, String zoneName, String zoneType) {
+        public static ZoneView from(Zone x) { return new ZoneView(x.getId(), x.getFloor().getId(), x.getFloor().getFloorName(), x.getVehicleType().getId(), x.getVehicleType().getName(), x.getZoneName(), x.getZoneType()); }
     }
     public record SlotRequest(Long zoneId, String slotCode, String status) { }
-    public record SlotView(Long id, Long zoneId, String zoneName, Long vehicleTypeId, String vehicleTypeName, String slotCode, String status) {
-        public static SlotView from(PaymentModuleParkingSlot x) { return new SlotView(x.getId(), x.getZone().getId(), x.getZone().getZoneName(), x.getZone().getVehicleType().getId(), x.getZone().getVehicleType().getName(), x.getSlotCode(), x.getStatus()); }
+    public record SlotView(Long id, Long zoneId, String zoneName, String zoneType, Long vehicleTypeId, String vehicleTypeName, String slotCode, String status) {
+        public static SlotView from(PaymentModuleParkingSlot x) { return new SlotView(x.getId(), x.getZone().getId(), x.getZone().getZoneName(), x.getZone().getZoneType(), x.getZone().getVehicleType().getId(), x.getZone().getVehicleType().getName(), x.getSlotCode(), x.getStatus()); }
     }
     public record PricingPolicyRequest(Long vehicleTypeId, String policyName, BigDecimal hourlyRate, BigDecimal dailyRate,
                                        BigDecimal monthlyRate, BigDecimal fixedSurcharge, BigDecimal lostTicketFee, BigDecimal overtimeFee, LocalDateTime effectiveFrom,
