@@ -1,198 +1,129 @@
-# BE report cho FE - các thay đổi từ hôm qua tới giờ
+# Backend changes for FE - parking rules
 
-Ghi chú quan trọng: FE hiện tại không bắt buộc sửa ngay. Các endpoint cũ vẫn được giữ để tránh gãy kết nối.
+File nay tom tat ngan gon nhung thay doi BE de FE/tester biet API nao can dung.
 
-## 1. Tách khu/slot ô tô theo mục đích
+## 1. Khong dung auto-renew nua
 
-BE/DB đã tách khu ô tô thành 2 loại:
+Chot moi:
 
-- `CAR_NORMAL`: dành cho đặt trước thường và xe vãng lai ô tô.
-- `CAR_MONTHLY`: dành riêng cho vé tháng ô tô.
+- Bo flow tu dong gia han ve thang.
+- Khong lien ket bank/tai khoan de tru tien.
+- Moi lan gia han/thanh toan la mot ky rieng.
+- BE chi nhac user truoc khi het han 3 ngay.
 
-Slot ô tô được chia:
+## 2. Zone/slot car tach thang va thuong
 
-- 1/3 slot đầu mỗi tầng: vé tháng.
-- 2/3 slot còn lại: thường/vãng lai.
+Car co 2 loai zone:
 
-Ví dụ code slot:
+- `CAR_MONTHLY`: slot ve thang.
+- `CAR_NORMAL`: slot thuong/dat truoc/vang lai.
 
-```text
-F1-CAR-MONTHLY-001..010
-F1-CAR-NORMAL-011..030
-```
+Rule chia slot car:
 
-## 2. API catalog có `purpose`
+- 1/3 slot dau la slot thang.
+- 2/3 slot con lai la slot thuong.
 
-FE nên dùng `purpose` để lấy đúng zone/slot, tránh chọn nhầm.
+## 3. Endpoint loc zone/slot theo muc dich
 
-### Lấy zone
-
-```http
-GET /api/user/zones?floorId={floorId}&purpose=RESERVATION
-GET /api/user/zones?floorId={floorId}&purpose=MONTHLY
-GET /api/user/zones?floorId={floorId}&purpose=PARKING
-```
-
-Ý nghĩa:
-
-- `RESERVATION`: chỉ trả zone `CAR_NORMAL`.
-- `MONTHLY`: chỉ trả zone `CAR_MONTHLY`.
-- `PARKING`: trả zone dùng cho xe vào bãi thường/vãng lai.
-
-### Lấy slot trống
+### Zone user
 
 ```http
-GET /api/parking-info/available-slots?zoneId={zoneId}&purpose=MONTHLY
-GET /api/parking-info/available-slots?zoneId={zoneId}&purpose=PARKING
+GET /api/user/zones?purpose=RESERVATION
+GET /api/user/zones?purpose=MONTHLY
+GET /api/user/zones?purpose=PARKING
 ```
 
-Ý nghĩa:
+Expected:
 
-- `MONTHLY`: chỉ trả slot tháng.
-- `PARKING`: trả slot dùng cho xe vào bãi.
-- Đặt trước thường hiện tại không cần chọn slot.
+- `RESERVATION`: chi zone car thuong.
+- `MONTHLY`: chi zone car thang.
+- `PARKING`: dung cho xe vao truc tiep, khong lay slot thang cho vang lai.
 
-## 3. Luồng đặt trước thường
+### Slot trong
 
-Chỉ ô tô được đặt trước.
+```http
+GET /api/parking-info/available-slots?purpose=RESERVATION
+GET /api/parking-info/available-slots?purpose=MONTHLY
+GET /api/parking-info/available-slots?purpose=PARKING
+```
 
-Đặt trước thường không giữ slot cụ thể nữa. BE chỉ giữ “1 suất” trong zone thường.
+Response co them:
 
-Endpoint cũ vẫn dùng:
+```json
+{
+  "zoneType": "CAR_MONTHLY",
+  "zoneName": "Car Monthly",
+  "slotCode": "F1-CAR-MONTHLY-001"
+}
+```
+
+## 4. Dat truoc
 
 ```http
 POST /api/user/reservations
 ```
 
-Payload giữ như cũ:
+Body:
 
 ```json
 {
   "vehicleId": 1,
-  "zoneId": 10,
-  "startTime": "2026-07-06T10:00:00.000Z",
-  "endTime": "2026-07-06T12:00:00.000Z"
+  "zoneId": 2,
+  "startTime": "2026-07-07T08:00:00",
+  "endTime": "2026-07-07T10:00:00"
 }
 ```
 
-Response có thể có:
+Luật:
 
-```json
-{
-  "reservedSlotId": null,
-  "reservedSlotCode": null
-}
-```
+- Chi car duoc dat truoc.
+- Zone phai la `CAR_NORMAL`.
+- Dat truoc khong khoa slot cu the luc dat.
+- Check-in hop le moi random slot trong khu thuong.
+- Som toi da 30 phut, tre toi da 20 phut.
 
-Đây là đúng logic mới, không phải lỗi.
-
-Khi xe vào đúng khung giờ, BE tự random slot trống trong `CAR_NORMAL`.
-
-Quy tắc giờ:
-
-- Được vào sớm tối đa 30 phút.
-- Được trễ tối đa 20 phút.
-- Ngoài khung này, booking bị hủy và xe xử lý như vãng lai nếu còn chỗ.
-
-## 4. Luồng xe vãng lai
-
-Xe vãng lai không có booking, không có vé tháng.
-
-Khi check-in:
-
-- Ô tô được random slot trong `CAR_NORMAL`.
-- Xe máy được random slot khu xe máy.
-- Không được dùng slot `CAR_MONTHLY`.
-
-BE có bảo vệ capacity cho booking:
-
-- Nếu còn slot trống nhưng slot đó đang cần giữ cho booking sắp tới/đang trong khung giờ, xe vãng lai sẽ bị chặn.
-
-## 5. Luồng vé tháng
-
-Chỉ ô tô được đăng ký vé tháng.
-
-Vé tháng bắt buộc chọn:
-
-- xe
-- zone tháng `CAR_MONTHLY`
-- slot tháng cụ thể
-
-Endpoint cũ:
+## 5. Ve thang
 
 ```http
 POST /api/user/monthly-passes
+GET /api/user/monthly-passes
 ```
 
-Payload:
+Body tao ve:
 
 ```json
 {
   "vehicleId": 1,
-  "slotId": 20,
-  "startDate": "2026-07-06",
+  "slotId": 1,
+  "startDate": "2026-07-07",
   "months": 1,
-  "note": "Căn hộ A1205"
+  "note": "Dang ky ve thang"
 }
 ```
 
-Sau khi tạo:
+Luật:
 
-- pass status: `PENDING_PAYMENT`
-- paymentStatus: `PENDING`
-- slot status: `MONTHLY_HELD`
+- Chi car duoc lam ve thang.
+- Slot phai thuoc `CAR_MONTHLY`.
+- Gia car thang: `500000 VND/thang`.
+- Tao ve xong slot thanh `MONTHLY_HELD`, cho thanh toan.
 
-Sau khi manager/staff xác nhận thanh toán:
-
-- pass status: `ACTIVE` hoặc `SCHEDULED`
-- paymentStatus: `PAID`
-- slot status: `MONTHLY_RESERVED`
-
-Khi xe tháng vào:
-
-- BE dùng đúng slot riêng của vé tháng.
-- slot status: `MONTHLY_OCCUPIED`
-
-Khi xe tháng ra:
-
-- không tính phí lượt gửi.
-- slot quay về `MONTHLY_RESERVED`.
-
-## 6. Giá vé tháng ô tô
-
-Giá chốt:
-
-```text
-500000 VND / tháng
-```
-
-BE đã chốt giá này khi tính vé tháng.
-
-DB Supabase đã đồng bộ:
-
-- `vehicle_types.monthly_rate = 500000` cho car.
-- `pricing_policies.monthly_rate = 500000` cho car.
-
-## 7. Field mới trong vé tháng
-
-Response vé tháng có thêm:
+Response co them field de FE hien chỗ va reminder:
 
 ```json
 {
-  "autoRenew": false
+  "slotId": 1,
+  "slotCode": "F1-CAR-MONTHLY-001",
+  "slotStatus": "MONTHLY_HELD",
+  "monthlyRate": 500000,
+  "totalAmount": 500000,
+  "daysUntilExpiry": 30,
+  "expiryReminderDue": false,
+  "expiryReminderMessage": null
 }
 ```
 
-Ý nghĩa:
-
-- `true`: tự động gia hạn.
-- `false`: không tự động gia hạn.
-
-Field này là additive, FE cũ không dùng vẫn không sao.
-
-## 8. Thanh toán vé tháng - endpoint mới
-
-Các endpoint này là mới, FE hiện tại chưa bắt buộc dùng.
+## 6. Thanh toan ve thang
 
 ### Online QR
 
@@ -200,61 +131,41 @@ Các endpoint này là mới, FE hiện tại chưa bắt buộc dùng.
 POST /api/user/monthly-passes/{id}/payment/online-qr
 ```
 
-Body:
+Body: khong can.
 
-```json
-{
-  "autoRenew": true
-}
-```
-
-Ghi chú:
-
-- Online cho phép user chọn tự động gia hạn hoặc không.
-- `autoRenew = true`: tự gia hạn.
-- `autoRenew = false`: chỉ thanh toán kỳ này.
-
-Response chính:
+Response:
 
 ```json
 {
   "paymentMethod": "ONLINE_QR",
   "paymentReference": "MTHQR-1-ABCDEFGH",
   "amount": 500000,
-  "autoRenew": true,
-  "qrContent": "MONTHLY_PASS|passId=1|ref=..."
+  "qrContent": "MONTHLY_PASS|passId=1|ref=...",
+  "billContent": null
 }
 ```
 
-FE có thể render QR từ `qrContent`.
-
-### Tiền mặt
+### Tien mat
 
 ```http
 POST /api/user/monthly-passes/{id}/payment/cash-bill
 ```
 
-Body: không cần.
+Body: khong can.
 
-Ghi chú:
-
-- Tiền mặt mặc định `autoRenew = true`.
-- BE trả bill text và QR content để staff quét.
-
-Response chính:
+Response:
 
 ```json
 {
   "paymentMethod": "CASH",
   "paymentReference": "MTHCASH-1-ABCDEFGH",
   "amount": 500000,
-  "autoRenew": true,
   "qrContent": "MONTHLY_PASS|passId=1|ref=...",
   "billContent": "BILL VE THANG..."
 }
 ```
 
-### Manager/staff xác nhận thanh toán bằng QR
+### Manager/staff xac nhan bang QR
 
 ```http
 POST /api/manager/monthly-passes/confirm-payment/scan
@@ -270,47 +181,47 @@ Body:
 }
 ```
 
-Kết quả:
+Ket qua:
 
-- vé tháng chuyển `PAID`
-- slot chuyển `MONTHLY_RESERVED`
-- pass chuyển `ACTIVE` hoặc `SCHEDULED`
+- `paymentStatus = PAID`
+- Pass thanh `ACTIVE` hoac `SCHEDULED`
+- Slot thanh `MONTHLY_RESERVED`
 
-## 9. Endpoint cũ vẫn giữ
+## 7. Reminder het han ve thang truoc 3 ngay
 
-FE hiện tại vẫn dùng được:
+FE chi can doc field trong `GET /api/user/monthly-passes`.
 
-```http
-GET /api/user/monthly-passes
-POST /api/user/monthly-passes
-POST /api/manager/monthly-passes/{id}/confirm-payment
-GET /api/user/reservations
-POST /api/user/reservations
-PATCH /api/user/reservations/{id}/cancel
+Neu ve da paid va con 0-3 ngay toi `endDate`:
+
+```json
+{
+  "daysUntilExpiry": 3,
+  "expiryReminderDue": true,
+  "expiryReminderMessage": "Ve thang cua xe 59A-12345 se het han sau 3 ngay. Vui long thanh toan ky moi neu muon tiep tuc giu cho."
+}
 ```
 
-## 10. DB đã thay đổi
+Neu khong can nhac:
 
-Đã thêm cột:
-
-```sql
-auto_renew boolean default false
+```json
+{
+  "expiryReminderDue": false,
+  "expiryReminderMessage": null
+}
 ```
 
-trong bảng:
+## 8. DB note
 
-```text
-monthly_parking_passes
-```
+- Backend hien khong dung `auto_renew`.
+- Neu DB da tung them cot `auto_renew` thi co the de nguyen, khong anh huong.
+- Khong can migration lien ket bank.
 
-## 11. Test
+## 9. Test
 
-BE đã chạy:
+BE da chay:
 
 ```bash
 .\mvnw.cmd -q test
 ```
 
-Kết quả: pass.
-
-FE không bị chỉnh trong đợt note này.
+FE khong bi chinh trong dot note nay.

@@ -1,106 +1,78 @@
-# Swagger checklist - API mới/cần test
+# Swagger checklist - API moi/can test
 
-Backend Swagger local:
+Swagger local:
 
 - `http://localhost:8080/swagger-ui/index.html`
 
-Yêu cầu chung:
+Yeu cau chung:
 
-- Các API `/api/user/**` dùng token user role `PARKING_USER`.
-- Các API `/api/manager/**` dùng token manager/admin.
+- `/api/user/**`: dung token `PARKING_USER`.
+- `/api/manager/**`: dung token manager/admin.
 - Header: `Authorization: Bearer <token>`.
-- Không cần test FE trong checklist này.
+- Checklist nay chi test BE/Swagger, khong dung FE.
 
-## 1. Parking info - lọc slot theo mục đích
+## 1. Parking info - loc slot theo muc dich
 
-### 1.1 Lấy slot cho khách vãng lai
+### 1.1 Slot cho vang lai
 
 `GET /api/parking-info/available-slots?purpose=PARKING`
 
 Expected:
 
-- Trả slot còn trống cho xe vào trực tiếp/vãng lai.
-- Không trả slot khu tháng đang giữ/đã reserved cho vé tháng.
+- Tra slot con trong cho xe vao truc tiep/vang lai.
+- Khong cho vang lai chiem slot thang.
 
-### 1.2 Lấy slot cho đặt trước
+### 1.2 Slot cho dat truoc
 
 `GET /api/parking-info/available-slots?purpose=RESERVATION`
 
 Expected:
 
-- Chỉ trả slot/khu thường của car.
-- Không thấy slot/khu `MONTHLY`.
-- Nếu khu thường hết sức chứa thì không còn slot phù hợp để đặt/vào.
+- Chi thay slot/khu thuong cua car.
+- Khong thay `CAR_MONTHLY`.
 
-### 1.3 Lấy slot cho vé tháng
+### 1.3 Slot cho ve thang
 
 `GET /api/parking-info/available-slots?purpose=MONTHLY`
 
 Expected:
 
-- Chỉ trả slot/khu tháng của car.
-- Không thấy slot/khu thường.
-- Slot tháng đầu khu car là phần 1/3 số slot theo rule đã chốt.
+- Chi thay slot/khu thang cua car.
+- Khong thay `CAR_NORMAL`.
+- 1/3 slot dau cua khu car la slot thang.
 
-### 1.4 Lọc thêm theo zone/vehicle type
+## 2. User zones - loc khu theo muc dich
 
-`GET /api/parking-info/available-slots?purpose=MONTHLY&zoneId=<zoneId>`
-
-`GET /api/parking-info/available-slots?purpose=RESERVATION&vehicleTypeId=<carVehicleTypeId>`
-
-Expected:
-
-- Response có thêm các field để FE phân biệt khu:
-
-```json
-{
-  "slotId": 1,
-  "slotCode": "F1-CAR-MONTHLY-001",
-  "status": "AVAILABLE",
-  "zoneId": 1,
-  "zoneName": "Car Monthly",
-  "zoneType": "CAR_MONTHLY",
-  "vehicleTypeId": 1,
-  "vehicleTypeName": "Car",
-  "floorId": 1,
-  "floorName": "F1",
-  "buildingId": 1,
-  "buildingName": "Main"
-}
-```
-
-## 2. User zones - lọc khu theo mục đích
-
-### 2.1 Khu cho đặt trước
+### 2.1 Khu cho dat truoc
 
 `GET /api/user/zones?purpose=RESERVATION`
 
 Expected:
 
-- Chỉ thấy zone car thường, ví dụ `CAR_NORMAL`.
-- Không thấy `CAR_MONTHLY`.
+- Chi thay zone car thuong, vi du `CAR_NORMAL`.
+- Khong thay `CAR_MONTHLY`.
 
-### 2.2 Khu cho vé tháng
+### 2.2 Khu cho ve thang
 
 `GET /api/user/zones?purpose=MONTHLY`
 
 Expected:
 
-- Chỉ thấy zone car tháng, ví dụ `CAR_MONTHLY`.
-- Không thấy `CAR_NORMAL`.
+- Chi thay zone car thang, vi du `CAR_MONTHLY`.
+- Khong thay `CAR_NORMAL`.
 
-### 2.3 Khu cho vãng lai
+### 2.3 Khu cho vang lai
 
 `GET /api/user/zones?purpose=PARKING`
 
 Expected:
 
-- Dùng cho xe vào trực tiếp.
-- Không cho vãng lai chiếm slot tháng.
+- Dung cho xe vao truc tiep.
+- Khong cho vang lai chiem slot thang.
 
-## 3. Đặt trước - chỉ car, không chọn slot cụ thể
+## 3. Dat truoc - chi car, khong khoa slot cu the
 
-### 3.1 Tạo đặt trước hợp lệ
+### 3.1 Tao dat truoc hop le
 
 `POST /api/user/reservations`
 
@@ -117,45 +89,37 @@ Body:
 
 Expected:
 
-- Xe phải là car.
-- Zone phải là zone thường của car.
-- Đặt trước chỉ giữ sức chứa/khu, không khóa slot cụ thể ngay lúc đặt.
-- Response có thể trả thông tin zone đã chọn; slot đặt trước mới sẽ không phải là slot tháng.
+- Xe phai la car.
+- Zone phai la `CAR_NORMAL`.
+- Dat truoc chi giu suc chua/khu, khong khoa slot cu the luc dat.
+- Khi check-in hop le, BE moi random slot trong khu thuong.
 
-### 3.2 Đặt trước bằng motor
-
-`POST /api/user/reservations`
-
-Body giống trên nhưng `vehicleId` là motor.
+### 3.2 Dat truoc bang motor
 
 Expected:
 
-- Bị reject.
-- Lý do: chỉ car mới được đặt trước.
+- Reject.
+- Ly do: chi car moi duoc dat truoc.
 
-### 3.3 Đặt trước vào zone tháng
-
-`POST /api/user/reservations`
-
-Body dùng `zoneId` thuộc `CAR_MONTHLY`.
+### 3.3 Dat truoc vao zone thang
 
 Expected:
 
-- Bị reject.
-- Không cho đặt trước lẫn vào khu tháng.
+- Reject.
+- Khong cho dat truoc lan vao `CAR_MONTHLY`.
 
-### 3.4 Check rule sớm/trễ
+### 3.4 Rule som/tre
 
-Luồng cần test qua API xe vào/check-in hiện có:
+Can test qua API xe vao/check-in hien co:
 
-- Sớm trong 30 phút so với `startTime`: hợp lệ.
-- Sớm hơn 30 phút: xem như không đạt đặt trước, không dùng booking đó.
-- Trễ trong 20 phút: hợp lệ.
-- Trễ hơn 20 phút: hủy/không dùng booking, xe xử lý như không đặt trước nếu còn chỗ vãng lai.
+- Som trong 30 phut so voi `startTime`: hop le.
+- Som hon 30 phut: khong dung booking do.
+- Tre trong 20 phut: hop le.
+- Tre hon 20 phut: huy/khong dung booking, xe xu ly nhu khong dat truoc neu con cho.
 
-## 4. Vé tháng - chọn slot car tháng
+## 4. Ve thang - chon slot car thang
 
-### 4.1 Tạo vé tháng hợp lệ
+### 4.1 Tao ve thang hop le
 
 `POST /api/user/monthly-passes`
 
@@ -173,114 +137,97 @@ Body:
 
 Expected:
 
-- Chỉ car được đăng ký vé tháng.
-- Slot phải thuộc zone `CAR_MONTHLY`.
-- Slot chuyển sang trạng thái giữ/tháng.
-- Response trả lại chỗ đã chọn:
+- Chi car duoc dang ky ve thang.
+- Slot phai thuoc `CAR_MONTHLY`.
+- Slot chuyen sang `MONTHLY_HELD`.
+- Gia car thang la `500000/thang`.
+- Response tra lai cho da chon va field reminder:
 
 ```json
 {
-  "id": 10,
   "slotId": 1,
   "slotCode": "F1-CAR-MONTHLY-001",
   "slotStatus": "MONTHLY_HELD",
   "monthlyRate": 500000,
   "totalAmount": 500000,
-  "paymentStatus": "PENDING_PAYMENT",
-  "autoRenew": false
+  "paymentStatus": "PENDING",
+  "daysUntilExpiry": 30,
+  "expiryReminderDue": false,
+  "expiryReminderMessage": null
 }
 ```
 
-### 4.2 Tạo vé tháng bằng slot thường
-
-`POST /api/user/monthly-passes`
-
-Body dùng `slotId` thuộc `CAR_NORMAL`.
+### 4.2 Tao ve thang bang slot thuong
 
 Expected:
 
-- Bị reject.
-- Không cho lẫn slot thường vào vé tháng.
+- Reject.
+- Khong cho lan slot thuong vao ve thang.
 
-### 4.3 Tạo vé tháng bằng motor
-
-`POST /api/user/monthly-passes`
-
-Body dùng `vehicleId` là motor.
+### 4.3 Tao ve thang bang motor
 
 Expected:
 
-- Bị reject.
-- Lý do: chỉ car có vé tháng/chọn slot tháng.
+- Reject.
+- Ly do: chi car co ve thang/chon slot thang.
 
-## 5. Thanh toán vé tháng
+## 5. Thanh toan ve thang
 
-### 5.1 Online QR - có hoặc không tự động gia hạn
+Luu y chot moi:
+
+- Khong con auto-renew/tu dong gia han.
+- Khong can lien ket bank/tai khoan de tru tien.
+- Moi lan gia han/thanh toan la mot ky rieng.
+
+### 5.1 Online QR - thanh toan ky hien tai
 
 `POST /api/user/monthly-passes/{id}/payment/online-qr`
 
-Body:
-
-```json
-{
-  "autoRenew": true
-}
-```
+Body: khong can.
 
 Expected:
 
-- Trả QR content để thanh toán online.
-- `autoRenew` đúng theo body.
-- Chưa cần manager xác nhận ở bước này.
+- Tra QR content de user thanh toan.
+- QR chi dai dien cho ky ve thang hien tai.
+- Response khong co `autoRenew`.
 
-Response cần kiểm:
+Response mau:
 
 ```json
 {
   "paymentMethod": "ONLINE_QR",
-  "paymentReference": "MP-...",
+  "paymentReference": "MTHQR-1-ABCDEFGH",
   "amount": 500000,
-  "autoRenew": true,
-  "qrContent": "...",
+  "qrContent": "MONTHLY_PASS|passId=1|ref=...",
   "billContent": null
 }
 ```
 
-Test thêm body:
-
-```json
-{
-  "autoRenew": false
-}
-```
-
-Expected:
-
-- `autoRenew = false`.
-
-### 5.2 Tiền mặt - bill cho staff quét
+### 5.2 Tien mat - bill cho staff quet
 
 `POST /api/user/monthly-passes/{id}/payment/cash-bill`
 
+Body: khong can.
+
 Expected:
 
-- Trả bill có thông tin vé tháng + QR/bill content cho staff quét.
-- Backend set `autoRenew = true` cho luồng tiền mặt.
+- Tra bill text + QR content cho staff quet/xac nhan.
+- Chi thanh toan ky hien tai, khong tu gia han.
+- Response khong co `autoRenew`.
 
-Response cần kiểm:
+Response mau:
 
 ```json
 {
   "paymentMethod": "CASH",
-  "paymentReference": "MP-...",
+  "paymentReference": "MTHCASH-1-ABCDEFGH",
   "amount": 500000,
-  "autoRenew": true,
-  "qrContent": "...",
-  "billContent": "..."
+  "qrContent": "MONTHLY_PASS|passId=1|ref=...",
+  "billContent": "BILL VE THANG..."
 }
 ```
 
-### 5.3 Manager xác nhận thanh toán theo id
+### 5.3 Manager xac nhan thanh toan theo id
 
 `POST /api/manager/monthly-passes/{id}/confirm-payment`
 
@@ -289,18 +236,17 @@ Body:
 ```json
 {
   "paymentMethod": "ONLINE_QR",
-  "referenceCode": "TEST-PAID-001",
-  "autoRenew": true
+  "referenceCode": "TEST-PAID-001"
 }
 ```
 
 Expected:
 
 - `paymentStatus = PAID`.
-- Vé chuyển `ACTIVE` nếu đã tới ngày bắt đầu, hoặc `SCHEDULED` nếu start date ở tương lai.
-- Slot chuyển sang `MONTHLY_RESERVED`.
+- Ve chuyen `ACTIVE` neu toi ngay bat dau, hoac `SCHEDULED` neu start date o tuong lai.
+- Slot chuyen sang `MONTHLY_RESERVED`.
 
-### 5.4 Manager xác nhận bằng QR scan
+### 5.4 Manager xac nhan bang QR scan
 
 `POST /api/manager/monthly-passes/confirm-payment/scan`
 
@@ -308,7 +254,7 @@ Body:
 
 ```json
 {
-  "qrContent": "copy-qr-content-tu-buoc-5.1-hoac-5.2",
+  "qrContent": "MONTHLY_PASS|passId=1|ref=...",
   "paymentMethod": "CASH",
   "referenceCode": "STAFF-SCAN-001"
 }
@@ -316,84 +262,111 @@ Body:
 
 Expected:
 
-- Tìm đúng vé tháng từ QR content.
-- Xác nhận thanh toán thành công.
-- Slot thành `MONTHLY_RESERVED`.
+- Tim dung ve thang tu QR content.
+- Xac nhan thanh toan thanh cong.
+- Slot thanh `MONTHLY_RESERVED`.
 
-## 6. Manager - quản lý khu/slot mới
+## 6. Nhac ve thang sap het han truoc 3 ngay
 
-### 6.1 Rebalance car zone theo rule 1/3 tháng, 2/3 thường
+### 6.1 User xem danh sach ve thang
+
+`GET /api/user/monthly-passes`
+
+Expected:
+
+- Voi ve da thanh toan va con 0-3 ngay toi `endDate`, response co:
+
+```json
+{
+  "daysUntilExpiry": 3,
+  "expiryReminderDue": true,
+  "expiryReminderMessage": "Ve thang cua xe 59A-12345 se het han sau 3 ngay. Vui long thanh toan ky moi neu muon tiep tuc giu cho."
+}
+```
+
+- Neu con hon 3 ngay, da het han, hoac chua thanh toan:
+
+```json
+{
+  "expiryReminderDue": false,
+  "expiryReminderMessage": null
+}
+```
+
+Ghi chu:
+
+- Backend chi nhac, khong tu gia han.
+- Neu khach muon tiep tuc giu cho, tao/thanh toan ky ve thang moi.
+
+## 7. Manager - quan ly khu/slot moi
+
+### 7.1 Rebalance car zone theo rule 1/3 thang, 2/3 thuong
 
 `POST /api/manager/zones/rebalance-car?floorId=<floorId>`
 
 Expected:
 
-- Chia lại slot car trên floor:
-  - 1/3 slot đầu là zone tháng.
-  - 2/3 slot còn lại là zone thường.
-- Slot code/name được đổi theo khu tháng/thường.
-- Không làm mất liên kết dữ liệu đang dùng.
+- Chia lai slot car tren floor:
+  - 1/3 slot dau la zone thang.
+  - 2/3 slot con lai la zone thuong.
+- Slot code/name doi theo khu thang/thuong.
+- Khong lam mat lien ket du lieu dang dung.
 
-### 6.2 Xem zone có zoneType
+### 7.2 Xem zone co zoneType
 
 `GET /api/manager/zones?floorId=<floorId>`
 
 Expected:
 
-- Response có `zoneType`, ví dụ:
+- Response co `zoneType`, vi du:
   - `CAR_MONTHLY`
   - `CAR_NORMAL`
-  - zone motor giữ logic riêng.
 
-### 6.3 Xem slot có zoneType
+### 7.3 Xem slot co zoneType
 
 `GET /api/manager/slots?zoneId=<zoneId>`
 
 Expected:
 
-- Response có:
-  - `zoneType`
-  - `slotCode`
-  - `status`
+- Response co `zoneType`, `slotCode`, `status`.
 
-## 7. Giá cần xác nhận
+## 8. Gia can xac nhan
 
-### 7.1 Giá vé tháng car
+### 8.1 Gia ve thang car
 
-Test bằng:
+Test bang:
 
 - `GET /api/user/vehicle-types`
-- hoặc tạo vé tháng 1 tháng ở mục 4.1.
+- Hoac tao ve thang 1 thang.
 
 Expected:
 
 - Car monthly rate = `500000`.
-- Vé tháng 1 tháng total = `500000`.
+- Ve thang 1 thang total = `500000`.
 
-### 7.2 Giá lượt thường/vãng lai
+### 8.2 Gia luot thuong/vang lai
 
-Luồng tính tiền khi xe ra:
+- Ngay `07:00 - 21:59`:
+  - 2 banh: `5000/luot`
+  - 4 banh: `10000/luot`
+- Dem `22:00 - 06:59`:
+  - 2 banh: `+3000/gio`
+  - 4 banh: `+5000/gio`
+- Grace time: `10 phut`.
+- Ve thang: khong tinh tien luot khi xe ra vi da thanh toan thang.
 
-- Ngày: `07:00 - 21:59`
-  - 2 bánh: `5000/lượt`
-  - 4 bánh: `10000/lượt`
-- Đêm: `22:00 - 06:59`
-  - 2 bánh: `+3000/giờ`
-  - 4 bánh: `+5000/giờ`
-- Grace time: `10 phút`.
-- Vé tháng: không tính tiền lượt khi xe ra vì đã thanh toán tháng.
+## 9. Checklist pass/fail nhanh
 
-## 8. Checklist pass/fail nhanh
-
-- [ ] `purpose=RESERVATION` không thấy slot/zone tháng.
-- [ ] `purpose=MONTHLY` không thấy slot/zone thường.
-- [ ] Motor không đặt trước được.
-- [ ] Motor không làm vé tháng được.
-- [ ] Đặt trước car không khóa slot cụ thể lúc đặt.
-- [ ] Khi xe đặt trước check-in hợp lệ thì được xếp slot random trong khu thường.
-- [ ] Vãng lai chỉ vào khi còn sức chứa; full thì khóa bãi/không nhận thêm.
-- [ ] Vé tháng trả `slotId`, `slotCode`, `slotStatus`.
-- [ ] Online QR cho chọn `autoRenew=true/false`.
-- [ ] Tiền mặt trả bill/QR cho staff quét và tự gia hạn.
-- [ ] Manager scan QR xác nhận được payment.
-- [ ] Car vé tháng giá `500000/tháng`.
+- [ ] `purpose=RESERVATION` khong thay slot/zone thang.
+- [ ] `purpose=MONTHLY` khong thay slot/zone thuong.
+- [ ] Motor khong dat truoc duoc.
+- [ ] Motor khong lam ve thang duoc.
+- [ ] Dat truoc car khong khoa slot cu the luc dat.
+- [ ] Check-in booking hop le random slot trong khu thuong.
+- [ ] Vang lai chi vao khi con suc chua; full thi khong nhan them.
+- [ ] Ve thang tra `slotId`, `slotCode`, `slotStatus`.
+- [ ] Online QR khong can body auto-renew.
+- [ ] Cash bill khong tu gia han.
+- [ ] Manager scan QR xac nhan duoc payment.
+- [ ] Car ve thang gia `500000/thang`.
+- [ ] Ve thang con <= 3 ngay het han tra `expiryReminderDue=true`.

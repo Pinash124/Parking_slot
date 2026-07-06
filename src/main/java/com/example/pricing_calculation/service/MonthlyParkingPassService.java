@@ -6,7 +6,6 @@ import com.example.pricing_calculation.domain.UserAccount;
 import com.example.pricing_calculation.domain.Vehicle;
 import com.example.pricing_calculation.dto.MonthlyParkingPassDtos.MonthlyParkingPassCreateRequest;
 import com.example.pricing_calculation.dto.MonthlyParkingPassDtos.MonthlyParkingPassPaymentInstructionResponse;
-import com.example.pricing_calculation.dto.MonthlyParkingPassDtos.MonthlyParkingPassPaymentPrepareRequest;
 import com.example.pricing_calculation.dto.MonthlyParkingPassDtos.MonthlyParkingPassPaymentRequest;
 import com.example.pricing_calculation.dto.MonthlyParkingPassDtos.MonthlyParkingPassResponse;
 import com.example.pricing_calculation.repository.MonthlyParkingPassRepository;
@@ -109,7 +108,6 @@ public class MonthlyParkingPassService {
         pass.setEndDate(endDate);
         pass.setStatus("PENDING_PAYMENT");
         pass.setPaymentStatus("PENDING");
-        pass.setAutoRenew(Boolean.FALSE);
         pass.setNote(request.note());
         pass.setCreatedAt(now);
         pass.setUpdatedAt(now);
@@ -119,25 +117,19 @@ public class MonthlyParkingPassService {
     }
 
     @Transactional
-    public MonthlyParkingPassPaymentInstructionResponse prepareOnlinePayment(
-            UserAccount user,
-            Long id,
-            MonthlyParkingPassPaymentPrepareRequest request) {
+    public MonthlyParkingPassPaymentInstructionResponse prepareOnlinePayment(UserAccount user, Long id) {
         MonthlyParkingPass pass = findOwnedPendingPass(user, id);
-        boolean autoRenew = request != null && Boolean.TRUE.equals(request.autoRenew());
         String referenceCode = buildReferenceCode("MTHQR", pass.getId());
         pass.setPaymentMethod("ONLINE_QR");
         pass.setPaymentReference(referenceCode);
-        pass.setAutoRenew(autoRenew);
         pass.setUpdatedAt(LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh")));
         MonthlyParkingPass saved = passes.save(pass);
-        String qrContent = buildQrContent(saved, "ONLINE_QR", referenceCode, autoRenew);
+        String qrContent = buildQrContent(saved, "ONLINE_QR", referenceCode);
         return new MonthlyParkingPassPaymentInstructionResponse(
                 MonthlyParkingPassResponse.from(saved),
                 "ONLINE_QR",
                 referenceCode,
                 saved.getTotalAmount(),
-                autoRenew,
                 qrContent,
                 null,
                 saved.getUpdatedAt()
@@ -150,17 +142,15 @@ public class MonthlyParkingPassService {
         String referenceCode = buildReferenceCode("MTHCASH", pass.getId());
         pass.setPaymentMethod("CASH");
         pass.setPaymentReference(referenceCode);
-        pass.setAutoRenew(Boolean.TRUE);
         pass.setUpdatedAt(LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh")));
         MonthlyParkingPass saved = passes.save(pass);
-        String qrContent = buildQrContent(saved, "CASH", referenceCode, true);
+        String qrContent = buildQrContent(saved, "CASH", referenceCode);
         String billContent = buildCashBill(saved, referenceCode, qrContent);
         return new MonthlyParkingPassPaymentInstructionResponse(
                 MonthlyParkingPassResponse.from(saved),
                 "CASH",
                 referenceCode,
                 saved.getTotalAmount(),
-                Boolean.TRUE,
                 qrContent,
                 billContent,
                 saved.getUpdatedAt()
@@ -182,9 +172,6 @@ public class MonthlyParkingPassService {
         pass.setPaymentStatus("PAID");
         pass.setPaymentMethod(method);
         pass.setPaymentReference(request == null ? null : request.referenceCode());
-        if (request != null && request.autoRenew() != null) {
-            pass.setAutoRenew(request.autoRenew());
-        }
         pass.setPaidAt(LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh")));
         pass.setStatus(pass.getStartDate().isAfter(today) ? "SCHEDULED" : "ACTIVE");
         pass.setUpdatedAt(LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh")));
@@ -208,7 +195,7 @@ public class MonthlyParkingPassService {
         String reference = referenceCode == null || referenceCode.isBlank()
                 ? pass.getPaymentReference()
                 : referenceCode;
-        return confirmPayment(id, new MonthlyParkingPassPaymentRequest(method, reference, pass.getAutoRenew()));
+        return confirmPayment(id, new MonthlyParkingPassPaymentRequest(method, reference));
     }
 
     @Transactional(isolation = Isolation.SERIALIZABLE)
@@ -254,13 +241,12 @@ public class MonthlyParkingPassService {
         return prefix + "-" + passId + "-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
     }
 
-    private String buildQrContent(MonthlyParkingPass pass, String method, String referenceCode, boolean autoRenew) {
+    private String buildQrContent(MonthlyParkingPass pass, String method, String referenceCode) {
         return "MONTHLY_PASS"
                 + "|passId=" + pass.getId()
                 + "|ref=" + referenceCode
                 + "|method=" + method
                 + "|amount=" + safeAmount(pass.getTotalAmount())
-                + "|autoRenew=" + autoRenew
                 + "|plate=" + text(pass.getVehicle() == null ? null : pass.getVehicle().getPlateNumber())
                 + "|slot=" + text(pass.getReservedSlot() == null ? null : pass.getReservedSlot().getSlotCode());
     }
@@ -276,7 +262,6 @@ public class MonthlyParkingPassService {
                 "Den ngay: " + pass.getEndDate(),
                 "So tien: " + safeAmount(pass.getTotalAmount()) + " VND",
                 "Hinh thuc: TIEN MAT",
-                "Tu gia han: CO",
                 "Ma tham chieu: " + referenceCode,
                 "QR staff scan: " + qrContent
         );

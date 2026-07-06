@@ -4,6 +4,7 @@ import com.example.pricing_calculation.domain.MonthlyParkingPass;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 
 public final class MonthlyParkingPassDtos {
     private MonthlyParkingPassDtos() {
@@ -11,9 +12,7 @@ public final class MonthlyParkingPassDtos {
 
     public record MonthlyParkingPassCreateRequest(Long vehicleId, Long slotId, LocalDate startDate, Integer months, String note) { }
 
-    public record MonthlyParkingPassPaymentRequest(String paymentMethod, String referenceCode, Boolean autoRenew) { }
-
-    public record MonthlyParkingPassPaymentPrepareRequest(Boolean autoRenew) { }
+    public record MonthlyParkingPassPaymentRequest(String paymentMethod, String referenceCode) { }
 
     public record MonthlyParkingPassQrConfirmRequest(String qrContent, String paymentMethod, String referenceCode) { }
 
@@ -22,7 +21,6 @@ public final class MonthlyParkingPassDtos {
             String paymentMethod,
             String paymentReference,
             BigDecimal amount,
-            Boolean autoRenew,
             String qrContent,
             String billContent,
             LocalDateTime createdAt
@@ -47,12 +45,25 @@ public final class MonthlyParkingPassDtos {
             String paymentStatus,
             String paymentMethod,
             String paymentReference,
-            Boolean autoRenew,
             LocalDateTime paidAt,
+            Long daysUntilExpiry,
+            Boolean expiryReminderDue,
+            String expiryReminderMessage,
             String note,
             LocalDateTime createdAt,
             LocalDateTime updatedAt) {
         public static MonthlyParkingPassResponse from(MonthlyParkingPass pass) {
+            LocalDate today = LocalDate.now();
+            Long daysUntilExpiry = pass.getEndDate() == null ? null : ChronoUnit.DAYS.between(today, pass.getEndDate());
+            boolean paid = "PAID".equalsIgnoreCase(pass.getPaymentStatus());
+            boolean activeOrScheduled = pass.getStatus() != null
+                    && (pass.getStatus().equalsIgnoreCase("ACTIVE") || pass.getStatus().equalsIgnoreCase("SCHEDULED"));
+            boolean reminderDue = paid && activeOrScheduled && daysUntilExpiry != null
+                    && daysUntilExpiry >= 0 && daysUntilExpiry <= 3;
+            String reminderMessage = reminderDue
+                    ? "Ve thang cua xe " + (pass.getVehicle() == null ? "N/A" : pass.getVehicle().getPlateNumber())
+                            + " se het han sau " + daysUntilExpiry + " ngay. Vui long thanh toan ky moi neu muon tiep tuc giu cho."
+                    : null;
             return new MonthlyParkingPassResponse(
                     pass.getId(),
                     pass.getUser() == null ? null : pass.getUser().getId(),
@@ -72,8 +83,10 @@ public final class MonthlyParkingPassDtos {
                     pass.getPaymentStatus(),
                     pass.getPaymentMethod(),
                     pass.getPaymentReference(),
-                    pass.getAutoRenew(),
                     pass.getPaidAt(),
+                    daysUntilExpiry,
+                    reminderDue,
+                    reminderMessage,
                     pass.getNote(),
                     pass.getCreatedAt(),
                     pass.getUpdatedAt()

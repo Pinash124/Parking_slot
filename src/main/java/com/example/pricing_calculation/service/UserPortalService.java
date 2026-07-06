@@ -5,7 +5,6 @@ import com.example.pricing_calculation.dto.CurrentParkingSessionResponse;
 import com.example.pricing_calculation.dto.CurrentParkingSessionResponse.ServiceUsageView;
 import com.example.pricing_calculation.dto.MonthlyParkingPassDtos.MonthlyParkingPassCreateRequest;
 import com.example.pricing_calculation.dto.MonthlyParkingPassDtos.MonthlyParkingPassPaymentInstructionResponse;
-import com.example.pricing_calculation.dto.MonthlyParkingPassDtos.MonthlyParkingPassPaymentPrepareRequest;
 import com.example.pricing_calculation.dto.MonthlyParkingPassDtos.MonthlyParkingPassResponse;
 import com.example.pricing_calculation.dto.ManagementDtos.VehicleRequest;
 import com.example.pricing_calculation.dto.ManagementDtos.VehicleView;
@@ -72,9 +71,8 @@ public class UserPortalService {
     @Transactional
     public MonthlyParkingPassPaymentInstructionResponse prepareMonthlyPassOnlinePayment(
             UserAccount user,
-            Long id,
-            MonthlyParkingPassPaymentPrepareRequest request) {
-        return monthlyPassService.prepareOnlinePayment(user, id, request);
+            Long id) {
+        return monthlyPassService.prepareOnlinePayment(user, id);
     }
 
     @Transactional
