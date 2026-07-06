@@ -163,7 +163,20 @@ Endpoint nay khong dung nua cho ve thang. BE se reject:
 Monthly pass only supports ONLINE_QR transfer payment
 ```
 
-### Manager/nhan vien xac nhan bang QR
+### Manager xac nhan thanh toan ve thang
+
+Luu y quyen:
+
+- Chi token `PARKING_MANAGER` duoc list/xac nhan/huy ve thang trong nhom API nay.
+- `ADMINISTRATOR` khong xu ly nghiep vu thanh toan ve thang.
+
+Xac nhan theo id:
+
+```http
+POST /api/manager/monthly-passes/{id}/confirm-payment
+```
+
+Xac nhan bang QR:
 
 ```http
 POST /api/manager/monthly-passes/confirm-payment/scan

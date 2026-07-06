@@ -7,7 +7,7 @@ Swagger local:
 Yeu cau chung:
 
 - `/api/user/**`: dung token `PARKING_USER`.
-- `/api/manager/**`: dung token manager/admin.
+- `/api/manager/**`: dung token manager/admin, rieng `/api/manager/monthly-passes/**` chi dung token `PARKING_MANAGER`.
 - Header: `Authorization: Bearer <token>`.
 - Checklist nay chi test BE/Swagger, khong dung FE.
 
@@ -218,6 +218,8 @@ Expected:
 
 `POST /api/manager/monthly-passes/{id}/confirm-payment`
 
+Auth: chi `PARKING_MANAGER`, khong dung admin.
+
 Body:
 
 ```json
@@ -236,6 +238,8 @@ Expected:
 ### 5.4 Manager xac nhan bang QR scan
 
 `POST /api/manager/monthly-passes/confirm-payment/scan`
+
+Auth: chi `PARKING_MANAGER`, khong dung admin.
 
 Body:
 

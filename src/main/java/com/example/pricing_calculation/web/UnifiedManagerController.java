@@ -22,6 +22,7 @@ public class UnifiedManagerController {
     private final UnifiedManagementService service; private final PaymentModuleAuthService auth; private final VehicleRepository vehicleRepo; private final MonthlyParkingPassService monthlyPasses;
     public UnifiedManagerController(UnifiedManagementService service,PaymentModuleAuthService auth,VehicleRepository vehicleRepo,MonthlyParkingPassService monthlyPasses){this.service=service;this.auth=auth;this.vehicleRepo=vehicleRepo;this.monthlyPasses=monthlyPasses;}
     private void manager(String h){auth.requireAnyRole(h,UserRole.PARKING_MANAGER,UserRole.ADMINISTRATOR);}
+    private void monthlyPassManager(String h){auth.requireAnyRole(h,UserRole.PARKING_MANAGER);}
 
     @GetMapping("/buildings") public List<BuildingView> buildings(@RequestHeader("Authorization")String h){manager(h);return service.buildings();}
     @PostMapping("/buildings") public ResponseEntity<BuildingView> createBuilding(@RequestHeader("Authorization")String h,@RequestBody BuildingRequest r){manager(h);return ResponseEntity.status(HttpStatus.CREATED).body(service.saveBuilding(null,r));}
@@ -62,8 +63,8 @@ public class UnifiedManagerController {
 
     @GetMapping("/vehicles") public List<VehicleView> allVehicles(@RequestHeader("Authorization")String h){manager(h);return vehicleRepo.findAll().stream().map(VehicleView::from).toList();}
 
-    @GetMapping("/monthly-passes") public List<MonthlyParkingPassDtos.MonthlyParkingPassResponse> monthlyPasses(@RequestHeader("Authorization")String h){manager(h);return monthlyPasses.listAll();}
-    @PostMapping("/monthly-passes/{id}/confirm-payment") public MonthlyParkingPassDtos.MonthlyParkingPassResponse confirmMonthlyPassPayment(@RequestHeader("Authorization")String h,@PathVariable Long id,@RequestBody(required=false) MonthlyParkingPassDtos.MonthlyParkingPassPaymentRequest r){manager(h);return monthlyPasses.confirmPayment(id,r);}
-    @PostMapping("/monthly-passes/confirm-payment/scan") public MonthlyParkingPassDtos.MonthlyParkingPassResponse confirmMonthlyPassPaymentByQr(@RequestHeader("Authorization")String h,@RequestBody MonthlyParkingPassDtos.MonthlyParkingPassQrConfirmRequest r){manager(h);return monthlyPasses.confirmPaymentFromQr(r.qrContent(),r.paymentMethod(),r.referenceCode());}
-    @PostMapping("/monthly-passes/{id}/cancel") public MonthlyParkingPassDtos.MonthlyParkingPassResponse cancelMonthlyPass(@RequestHeader("Authorization")String h,@PathVariable Long id){manager(h);return monthlyPasses.cancel(id);}
+    @GetMapping("/monthly-passes") public List<MonthlyParkingPassDtos.MonthlyParkingPassResponse> monthlyPasses(@RequestHeader("Authorization")String h){monthlyPassManager(h);return monthlyPasses.listAll();}
+    @PostMapping("/monthly-passes/{id}/confirm-payment") public MonthlyParkingPassDtos.MonthlyParkingPassResponse confirmMonthlyPassPayment(@RequestHeader("Authorization")String h,@PathVariable Long id,@RequestBody(required=false) MonthlyParkingPassDtos.MonthlyParkingPassPaymentRequest r){monthlyPassManager(h);return monthlyPasses.confirmPayment(id,r);}
+    @PostMapping("/monthly-passes/confirm-payment/scan") public MonthlyParkingPassDtos.MonthlyParkingPassResponse confirmMonthlyPassPaymentByQr(@RequestHeader("Authorization")String h,@RequestBody MonthlyParkingPassDtos.MonthlyParkingPassQrConfirmRequest r){monthlyPassManager(h);return monthlyPasses.confirmPaymentFromQr(r.qrContent(),r.paymentMethod(),r.referenceCode());}
+    @PostMapping("/monthly-passes/{id}/cancel") public MonthlyParkingPassDtos.MonthlyParkingPassResponse cancelMonthlyPass(@RequestHeader("Authorization")String h,@PathVariable Long id){monthlyPassManager(h);return monthlyPasses.cancel(id);}
 }
