@@ -163,12 +163,13 @@ Endpoint nay khong dung nua cho ve thang. BE se reject:
 Monthly pass only supports ONLINE_QR transfer payment
 ```
 
-### Manager xac nhan thanh toan ve thang
+### Admin xac nhan thanh toan ve thang
 
 Luu y quyen:
 
-- Chi token `PARKING_MANAGER` duoc list/xac nhan/huy ve thang trong nhom API nay.
-- `ADMINISTRATOR` khong xu ly nghiep vu thanh toan ve thang.
+- Chi token `ADMINISTRATOR` duoc list/xac nhan/huy ve thang trong nhom API nay.
+- `PARKING_MANAGER` khong co quyen quyet dinh/xac nhan thanh toan ve thang.
+- URL van giu `/api/manager/monthly-passes...` de khong doi ket noi FE, nhung BE se check role admin-only.
 
 Xac nhan theo id:
 
