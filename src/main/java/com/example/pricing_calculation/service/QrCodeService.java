@@ -45,19 +45,21 @@ public class QrCodeService {
     }
 
     public String buildVehicleQrContent(Vehicle vehicle) {
-        if (vehicle == null || vehicle.getId() == null) {
-            throw new BadRequestException("Vehicle id is required to generate QR");
+        if (vehicle == null || vehicle.getPlateNumber() == null || vehicle.getPlateNumber().isBlank()) {
+            throw new BadRequestException("License plate is required to generate QR");
         }
-        return VEHICLE_PREFIX
-                + "|vehicleId=" + vehicle.getId()
-                + "|plate=" + safe(vehicle.getPlateNumber());
+        return safe(vehicle.getPlateNumber());
     }
 
     public Long parseVehicleId(String qrContent) {
-        if (qrContent == null || qrContent.isBlank() || !qrContent.trim().toUpperCase().startsWith(VEHICLE_PREFIX + "|")) {
+        if (qrContent == null || qrContent.isBlank()) {
             return null;
         }
-        for (String part : qrContent.split("\\|")) {
+        String clean = qrContent.trim();
+        if (!clean.toUpperCase().startsWith(VEHICLE_PREFIX + "|")) {
+            return null;
+        }
+        for (String part : clean.split("\\|")) {
             if (part.startsWith("vehicleId=")) {
                 try {
                     return Long.parseLong(part.substring("vehicleId=".length()));
@@ -70,16 +72,20 @@ public class QrCodeService {
     }
 
     public String parseVehiclePlate(String qrContent) {
-        if (qrContent == null || qrContent.isBlank() || !qrContent.trim().toUpperCase().startsWith(VEHICLE_PREFIX + "|")) {
+        if (qrContent == null || qrContent.isBlank()) {
             return null;
         }
-        for (String part : qrContent.split("\\|")) {
-            if (part.startsWith("plate=")) {
-                String plate = part.substring("plate=".length()).trim();
-                return plate.isBlank() ? null : plate.toUpperCase();
+        String clean = qrContent.trim();
+        if (clean.toUpperCase().startsWith(VEHICLE_PREFIX + "|")) {
+            for (String part : clean.split("\\|")) {
+                if (part.startsWith("plate=")) {
+                    String plate = part.substring("plate=".length()).trim();
+                    return plate.isBlank() ? null : plate.toUpperCase();
+                }
             }
+            return null;
         }
-        return null;
+        return clean.toUpperCase();
     }
 
     private String safe(String value) {

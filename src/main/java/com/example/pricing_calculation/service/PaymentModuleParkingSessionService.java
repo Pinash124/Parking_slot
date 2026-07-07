@@ -86,7 +86,7 @@ public class PaymentModuleParkingSessionService {
                     .orElseThrow(() -> new ResourceNotFoundException("Vehicle not found: " + request.vehicleId()));
         } else if (request.licensePlate() != null && !request.licensePlate().isBlank()) {
             String plate = request.licensePlate().trim().toUpperCase();
-            vehicle = vehicleRepository.findByPlateNumberIgnoreCase(plate).orElse(null);
+            vehicle = findVehicleByNormalizedPlate(plate);
             if (vehicle == null) {
                 Vehicle guestVehicle = new Vehicle();
                 guestVehicle.setPlateNumber(plate);
@@ -369,8 +369,22 @@ public class PaymentModuleParkingSessionService {
                 .orElseThrow(() -> new ResourceNotFoundException("Parking session not found: " + id));
     }
 
+    private Vehicle findVehicleByNormalizedPlate(String plate) {
+        if (plate == null || plate.isBlank()) {
+            return null;
+        }
+        String target = plate.replaceAll("[^A-Za-z0-9]", "").toUpperCase();
+        java.util.Optional<Vehicle> opt = vehicleRepository.findByPlateNumberIgnoreCase(plate);
+        if (opt.isPresent()) {
+            return opt.get();
+        }
+        return vehicleRepository.findAll().stream()
+                .filter(v -> v.getPlateNumber() != null && v.getPlateNumber().replaceAll("[^A-Za-z0-9]", "").equalsIgnoreCase(target))
+                .findFirst()
+                .orElse(null);
+    }
+
     private String generateTicketCode() {
-        return "TICKET-" + LocalDateTime.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh")).format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"))
-                + "-" + UUID.randomUUID().toString().substring(0, 6).toUpperCase();
+        return "T-" + java.util.UUID.randomUUID().toString().substring(0, 8).toUpperCase();
     }
 }

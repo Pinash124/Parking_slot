@@ -46,7 +46,12 @@ public class PaymentModuleApiExceptionHandler {
 
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<Map<String, Object>> handleDataIntegrity(DataIntegrityViolationException ex) {
-        return error(HttpStatus.BAD_REQUEST, "Transaction data violates database constraints");
+        String msg = "Transaction data violates database constraints";
+        Throwable specific = ex.getMostSpecificCause();
+        if (specific != null && specific.getMessage() != null) {
+            msg += ": " + specific.getMessage();
+        }
+        return error(HttpStatus.BAD_REQUEST, msg);
     }
 
     private ResponseEntity<Map<String, Object>> error(HttpStatus status, String message) {
