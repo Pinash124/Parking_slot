@@ -339,3 +339,100 @@ BE da chay:
 ```
 
 FE khong bi chinh trong dot note nay.
+
+# Payment Module Changes (2026-07)
+
+## Payment Security
+
+Backend now validates every VNPAY callback.
+
+Checks include
+
+- SecureHash validation
+- Transaction status
+- Response code
+- Expected payment amount
+
+If any validation fails, payment will NOT be completed.
+
+---
+
+## Audit Log
+
+Backend automatically records
+
+- VNPAY_PAYMENT_COMPLETED
+- CASH_PAYMENT_COMPLETED
+- VNPAY_AMOUNT_MISMATCH
+
+These logs are for administrator auditing only.
+
+Frontend does not need to send any additional data.
+
+---
+
+## Payment Status
+
+Possible status values
+
+PENDING
+
+PROCESSING
+
+COMPLETED
+
+FAILED
+
+---
+
+## Personal QR
+
+Response example
+
+{
+    "paymentId":128,
+    "gateway":"PERSONAL_QR",
+    "status":"PENDING",
+    "transferContent":"PARKING-128",
+    "qrImageUrl":"/payment/vnpay-personal-qr.png"
+}
+
+---
+
+## VNPAY Callback
+
+Frontend does not call callback manually.
+
+VNPAY redirects user to
+
+/api/payment-gateways/vnpay/return
+
+Backend processes
+
+- payment confirmation
+- audit logging
+- monthly pass activation
+- transaction update
+
+---
+
+## Monthly Pass
+
+After successful payment
+
+Backend automatically
+
+- activate monthly pass
+- update payment status
+- update transaction history
+- create audit log
+
+No additional FE request is required.
+
+---
+
+## Breaking Changes
+
+None.
+
+Existing FE APIs remain compatible.

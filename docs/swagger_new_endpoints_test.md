@@ -479,3 +479,117 @@ Expected:
 - [ ] Ve thang con <= 3 ngay het han tra `expiryReminderDue=true`.
 - [ ] Tao xe moi response co `qrCode`.
 - [ ] Nhan vien bai xe scan QR phuong tien check-in/checkout duoc.
+
+# Payment Gateway Security Update
+
+## Summary
+
+The payment gateway module has been enhanced with additional security validation and audit logging.
+
+### New Security Features
+
+- Verify VNPAY SecureHash before processing callback.
+- Reject callback when payment amount does not match the expected amount.
+- Prevent duplicate callback processing (idempotent).
+- Record audit logs for all payment completion events.
+- Record audit logs for amount mismatch events.
+- Record audit logs for manual cash confirmation.
+
+---
+
+## VNPAY Callback
+
+GET /api/payment-gateways/vnpay/return
+
+### Success
+
+Conditions
+
+- vnp_ResponseCode = 00
+- vnp_TransactionStatus = 00
+- SecureHash valid
+- Amount equals expected amount
+
+Result
+
+- Payment status -> COMPLETED
+- Transaction status -> COMPLETED
+- Audit log created
+
+---
+
+## Amount Mismatch
+
+If
+
+vnp_Amount != expectedAmount
+
+Response
+
+HTTP 400
+
+Example
+
+{
+    "message": "Payment amount mismatch"
+}
+
+Audit Action
+
+VNPAY_AMOUNT_MISMATCH
+
+---
+
+## VNPAY IPN
+
+GET /api/payment-gateways/vnpay/ipn
+
+Possible Responses
+
+RspCode 00
+
+Payment confirmed
+
+RspCode 01
+
+Order not found
+
+RspCode 04
+
+Invalid payment amount
+
+RspCode 97
+
+Invalid SecureHash
+
+---
+
+## Cash Payment
+
+POST /api/payment-gateways/cash
+
+Security
+
+Bearer Token Required
+
+Audit
+
+CASH_PAYMENT_COMPLETED
+
+---
+
+## Personal QR
+
+POST /api/payment-gateways/personal-qr
+
+Security
+
+Bearer Token Required
+
+Status
+
+PENDING
+
+Reference
+
+PARKING-{PaymentId}
