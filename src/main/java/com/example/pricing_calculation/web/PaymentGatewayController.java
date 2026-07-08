@@ -20,6 +20,7 @@ import com.example.pricing_calculation.domain.UserAccount;
 import com.example.pricing_calculation.domain.UserRole;
 import com.example.pricing_calculation.domain.PaymentModuleParkingSession;
 import com.example.pricing_calculation.repository.PaymentModuleParkingSessionRepository;
+import com.example.pricing_calculation.service.AuditLogService;
 import com.example.pricing_calculation.service.PaymentModuleAuthService;
 import com.example.pricing_calculation.service.ForbiddenException;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -31,20 +32,24 @@ public class PaymentGatewayController {
     private final PaymentGatewayService paymentGatewayService;
     private final PaymentModuleAuthService authService;
     private final PaymentModuleParkingSessionRepository sessions;
+    private final AuditLogService auditLogService;
 
     public PaymentGatewayController(PaymentGatewayService paymentGatewayService, PaymentModuleAuthService authService,
-            PaymentModuleParkingSessionRepository sessions) {
+            PaymentModuleParkingSessionRepository sessions,
+            AuditLogService auditLogService) {
         this.paymentGatewayService = paymentGatewayService;
         this.authService = authService;
         this.sessions = sessions;
+        this.auditLogService = auditLogService;
     }
 
-    private void authorize(String header, Long sessionId) {
+    private UserAccount authorize(String header, Long sessionId) {
         UserAccount user = authService.authenticate(header);
         if (UserRole.fromCode(user.getRole()) == UserRole.PARKING_USER) {
             PaymentModuleParkingSession session = sessions.findById(sessionId).orElseThrow();
             if (!session.getVehicle().getUser().getId().equals(user.getId())) throw new ForbiddenException("Session does not belong to current user");
         }
+        return user;
     }
 
     @PostMapping("/vnpay")
@@ -63,8 +68,13 @@ public class PaymentGatewayController {
     @PostMapping("/cash")
     @SecurityRequirement(name="bearerAuth")
     public ResponseEntity<PaymentGatewayResponse> createCash(@RequestHeader("Authorization") String header, @RequestBody PaymentGatewayRequest request) {
-        authorize(header, request.sessionId());
-        return ResponseEntity.status(HttpStatus.CREATED).body(paymentGatewayService.createCashPayment(request));
+        UserAccount actor = authorize(header, request.sessionId());
+        PaymentGatewayResponse response = paymentGatewayService.createCashPayment(request);
+        auditLogService.record(actor,
+                "CASH_PAYMENT_COMPLETED paymentId=" + response.paymentId() + " amount=" + response.amount(),
+                "Payment",
+                response.paymentId());
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @PostMapping("/personal-qr")
