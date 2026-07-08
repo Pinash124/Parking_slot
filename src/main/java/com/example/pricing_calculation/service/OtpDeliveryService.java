@@ -15,12 +15,15 @@ public class OtpDeliveryService {
 
     private final ObjectProvider<JavaMailSender> mailSender;
     private final boolean exposeOtp;
+    private final String senderEmail;
 
     public OtpDeliveryService(
             ObjectProvider<JavaMailSender> mailSender,
-            @Value("${parking.auth.expose-development-otp:true}") boolean exposeOtp) {
+            @Value("${parking.auth.expose-development-otp:true}") boolean exposeOtp,
+            @Value("${parking.auth.mail-from:dadangnguyenvan@gmail.com}") String senderEmail) {
         this.mailSender = mailSender;
         this.exposeOtp = exposeOtp;
+        this.senderEmail = senderEmail;
     }
 
     public void send(String email, String otp, String purpose) {
@@ -37,7 +40,9 @@ public class OtpDeliveryService {
 
         try {
             SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom("dangnguyenquocthong7@gmail.com");
+            if (senderEmail != null && !senderEmail.isBlank()) {
+                message.setFrom(senderEmail.trim());
+            }
             message.setTo(email);
             message.setSubject("Smart Parking OTP - " + purpose);
             message.setText("Your OTP is " + otp + ". It expires in 5 minutes.");

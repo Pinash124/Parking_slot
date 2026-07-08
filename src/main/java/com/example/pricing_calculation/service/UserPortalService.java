@@ -8,6 +8,7 @@ import com.example.pricing_calculation.dto.MonthlyParkingPassDtos.MonthlyParking
 import com.example.pricing_calculation.dto.MonthlyParkingPassDtos.MonthlyParkingPassResponse;
 import com.example.pricing_calculation.dto.ManagementDtos.VehicleRequest;
 import com.example.pricing_calculation.dto.ManagementDtos.VehicleView;
+import com.example.pricing_calculation.dto.PaymentGatewayResponse;
 import com.example.pricing_calculation.dto.ParkingSessionResponse;
 import com.example.pricing_calculation.dto.PricingQuoteResponse;
 import com.example.pricing_calculation.dto.ServiceUsageRequest;
@@ -26,12 +27,13 @@ public class UserPortalService {
     private final AdditionalServiceRepository services; private final SessionServiceUsageRepository usages;
     private final PaymentModulePricingPolicyRepository pricingPolicies;
     private final QrCodeService qrCodeService;
+    private final PaymentGatewayService paymentGatewayService;
 
     public UserPortalService(VehicleRepository vehicles,PaymentModuleVehicleTypeRepository vehicleTypes,
             PaymentModuleParkingSessionRepository sessions,PricingService pricing,
             MonthlyParkingPassService monthlyPassService,AdditionalServiceRepository services,
             SessionServiceUsageRepository usages, PaymentModulePricingPolicyRepository pricingPolicies,
-            QrCodeService qrCodeService){
+            QrCodeService qrCodeService, PaymentGatewayService paymentGatewayService){
         this.vehicles=vehicles;
         this.vehicleTypes=vehicleTypes;
         this.sessions=sessions;
@@ -41,6 +43,7 @@ public class UserPortalService {
         this.usages=usages;
         this.pricingPolicies=pricingPolicies;
         this.qrCodeService=qrCodeService;
+        this.paymentGatewayService=paymentGatewayService;
     }
 
     @Transactional(readOnly=true)
@@ -126,7 +129,24 @@ public class UserPortalService {
     public MonthlyParkingPassPaymentInstructionResponse prepareMonthlyPassOnlinePayment(
             UserAccount user,
             Long id) {
+        if (paymentGatewayService.isVnpayConfigured()) {
+            PaymentGatewayResponse gateway = paymentGatewayService.createMonthlyPassVnpayPayment(user, id, "127.0.0.1");
+            MonthlyParkingPassResponse pass = monthlyPassService.getForUser(user, id);
+            return new MonthlyParkingPassPaymentInstructionResponse(
+                    pass,
+                    "ONLINE_QR",
+                    gateway.referenceCode(),
+                    gateway.amount(),
+                    gateway.paymentUrl(),
+                    "VNPAY:" + gateway.referenceCode(),
+                    LocalDateTime.now());
+        }
         return monthlyPassService.prepareOnlinePayment(user, id);
+    }
+
+    @Transactional
+    public PaymentGatewayResponse prepareMonthlyPassVnpayPayment(UserAccount user, Long id, String clientIp) {
+        return paymentGatewayService.createMonthlyPassVnpayPayment(user, id, clientIp);
     }
 
     @Transactional(readOnly=true)

@@ -2,6 +2,8 @@ package com.example.pricing_calculation.service;
 
 import com.example.pricing_calculation.domain.Payment;
 import com.example.pricing_calculation.domain.TransactionHistory;
+import com.example.pricing_calculation.domain.UserAccount;
+import com.example.pricing_calculation.dto.MonthlyParkingPassDtos.MonthlyParkingPassResponse;
 import com.example.pricing_calculation.dto.PaymentCreateRequest;
 import com.example.pricing_calculation.dto.PaymentGatewayRequest;
 import com.example.pricing_calculation.dto.PaymentGatewayResponse;
@@ -37,6 +39,7 @@ public class PaymentGatewayService {
     private final PaymentService paymentService;
     private final PaymentRepository paymentRepository;
     private final TransactionHistoryRepository transactionHistoryRepository;
+    private final MonthlyParkingPassService monthlyParkingPassService;
     private final RealtimeEventService realtimeEventService;
     private final String vnpayTmnCode;
     private final String vnpayHashSecret;
@@ -48,6 +51,7 @@ public class PaymentGatewayService {
             PaymentService paymentService,
             PaymentRepository paymentRepository,
             TransactionHistoryRepository transactionHistoryRepository,
+            MonthlyParkingPassService monthlyParkingPassService,
             RealtimeEventService realtimeEventService,
             @Value("${vnpay.tmn-code:}") String vnpayTmnCode,
             @Value("${vnpay.hash-secret:}") String vnpayHashSecret,
@@ -57,6 +61,7 @@ public class PaymentGatewayService {
         this.paymentService = paymentService;
         this.paymentRepository = paymentRepository;
         this.transactionHistoryRepository = transactionHistoryRepository;
+        this.monthlyParkingPassService = monthlyParkingPassService;
         this.realtimeEventService = realtimeEventService;
         this.vnpayTmnCode = vnpayTmnCode;
         this.vnpayHashSecret = vnpayHashSecret;
@@ -81,15 +86,44 @@ public class PaymentGatewayService {
         PaymentGatewayResponse response = new PaymentGatewayResponse(
                 "VNPAY", payment.id(), referenceCode, payment.status(), paymentUrl,
                 paymentUrl, "VNPay sandbox payment created", payment, null,
-                null, null, payment.amount());
+                qrImageUrlFor(paymentUrl), referenceCode, payment.amount());
         realtimeEventService.publish(
                 "/topic/payments", "VNPAY_PAYMENT_CREATED", "VNPay payment created", response);
         return response;
     }
 
     @Transactional
+    public PaymentGatewayResponse createMonthlyPassVnpayPayment(UserAccount user, Long passId, String clientIp) {
+        if (user == null) {
+            throw new BadRequestException("Authenticated user is required");
+        }
+        if (passId == null) {
+            throw new BadRequestException("monthlyPassId is required");
+        }
+        requireVnpayConfiguration();
+        String referenceCode = buildReferenceCode("MTHVNPAY");
+        MonthlyParkingPassResponse pass = monthlyParkingPassService.prepareVnpayPayment(user, passId, referenceCode);
+        String paymentUrl = buildVnpayPaymentUrl(
+                referenceCode,
+                pass.totalAmount(),
+                "Monthly pass #" + pass.id(),
+                clientIp);
+        PaymentGatewayResponse response = new PaymentGatewayResponse(
+                "VNPAY", null, referenceCode, "PENDING", paymentUrl, paymentUrl,
+                "VNPay monthly-pass payment created", null, null,
+                qrImageUrlFor(paymentUrl), referenceCode, pass.totalAmount());
+        realtimeEventService.publish(
+                "/topic/payments", "VNPAY_MONTHLY_PASS_PAYMENT_CREATED",
+                "VNPay monthly-pass payment created", response);
+        return response;
+    }
+
+    @Transactional
     public PaymentGatewayResponse createPersonalQrPayment(PaymentGatewayRequest request) {
         validateRequest(request);
+        if (isVnpayConfigured() && request.amount() != null && request.amount().compareTo(BigDecimal.ZERO) > 0) {
+            return createVnpayPayment(request, "127.0.0.1");
+        }
         String referenceCode = buildReferenceCode("PERSONALQR");
         PaymentResponse payment = paymentService.create(new PaymentCreateRequest(
                 request.sessionId(), request.amount(), "PERSONAL_QR", LocalDateTime.now(),
@@ -133,6 +167,9 @@ public class PaymentGatewayService {
         verifyVnpaySignature(callbackParameters);
 
         String referenceCode = requiredParameter(callbackParameters, "vnp_TxnRef");
+        if (referenceCode.toUpperCase(Locale.ROOT).startsWith("MTHVNPAY")) {
+            return processMonthlyPassVnpayCallback(callbackParameters, referenceCode);
+        }
         TransactionHistory transaction = transactionHistoryRepository
                 .findByReferenceCodeIgnoreCase(referenceCode)
                 .orElseThrow(() -> new ResourceNotFoundException("Transaction not found: " + referenceCode));
@@ -168,6 +205,32 @@ public class PaymentGatewayService {
         realtimeEventService.publish(
                 "/topic/payments", "VNPAY_PAYMENT_" + payment.getStatus(),
                 "VNPay callback processed", response);
+        return response;
+    }
+
+    public boolean isVnpayConfigured() {
+        return vnpayTmnCode != null && !vnpayTmnCode.isBlank()
+                && vnpayHashSecret != null && !vnpayHashSecret.isBlank();
+    }
+
+    private PaymentGatewayResponse processMonthlyPassVnpayCallback(
+            Map<String, String> callbackParameters,
+            String referenceCode) {
+        BigDecimal amount = monthlyParkingPassService.amountByPaymentReference(referenceCode);
+        verifyCallbackAmount(amount, requiredParameter(callbackParameters, "vnp_Amount"));
+        boolean successful = "00".equals(callbackParameters.get("vnp_ResponseCode"))
+                && "00".equals(callbackParameters.get("vnp_TransactionStatus"));
+        if (successful) {
+            monthlyParkingPassService.confirmVnpayPayment(referenceCode);
+        }
+        PaymentGatewayResponse response = new PaymentGatewayResponse(
+                "VNPAY", null, referenceCode, successful ? "COMPLETED" : "FAILED",
+                null, null,
+                successful ? "VNPay monthly-pass payment completed" : "VNPay monthly-pass payment failed",
+                null, null, null, null, amount);
+        realtimeEventService.publish(
+                "/topic/payments", "VNPAY_MONTHLY_PASS_PAYMENT_" + response.status(),
+                "VNPay monthly-pass callback processed", response);
         return response;
     }
 
@@ -289,8 +352,7 @@ public class PaymentGatewayService {
     }
 
     private void requireVnpayConfiguration() {
-        if (vnpayTmnCode == null || vnpayTmnCode.isBlank()
-                || vnpayHashSecret == null || vnpayHashSecret.isBlank()) {
+        if (!isVnpayConfigured()) {
             throw new BadRequestException("VNPay is not configured. Set VNPAY_TMN_CODE and VNPAY_HASH_SECRET");
         }
     }
@@ -302,6 +364,10 @@ public class PaymentGatewayService {
 
     private String urlEncode(String value) {
         return URLEncoder.encode(value, StandardCharsets.UTF_8);
+    }
+
+    private String qrImageUrlFor(String content) {
+        return "https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=" + urlEncode(content);
     }
 }
 

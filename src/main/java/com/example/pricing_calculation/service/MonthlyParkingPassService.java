@@ -52,6 +52,15 @@ public class MonthlyParkingPassService {
                 .map(MonthlyParkingPassResponse::from).toList();
     }
 
+    @Transactional(readOnly = true)
+    public MonthlyParkingPassResponse getForUser(UserAccount user, Long id) {
+        MonthlyParkingPass pass = find(id);
+        if (pass.getUser() == null || user == null || !pass.getUser().getId().equals(user.getId())) {
+            throw new ForbiddenException("Monthly pass does not belong to current user");
+        }
+        return MonthlyParkingPassResponse.from(pass);
+    }
+
     @Transactional(isolation = Isolation.SERIALIZABLE)
     public MonthlyParkingPassResponse register(UserAccount user, MonthlyParkingPassCreateRequest request) {
         if (request == null || request.vehicleId() == null || request.slotId() == null) {
@@ -136,21 +145,48 @@ public class MonthlyParkingPassService {
         );
     }
 
+    @Transactional
+    public MonthlyParkingPassResponse prepareVnpayPayment(UserAccount user, Long id, String referenceCode) {
+        if (referenceCode == null || referenceCode.isBlank()) {
+            throw new BadRequestException("referenceCode is required");
+        }
+        MonthlyParkingPass pass = findOwnedPendingPass(user, id);
+        pass.setPaymentMethod("VNPAY");
+        pass.setPaymentReference(referenceCode.trim());
+        pass.setUpdatedAt(LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh")));
+        return MonthlyParkingPassResponse.from(passes.save(pass));
+    }
+
     @Transactional(isolation = Isolation.SERIALIZABLE)
     public MonthlyParkingPassResponse confirmPayment(Long id, MonthlyParkingPassPaymentRequest request) {
         MonthlyParkingPass pass = find(id);
+        String reference = request == null || request.referenceCode() == null || request.referenceCode().isBlank()
+                ? pass.getPaymentReference()
+                : request.referenceCode();
+        return completePayment(pass, reference, "ONLINE_QR");
+    }
+
+    @Transactional(readOnly = true)
+    public BigDecimal amountByPaymentReference(String referenceCode) {
+        return findByPaymentReference(referenceCode).getTotalAmount();
+    }
+
+    @Transactional(isolation = Isolation.SERIALIZABLE)
+    public MonthlyParkingPassResponse confirmVnpayPayment(String referenceCode) {
+        MonthlyParkingPass pass = findByPaymentReference(referenceCode);
+        return completePayment(pass, referenceCode, "VNPAY");
+    }
+
+    private MonthlyParkingPassResponse completePayment(MonthlyParkingPass pass, String reference, String paymentMethod) {
         if ("PAID".equalsIgnoreCase(pass.getPaymentStatus())) {
             return MonthlyParkingPassResponse.from(pass);
         }
         if (!"PENDING_PAYMENT".equalsIgnoreCase(pass.getStatus())) {
             throw new BadRequestException("Only a pending monthly pass can be paid");
         }
-        String reference = request == null || request.referenceCode() == null || request.referenceCode().isBlank()
-                ? pass.getPaymentReference()
-                : request.referenceCode();
         LocalDate today = LocalDate.now(ZoneId.of("Asia/Ho_Chi_Minh"));
         pass.setPaymentStatus("PAID");
-        pass.setPaymentMethod("ONLINE_QR");
+        pass.setPaymentMethod(paymentMethod);
         pass.setPaymentReference(reference);
         pass.setPaidAt(LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh")));
         pass.setStatus(pass.getStartDate().isAfter(today) ? "SCHEDULED" : "ACTIVE");
@@ -201,6 +237,14 @@ public class MonthlyParkingPassService {
     private MonthlyParkingPass find(Long id) {
         return passes.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Monthly parking pass not found: " + id));
+    }
+
+    private MonthlyParkingPass findByPaymentReference(String referenceCode) {
+        if (referenceCode == null || referenceCode.isBlank()) {
+            throw new BadRequestException("referenceCode is required");
+        }
+        return passes.findByPaymentReferenceIgnoreCase(referenceCode.trim())
+                .orElseThrow(() -> new ResourceNotFoundException("Monthly parking pass not found for reference: " + referenceCode));
     }
 
     private MonthlyParkingPass findOwnedPendingPass(UserAccount user, Long id) {

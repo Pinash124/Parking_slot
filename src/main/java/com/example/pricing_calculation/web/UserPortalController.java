@@ -11,6 +11,7 @@ import com.example.pricing_calculation.dto.ManagementDtos.ZoneView;
 import com.example.pricing_calculation.service.*;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -32,6 +33,7 @@ public class UserPortalController {
     @GetMapping("/monthly-passes") public List<MonthlyParkingPassDtos.MonthlyParkingPassResponse> monthlyPasses(@RequestHeader("Authorization")String h){return portal.monthlyPasses(user(h));}
     @PostMapping("/monthly-passes") public ResponseEntity<MonthlyParkingPassDtos.MonthlyParkingPassResponse> registerMonthlyPass(@RequestHeader("Authorization")String h,@RequestBody MonthlyParkingPassDtos.MonthlyParkingPassCreateRequest r){return ResponseEntity.status(HttpStatus.CREATED).body(portal.registerMonthlyPass(user(h),r));}
     @PostMapping("/monthly-passes/{id}/payment/online-qr") public MonthlyParkingPassDtos.MonthlyParkingPassPaymentInstructionResponse prepareMonthlyPassOnlinePayment(@RequestHeader("Authorization")String h,@PathVariable Long id){return portal.prepareMonthlyPassOnlinePayment(user(h),id);}
+    @PostMapping("/monthly-passes/{id}/payment/vnpay") public ResponseEntity<PaymentGatewayResponse> prepareMonthlyPassVnpayPayment(@RequestHeader("Authorization")String h,@PathVariable Long id,HttpServletRequest request){String clientIp=request.getHeader("X-Forwarded-For");if(clientIp==null||clientIp.isBlank())clientIp=request.getRemoteAddr();return ResponseEntity.status(HttpStatus.CREATED).body(portal.prepareMonthlyPassVnpayPayment(user(h),id,clientIp));}
     @PostMapping("/reservations") public ReservationResponse reserve(@RequestHeader("Authorization")String h,@RequestBody ReservationCreateRequest r){UserAccount u=user(h);return reservations.create(new ReservationCreateRequest(u.getId(),r.vehicleId(),r.zoneId(),r.startTime(),r.endTime()));}
     @GetMapping("/reservations") public PageResponse<ReservationResponse> myReservations(@RequestHeader("Authorization")String h,@RequestParam(defaultValue="0")int page,@RequestParam(defaultValue="20")int size){return reservations.search(user(h).getId(),null,null,null,null,null,page,size);}
     @PatchMapping("/reservations/{id}/cancel") public ReservationResponse cancelReservation(@RequestHeader("Authorization")String h,@PathVariable Long id){return reservations.cancelForUser(id,user(h).getId());}

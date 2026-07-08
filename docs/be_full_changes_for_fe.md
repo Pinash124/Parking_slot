@@ -127,12 +127,51 @@ Response co them field de FE hien chỗ va reminder:
 
 Chot moi:
 
-- Ve thang chi thanh toan bang chuyen khoan/ONLINE_QR.
+- Ve thang uu tien thanh toan bang VNPAY de callback/IPN tu cap nhat trang thai.
+- ONLINE_QR/admin confirm chi la fallback thu cong.
 - Khong su dung tien mat cho ve thang.
 - Tien mat chi dung cho xe vao theo luot/vang lai khi xe ra.
 - Khong con endpoint tien mat cho ve thang.
 
-### Online QR
+### VNPAY ve thang - flow chinh
+
+```http
+POST /api/user/monthly-passes/{id}/payment/vnpay
+```
+
+Body: khong can.
+
+Response:
+
+```json
+{
+  "gateway": "VNPAY",
+  "paymentId": null,
+  "referenceCode": "MTHVNPAY...",
+  "status": "PENDING",
+  "paymentUrl": "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html?...",
+  "qrContent": "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html?...",
+  "amount": 500000
+}
+```
+
+Sau khi VNPAY redirect/callback vao:
+
+```http
+GET /api/payment-gateways/vnpay/return
+GET /api/payment-gateways/vnpay/ipn
+```
+
+BE tu set:
+
+- `paymentStatus = PAID`
+- `paymentMethod = VNPAY`
+- Pass thanh `ACTIVE` hoac `SCHEDULED`
+- Slot thanh `MONTHLY_RESERVED`
+
+Khong can admin/manager xac nhan thu cong neu VNPAY thanh cong.
+
+### Online QR fallback
 
 ```http
 POST /api/user/monthly-passes/{id}/payment/online-qr
@@ -152,7 +191,13 @@ Response:
 }
 ```
 
-### Admin xac nhan thanh toan ve thang
+Ghi chu:
+
+- FE cu co the tiep tuc goi endpoint nay.
+- Neu VNPAY da cau hinh, BE se tra `qrContent` la link VNPAY de thanh toan tu dong.
+- Neu VNPAY chua cau hinh, BE moi fallback sang QR thu cong can admin xac nhan.
+
+### Admin xac nhan thanh toan ve thang fallback
 
 Luu y quyen:
 
@@ -187,6 +232,7 @@ Ket qua:
 - `paymentMethod = ONLINE_QR` do BE tu set
 - Pass thanh `ACTIVE` hoac `SCHEDULED`
 - Slot thanh `MONTHLY_RESERVED`
+- Chi dung khi thanh toan thu cong/ONLINE_QR, khong dung cho VNPAY.
 
 ## 6A. QR rieng cho tung phuong tien
 
@@ -222,6 +268,36 @@ Ghi chu:
 - QR phuong tien co format `VEHICLE|vehicleId=...|plate=...`.
 - Bien so text cu van duoc ho tro de khong pha flow cu.
 - Reservation id QR cu van duoc ho tro.
+
+## 6B. Thanh toan checkout xe ra
+
+Flow online khuyen nghi:
+
+```http
+POST /api/payment-checkout/prepare
+POST /api/payment-gateways/vnpay
+GET  /api/payment-gateways/vnpay/return
+GET  /api/payment-gateways/vnpay/ipn
+POST /api/payment-checkout/validate-exit
+```
+
+- `prepare` lay `sessionId` va `amount`.
+- `/api/payment-gateways/vnpay` tao link VNPAY cho session.
+- Callback/IPN VNPAY set payment `COMPLETED`.
+- `validate-exit` cho xe ra neu da thanh toan va con trong cua so ra bai.
+
+Tien mat:
+
+- Chi dung cho xe theo luot/vang lai khi xe ra.
+- Goi `POST /api/payment-gateways/cash`.
+
+Personal QR:
+
+- FE hien tai nut "Chuyen khoan" dang goi `POST /api/payment-gateways/personal-qr`.
+- Neu VNPAY da cau hinh, BE tu dong tao payment VNPAY va tra `qrImageUrl` la QR cua link VNPAY.
+- VNPAY callback/IPN set payment `COMPLETED`; FE polling status se thay paid va tiep tuc mo barrier.
+- Personal QR anh tinh chi con la fallback khi VNPAY chua cau hinh.
+- Can set `PERSONAL_QR_IMAGE_URL` neu muon dung fallback QR rieng.
 
 ## 7. Reminder het han ve thang truoc 3 ngay
 

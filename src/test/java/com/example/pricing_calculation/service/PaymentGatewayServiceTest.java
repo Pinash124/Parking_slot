@@ -3,12 +3,15 @@ package com.example.pricing_calculation.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.example.pricing_calculation.domain.Payment;
 import com.example.pricing_calculation.domain.TransactionHistory;
+import com.example.pricing_calculation.domain.UserAccount;
+import com.example.pricing_calculation.dto.MonthlyParkingPassDtos.MonthlyParkingPassResponse;
 import com.example.pricing_calculation.dto.PaymentGatewayRequest;
 import com.example.pricing_calculation.dto.PaymentGatewayResponse;
 import com.example.pricing_calculation.dto.PaymentResponse;
@@ -37,6 +40,7 @@ class PaymentGatewayServiceTest {
                 paymentService,
                 mock(PaymentRepository.class),
                 mock(TransactionHistoryRepository.class),
+                mock(MonthlyParkingPassService.class),
                 mock(RealtimeEventService.class),
                 "TESTCODE",
                 secret,
@@ -70,9 +74,10 @@ class PaymentGatewayServiceTest {
                 paymentService,
                 mock(PaymentRepository.class),
                 mock(TransactionHistoryRepository.class),
+                mock(MonthlyParkingPassService.class),
                 mock(RealtimeEventService.class),
-                "TESTCODE",
-                "test-hash-secret",
+                "",
+                "",
                 "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html",
                 "https://merchant.example/api/payment-gateways/vnpay/return",
                 "/payment/vnpay-personal-qr.png");
@@ -85,6 +90,68 @@ class PaymentGatewayServiceTest {
         assertEquals("/payment/vnpay-personal-qr.png", response.qrImageUrl());
         assertEquals("PARKING-128", response.transferContent());
         assertEquals(new BigDecimal("70000"), response.amount());
+    }
+
+    @Test
+    void personalQrEndpointAutomaticallyUsesVnpayWhenConfigured() {
+        PaymentService paymentService = mock(PaymentService.class);
+        when(paymentService.create(any())).thenReturn(new PaymentResponse(
+                128L, 9L, new BigDecimal("70000"), "VNPAY",
+                LocalDateTime.now(), "PENDING"));
+        PaymentGatewayService service = new PaymentGatewayService(
+                paymentService,
+                mock(PaymentRepository.class),
+                mock(TransactionHistoryRepository.class),
+                mock(MonthlyParkingPassService.class),
+                mock(RealtimeEventService.class),
+                "TESTCODE",
+                "test-hash-secret",
+                "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html",
+                "https://merchant.example/api/payment-gateways/vnpay/return",
+                "/payment/vnpay-personal-qr.png");
+
+        PaymentGatewayResponse response = service.createPersonalQrPayment(
+                new PaymentGatewayRequest(9L, new BigDecimal("70000"), null, "Parking payment"));
+
+        assertEquals("VNPAY", response.gateway());
+        assertEquals(response.paymentUrl(), response.qrContent());
+        assertTrue(response.qrImageUrl().contains("api.qrserver.com"));
+        assertTrue(response.referenceCode().startsWith("VNPAY"));
+    }
+
+    @Test
+    void createsMonthlyPassVnpayPaymentWithoutParkingSessionPayment() {
+        MonthlyParkingPassService monthlyPassService = mock(MonthlyParkingPassService.class);
+        when(monthlyPassService.prepareVnpayPayment(any(), any(), anyString())).thenReturn(
+                new MonthlyParkingPassResponse(
+                        6L, 2L, 9L, "59A-12345", 1L, "CAR",
+                        10L, "F1-CAR-001", "MONTHLY_HELD", 1,
+                        new BigDecimal("500000"), new BigDecimal("500000"),
+                        java.time.LocalDate.now(), java.time.LocalDate.now().plusMonths(1).minusDays(1),
+                        "PENDING_PAYMENT", "PENDING", "VNPAY", "MTHVNPAY-TEST",
+                        null, 30L, false, null, null,
+                        LocalDateTime.now(), LocalDateTime.now()));
+        String secret = "test-hash-secret";
+        PaymentGatewayService service = new PaymentGatewayService(
+                mock(PaymentService.class),
+                mock(PaymentRepository.class),
+                mock(TransactionHistoryRepository.class),
+                monthlyPassService,
+                mock(RealtimeEventService.class),
+                "TESTCODE",
+                secret,
+                "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html",
+                "https://merchant.example/api/payment-gateways/vnpay/return",
+                "/payment/vnpay-personal-qr.png");
+
+        PaymentGatewayResponse response = service.createMonthlyPassVnpayPayment(
+                mock(UserAccount.class), 6L, "127.0.0.1");
+
+        assertEquals("VNPAY", response.gateway());
+        assertEquals("PENDING", response.status());
+        assertEquals(response.paymentUrl(), response.qrContent());
+        assertEquals(new BigDecimal("500000"), response.amount());
+        assertTrue(response.referenceCode().startsWith("MTHVNPAY"));
     }
 
     @Test
@@ -107,6 +174,7 @@ class PaymentGatewayServiceTest {
         String secret = "test-hash-secret";
         PaymentGatewayService service = new PaymentGatewayService(
                 mock(PaymentService.class), paymentRepository, transactionRepository,
+                mock(MonthlyParkingPassService.class),
                 mock(RealtimeEventService.class), "TESTCODE", secret,
                 "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html",
                 "https://merchant.example/api/payment-gateways/vnpay/return",
@@ -126,6 +194,34 @@ class PaymentGatewayServiceTest {
         assertEquals("COMPLETED", transaction.getStatus());
         verify(paymentRepository).save(payment);
         verify(transactionRepository).save(transaction);
+    }
+
+    @Test
+    void acceptsMonthlyPassVnpayCallbackAndConfirmsPass() throws Exception {
+        MonthlyParkingPassService monthlyPassService = mock(MonthlyParkingPassService.class);
+        when(monthlyPassService.amountByPaymentReference("MTHVNPAY202607080001ABC12345"))
+                .thenReturn(new BigDecimal("500000"));
+        String secret = "test-hash-secret";
+        PaymentGatewayService service = new PaymentGatewayService(
+                mock(PaymentService.class), mock(PaymentRepository.class), mock(TransactionHistoryRepository.class),
+                monthlyPassService, mock(RealtimeEventService.class), "TESTCODE", secret,
+                "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html",
+                "https://merchant.example/api/payment-gateways/vnpay/return",
+                "/payment/vnpay-personal-qr.png");
+
+        Map<String, String> callback = new TreeMap<>();
+        callback.put("vnp_Amount", "50000000");
+        callback.put("vnp_ResponseCode", "00");
+        callback.put("vnp_TmnCode", "TESTCODE");
+        callback.put("vnp_TransactionStatus", "00");
+        callback.put("vnp_TxnRef", "MTHVNPAY202607080001ABC12345");
+        callback.put("vnp_SecureHash", hmacSha512(secret, encode(callback)));
+
+        PaymentGatewayResponse response = service.processVnpayCallback(callback);
+
+        assertEquals("COMPLETED", response.status());
+        assertEquals("MTHVNPAY202607080001ABC12345", response.referenceCode());
+        verify(monthlyPassService).confirmVnpayPayment("MTHVNPAY202607080001ABC12345");
     }
 
     private String hmacSha512(String secret, String data) throws Exception {
