@@ -157,15 +157,24 @@ public class PricingService {
         long billableHours = timeBandFee.nightHours();
         
         BigDecimal parkingFee;
+        BigDecimal overtimeFee;
+        BigDecimal penaltyFee;
+        BigDecimal fixedSurchargeVal;
+        BigDecimal totalFee;
+
         if (monthlyPassActive) {
             parkingFee = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+            overtimeFee = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+            penaltyFee = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+            fixedSurchargeVal = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+            totalFee = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
         } else {
             parkingFee = timeBandFee.total().setScale(2, RoundingMode.HALF_UP);
+            overtimeFee = overtimeFeeRate.multiply(BigDecimal.valueOf(safeOvertimeMinutes)).setScale(2, RoundingMode.HALF_UP);
+            penaltyFee = lostTicketFee;
+            fixedSurchargeVal = fixedSurcharge;
+            totalFee = parkingFee.add(penaltyFee).add(fixedSurchargeVal).add(overtimeFee).setScale(2, RoundingMode.HALF_UP);
         }
-
-        BigDecimal overtimeFee = overtimeFeeRate.multiply(BigDecimal.valueOf(safeOvertimeMinutes)).setScale(2, RoundingMode.HALF_UP);
-        BigDecimal penaltyFee = lostTicketFee;
-        BigDecimal totalFee = parkingFee.add(penaltyFee).add(fixedSurcharge).add(overtimeFee).setScale(2, RoundingMode.HALF_UP);
 
         return new PricingQuoteResponse(
                 vehicleType.getId(),
@@ -179,9 +188,9 @@ public class PricingService {
                 hourlyRate,
                 dailyRate,
                 parkingFee,
-                lostTicketFee,
+                monthlyPassActive ? BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP) : lostTicketFee,
                 overtimeFee,
-                fixedSurcharge,
+                fixedSurchargeVal,
                 penaltyFee,
                 totalFee,
                 "VND"
