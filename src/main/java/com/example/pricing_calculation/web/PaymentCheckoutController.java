@@ -1,5 +1,6 @@
 package com.example.pricing_calculation.web;
 
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import com.example.pricing_calculation.dto.PaymentCheckoutPrepareRequest;
 import com.example.pricing_calculation.dto.PaymentCheckoutResponse;
 import com.example.pricing_calculation.dto.PaymentExitValidationRequest;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 @RestController
 @RequestMapping("/api/payment-checkout")
+@SecurityRequirement(name = "bearerAuth")
 public class PaymentCheckoutController {
 
     private final PaymentCheckoutService paymentCheckoutService;
