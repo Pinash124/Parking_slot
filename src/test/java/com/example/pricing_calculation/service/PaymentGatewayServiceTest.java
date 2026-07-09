@@ -96,6 +96,37 @@ class PaymentGatewayServiceTest {
         }
 
         @Test
+        void usesRequestReturnUrlWhenCreatingVnpayPayment() {
+                PaymentService paymentService = mock(PaymentService.class);
+                when(paymentService.create(any())).thenReturn(new PaymentResponse(
+                                1L, 9L, new BigDecimal("70000"), "VNPAY",
+                                LocalDateTime.now(), "PENDING"));
+                PaymentGatewayService service = new PaymentGatewayService(
+                                paymentService,
+                                mock(PaymentRepository.class),
+                                mock(TransactionHistoryRepository.class),
+                                mock(MonthlyParkingPassService.class),
+                                mock(RealtimeEventService.class),
+                                mock(AuditLogService.class),
+                                "TESTCODE",
+                                "test-hash-secret",
+                                "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html",
+                                "https://merchant.example/api/payment-gateways/vnpay/return",
+                                "/payment/vnpay-personal-qr.png");
+
+                PaymentGatewayResponse response = service.createVnpayPayment(
+                                new PaymentGatewayRequest(
+                                                9L,
+                                                new BigDecimal("70000"),
+                                                "http://localhost:5173/payment-return",
+                                                "Parking payment"),
+                                "127.0.0.1");
+
+                assertTrue(response.paymentUrl().contains(
+                                "vnp_ReturnUrl=http%3A%2F%2Flocalhost%3A5173%2Fpayment-return"));
+        }
+
+        @Test
         void personalQrEndpointAutomaticallyUsesVnpayWhenConfigured() {
                 PaymentService paymentService = mock(PaymentService.class);
                 when(paymentService.create(any())).thenReturn(new PaymentResponse(
