@@ -96,7 +96,7 @@ class PaymentGatewayServiceTest {
         }
 
         @Test
-        void usesRequestReturnUrlWhenCreatingVnpayPayment() {
+        void usesConfiguredReturnUrlWhenCreatingVnpayPayment() {
                 PaymentService paymentService = mock(PaymentService.class);
                 when(paymentService.create(any())).thenReturn(new PaymentResponse(
                                 1L, 9L, new BigDecimal("70000"), "VNPAY",
@@ -123,7 +123,7 @@ class PaymentGatewayServiceTest {
                                 "127.0.0.1");
 
                 assertTrue(response.paymentUrl().contains(
-                                "vnp_ReturnUrl=http%3A%2F%2Flocalhost%3A5173%2Fpayment-return"));
+                                "vnp_ReturnUrl=https%3A%2F%2Fmerchant.example%2Fapi%2Fpayment-gateways%2Fvnpay%2Freturn"));
         }
 
         @Test

@@ -7,8 +7,11 @@ import com.example.pricing_calculation.service.ResourceNotFoundException;
 import com.example.pricing_calculation.service.PaymentGatewayService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Map;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.servlet.view.RedirectView;
+import org.springframework.web.util.UriComponentsBuilder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -33,14 +36,17 @@ public class PaymentGatewayController {
     private final PaymentModuleAuthService authService;
     private final PaymentModuleParkingSessionRepository sessions;
     private final AuditLogService auditLogService;
+    private final String frontendUrl;
 
     public PaymentGatewayController(PaymentGatewayService paymentGatewayService, PaymentModuleAuthService authService,
             PaymentModuleParkingSessionRepository sessions,
-            AuditLogService auditLogService) {
+            AuditLogService auditLogService,
+            @Value("${app.frontend-url:http://localhost:5173}") String frontendUrl) {
         this.paymentGatewayService = paymentGatewayService;
         this.authService = authService;
         this.sessions = sessions;
         this.auditLogService = auditLogService;
+        this.frontendUrl = frontendUrl;
     }
 
     private UserAccount authorize(String header, Long sessionId) {
@@ -88,7 +94,17 @@ public class PaymentGatewayController {
     }
 
     @GetMapping("/vnpay/return")
-    public PaymentGatewayResponse vnpayReturn(@RequestParam Map<String, String> parameters) {
+    public RedirectView vnpayReturn(@RequestParam Map<String, String> parameters) {
+        paymentGatewayService.processVnpayCallback(parameters);
+        UriComponentsBuilder redirect = UriComponentsBuilder
+                .fromUriString(frontendBaseUrl())
+                .path("/payment-return");
+        parameters.forEach(redirect::queryParam);
+        return new RedirectView(redirect.build().toUriString());
+    }
+
+    @GetMapping("/vnpay/verify")
+    public PaymentGatewayResponse vnpayVerify(@RequestParam Map<String, String> parameters) {
         return paymentGatewayService.processVnpayCallback(parameters);
     }
 
@@ -103,6 +119,14 @@ public class PaymentGatewayController {
             String code = exception.getMessage() != null && exception.getMessage().contains("amount") ? "04" : "97";
             return Map.of("RspCode", code, "Message", exception.getMessage());
         }
+    }
+
+    private String frontendBaseUrl() {
+        String firstUrl = frontendUrl == null ? "" : frontendUrl.split(",")[0].trim();
+        if (firstUrl.isBlank()) {
+            return "http://localhost:5173";
+        }
+        return firstUrl.endsWith("/") ? firstUrl.substring(0, firstUrl.length() - 1) : firstUrl;
     }
 }
 

@@ -85,7 +85,7 @@ public class PaymentGatewayService {
                 request.sessionId(), request.amount(), "VNPAY", LocalDateTime.now(),
                 "PENDING", "VNPAY", referenceCode));
         String paymentUrl = buildVnpayPaymentUrl(
-                referenceCode, payment.amount(), request.orderInfo(), request.returnUrl(), clientIp);
+                referenceCode, payment.amount(), request.orderInfo(), clientIp);
         PaymentGatewayResponse response = new PaymentGatewayResponse(
                 "VNPAY", payment.id(), referenceCode, payment.status(), paymentUrl,
                 paymentUrl, "VNPay sandbox payment created", payment, null,
@@ -110,7 +110,6 @@ public class PaymentGatewayService {
                 referenceCode,
                 pass.totalAmount(),
                 "Monthly pass #" + pass.id(),
-                null,
                 clientIp);
         PaymentGatewayResponse response = new PaymentGatewayResponse(
                 "VNPAY", null, referenceCode, "PENDING", paymentUrl, paymentUrl,
@@ -255,7 +254,7 @@ public class PaymentGatewayService {
     }
 
     private String buildVnpayPaymentUrl(
-            String referenceCode, BigDecimal amount, String requestedOrderInfo, String requestedReturnUrl, String clientIp) {
+            String referenceCode, BigDecimal amount, String requestedOrderInfo, String clientIp) {
         ZonedDateTime now = ZonedDateTime.now(VIETNAM_ZONE);
         Map<String, String> parameters = new TreeMap<>();
         parameters.put("vnp_Version", "2.1.0");
@@ -267,7 +266,7 @@ public class PaymentGatewayService {
         parameters.put("vnp_OrderInfo", normalizeOrderInfo(requestedOrderInfo, referenceCode));
         parameters.put("vnp_OrderType", "other");
         parameters.put("vnp_Locale", "vn");
-        parameters.put("vnp_ReturnUrl", normalizeReturnUrl(requestedReturnUrl));
+        parameters.put("vnp_ReturnUrl", vnpayReturnUrl.trim());
         parameters.put("vnp_IpAddr", normalizeIp(clientIp));
         parameters.put("vnp_CreateDate", VNPAY_DATE.format(now));
         parameters.put("vnp_ExpireDate", VNPAY_DATE.format(now.plusMinutes(15)));
@@ -362,13 +361,6 @@ public class PaymentGatewayService {
         }
         String normalized = orderInfo.trim().replaceAll("[^\\p{L}\\p{N} ._-]", "");
         return normalized.isBlank() ? "Parking payment " + referenceCode : normalized;
-    }
-
-    private String normalizeReturnUrl(String requestedReturnUrl) {
-        if (requestedReturnUrl == null || requestedReturnUrl.isBlank()) {
-            return vnpayReturnUrl.trim();
-        }
-        return requestedReturnUrl.trim();
     }
 
     private String normalizeIp(String clientIp) {
