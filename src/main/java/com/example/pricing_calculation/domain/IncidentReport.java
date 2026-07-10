@@ -21,8 +21,8 @@ public class IncidentReport {
     @Column(name = "incident_id")
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "session_id")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "session_id", nullable = true)
     private PaymentModuleParkingSession session;
 
     @ManyToOne(fetch = FetchType.LAZY)

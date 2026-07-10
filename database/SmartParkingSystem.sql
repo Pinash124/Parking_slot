@@ -159,7 +159,7 @@ CREATE TABLE Violations(
 
 CREATE TABLE IncidentReports(
     incident_id BIGINT IDENTITY(1,1) PRIMARY KEY,
-    session_id BIGINT NOT NULL,
+    session_id BIGINT NULL,
     reported_by BIGINT NULL,
     incident_type VARCHAR(100),
     description NVARCHAR(MAX),
@@ -172,7 +172,7 @@ CREATE TABLE IncidentReports(
 CREATE TABLE Feedbacks(
     feedback_id BIGINT IDENTITY(1,1) PRIMARY KEY,
     user_id BIGINT NOT NULL,
-    session_id BIGINT NOT NULL,
+    session_id BIGINT NULL,
     rating INT,
     content NVARCHAR(MAX),
     created_at DATETIME2 DEFAULT GETDATE(),

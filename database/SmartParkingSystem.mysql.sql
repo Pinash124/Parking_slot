@@ -211,7 +211,7 @@ CREATE TABLE Violations (
 
 CREATE TABLE IncidentReports (
     incident_id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    session_id BIGINT NOT NULL,
+    session_id BIGINT NULL,
     reported_by BIGINT NULL,
     incident_type VARCHAR(100),
     description LONGTEXT,
@@ -226,7 +226,7 @@ CREATE TABLE IncidentReports (
 CREATE TABLE Feedbacks (
     feedback_id BIGINT AUTO_INCREMENT PRIMARY KEY,
     user_id BIGINT NOT NULL,
-    session_id BIGINT NOT NULL,
+    session_id BIGINT NULL,
     rating INT,
     content LONGTEXT,
     created_at DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6),

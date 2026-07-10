@@ -24,8 +24,8 @@ public class Feedback {
     @JoinColumn(name = "user_id")
     private UserAccount user;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "session_id")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "session_id", nullable = true)
     private PaymentModuleParkingSession session;
 
     @Column(name = "feedback_type", length = 50)

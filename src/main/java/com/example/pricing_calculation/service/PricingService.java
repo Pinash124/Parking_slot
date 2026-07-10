@@ -20,8 +20,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class PricingService {
 
-    private static final BigDecimal CAR_MONTHLY_RATE = BigDecimal.valueOf(500000);
-
     private final PaymentModulePricingPolicyRepository pricingPolicyRepository;
     private final PaymentModuleVehicleTypeRepository vehicleTypeRepository;
     private final VehicleRepository vehicleRepository;
@@ -104,8 +102,10 @@ public class PricingService {
         }
         VehicleTypeEntity vehicleType = vehicleTypeRepository.findById(vehicleTypeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Vehicle type not found: " + vehicleTypeId));
-        if (VehicleTypeClassifier.isCar(vehicleType)) {
-            return CAR_MONTHLY_RATE.setScale(2, RoundingMode.HALF_UP);
+        LocalDateTime effectiveAt = atTime == null ? LocalDateTime.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh")) : atTime;
+        PaymentModulePricingPolicy policy = findPolicy(vehicleTypeId, effectiveAt);
+        if (policy != null && policy.getMonthlyRate() != null && policy.getMonthlyRate().compareTo(BigDecimal.ZERO) > 0) {
+            return policy.getMonthlyRate().setScale(2, RoundingMode.HALF_UP);
         }
         return firstPositive(vehicleType.getMonthlyRate(), BigDecimal.ZERO);
     }

@@ -24,6 +24,9 @@ public class FeedbackService {
             "WRONG_FEE",
             "HARD_TO_FIND_VEHICLE",
             "OCCUPIED_SLOT",
+            "INCIDENT",
+            "COMPLAINT",
+            "SUGGESTION",
             "OTHER"
     );
 
@@ -46,10 +49,13 @@ public class FeedbackService {
     @Transactional
     public FeedbackResponse create(UserAccount user, FeedbackCreateRequest request) {
         validate(request);
-        PaymentModuleParkingSession session = parkingSessionRepository.findById(request.sessionId())
-                .orElseThrow(() -> new ResourceNotFoundException("Parking session not found: " + request.sessionId()));
-        if (!session.getVehicle().getUser().getId().equals(user.getId())) {
-            throw new ForbiddenException("Parking session does not belong to current user");
+        PaymentModuleParkingSession session = null;
+        if (request.sessionId() != null) {
+            session = parkingSessionRepository.findById(request.sessionId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Parking session not found: " + request.sessionId()));
+            if (!session.getVehicle().getUser().getId().equals(user.getId())) {
+                throw new ForbiddenException("Parking session does not belong to current user");
+            }
         }
         String type = normalizeType(request.feedbackType());
 
@@ -63,15 +69,16 @@ public class FeedbackService {
         feedback.setCreatedAt(LocalDateTime.now());
         Feedback saved = feedbackRepository.save(feedback);
 
-        IncidentReport incident = new IncidentReport();
-        incident.setSession(session);
-        incident.setReportedBy(user);
-        incident.setIncidentType(type);
-        incident.setDescription(request.content());
-        incident.setStatus("OPEN");
-        incident.setCreatedAt(LocalDateTime.now());
-        incidentReportRepository.save(incident);
-
+        if (session != null || "INCIDENT".equals(type)) {
+            IncidentReport incident = new IncidentReport();
+            incident.setSession(session);
+            incident.setReportedBy(user);
+            incident.setIncidentType(type);
+            incident.setDescription(request.content());
+            incident.setStatus("OPEN");
+            incident.setCreatedAt(LocalDateTime.now());
+            incidentReportRepository.save(incident);
+        }
         auditLogService.record(user, "CREATE_FEEDBACK", "Feedback", saved.getId());
         return FeedbackResponse.from(saved);
     }
@@ -95,9 +102,6 @@ public class FeedbackService {
     private void validate(FeedbackCreateRequest request) {
         if (request == null) {
             throw new BadRequestException("Feedback request is required");
-        }
-        if (request.sessionId() == null) {
-            throw new BadRequestException("sessionId is required");
         }
         String type = normalizeType(request.feedbackType());
         if (!SUPPORTED_TYPES.contains(type)) {
