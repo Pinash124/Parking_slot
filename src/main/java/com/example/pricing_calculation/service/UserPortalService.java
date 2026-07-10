@@ -129,18 +129,6 @@ public class UserPortalService {
     public MonthlyParkingPassPaymentInstructionResponse prepareMonthlyPassOnlinePayment(
             UserAccount user,
             Long id) {
-        if (paymentGatewayService.isVnpayConfigured()) {
-            PaymentGatewayResponse gateway = paymentGatewayService.createMonthlyPassVnpayPayment(user, id, "127.0.0.1");
-            MonthlyParkingPassResponse pass = monthlyPassService.getForUser(user, id);
-            return new MonthlyParkingPassPaymentInstructionResponse(
-                    pass,
-                    "ONLINE_QR",
-                    gateway.referenceCode(),
-                    gateway.amount(),
-                    gateway.paymentUrl(),
-                    "VNPAY:" + gateway.referenceCode(),
-                    LocalDateTime.now());
-        }
         return monthlyPassService.prepareOnlinePayment(user, id);
     }
 

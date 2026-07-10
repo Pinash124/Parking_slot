@@ -32,7 +32,8 @@ class MonthlyParkingPassServiceTest {
         VehicleRepository vehicles = mock(VehicleRepository.class);
         PaymentModuleParkingSlotRepository slots = mock(PaymentModuleParkingSlotRepository.class);
         PricingService pricing = mock(PricingService.class);
-        MonthlyParkingPassService service = new MonthlyParkingPassService(passes, vehicles, slots, pricing);
+        MonthlyParkingPassService service = new MonthlyParkingPassService(
+                passes, vehicles, slots, pricing, "/payment/vnpay-personal-qr.png");
         UserAccount user = mock(UserAccount.class);
         Vehicle vehicle = mock(Vehicle.class);
         VehicleTypeEntity type = mock(VehicleTypeEntity.class);
@@ -54,7 +55,8 @@ class MonthlyParkingPassServiceTest {
         VehicleRepository vehicles = mock(VehicleRepository.class);
         PaymentModuleParkingSlotRepository slots = mock(PaymentModuleParkingSlotRepository.class);
         PricingService pricing = mock(PricingService.class);
-        MonthlyParkingPassService service = new MonthlyParkingPassService(passes, vehicles, slots, pricing);
+        MonthlyParkingPassService service = new MonthlyParkingPassService(
+                passes, vehicles, slots, pricing, "/payment/vnpay-personal-qr.png");
 
         UserAccount user = mock(UserAccount.class);
         Vehicle vehicle = mock(Vehicle.class);
@@ -97,7 +99,8 @@ class MonthlyParkingPassServiceTest {
         VehicleRepository vehicles = mock(VehicleRepository.class);
         PaymentModuleParkingSlotRepository slots = mock(PaymentModuleParkingSlotRepository.class);
         PricingService pricing = mock(PricingService.class);
-        MonthlyParkingPassService service = new MonthlyParkingPassService(passes, vehicles, slots, pricing);
+        MonthlyParkingPassService service = new MonthlyParkingPassService(
+                passes, vehicles, slots, pricing, "/payment/vnpay-personal-qr.png");
         MonthlyParkingPass pass = mock(MonthlyParkingPass.class);
         PaymentModuleParkingSlot slot = mock(PaymentModuleParkingSlot.class);
         when(pass.getPaymentStatus()).thenReturn("PENDING");

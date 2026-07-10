@@ -127,10 +127,10 @@ class PaymentGatewayServiceTest {
         }
 
         @Test
-        void personalQrEndpointAutomaticallyUsesVnpayWhenConfigured() {
+        void personalQrEndpointKeepsManualQrWhenVnpayConfigured() {
                 PaymentService paymentService = mock(PaymentService.class);
                 when(paymentService.create(any())).thenReturn(new PaymentResponse(
-                                128L, 9L, new BigDecimal("70000"), "VNPAY",
+                                128L, 9L, new BigDecimal("70000"), "PERSONAL_QR",
                                 LocalDateTime.now(), "PENDING"));
                 PaymentGatewayService service = new PaymentGatewayService(
                                 paymentService,
@@ -148,10 +148,11 @@ class PaymentGatewayServiceTest {
                 PaymentGatewayResponse response = service.createPersonalQrPayment(
                                 new PaymentGatewayRequest(9L, new BigDecimal("70000"), null, "Parking payment"));
 
-                assertEquals("VNPAY", response.gateway());
-                assertEquals(response.paymentUrl(), response.qrContent());
-                assertTrue(response.qrImageUrl().contains("api.qrserver.com"));
-                assertTrue(response.referenceCode().startsWith("VNPAY"));
+                assertEquals("PERSONAL_QR", response.gateway());
+                assertEquals("PENDING", response.status());
+                assertEquals("/payment/vnpay-personal-qr.png", response.qrImageUrl());
+                assertEquals("PARKING-128", response.transferContent());
+                assertTrue(response.referenceCode().startsWith("PERSONALQR"));
         }
 
         @Test

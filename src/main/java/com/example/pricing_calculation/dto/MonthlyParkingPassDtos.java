@@ -23,6 +23,8 @@ public final class MonthlyParkingPassDtos {
             BigDecimal amount,
             String qrContent,
             String billContent,
+            String qrImageUrl,
+            String transferContent,
             LocalDateTime createdAt
     ) { }
 

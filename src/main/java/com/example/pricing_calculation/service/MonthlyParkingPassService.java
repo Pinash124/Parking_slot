@@ -19,6 +19,7 @@ import java.time.ZoneId;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,13 +32,16 @@ public class MonthlyParkingPassService {
     private final VehicleRepository vehicles;
     private final PaymentModuleParkingSlotRepository slots;
     private final PricingService pricing;
+    private final String personalQrImageUrl;
 
     public MonthlyParkingPassService(MonthlyParkingPassRepository passes, VehicleRepository vehicles,
-            PaymentModuleParkingSlotRepository slots, PricingService pricing) {
+            PaymentModuleParkingSlotRepository slots, PricingService pricing,
+            @Value("${personal-qr.image-url:/payment/vnpay-personal-qr.png}") String personalQrImageUrl) {
         this.passes = passes;
         this.vehicles = vehicles;
         this.slots = slots;
         this.pricing = pricing;
+        this.personalQrImageUrl = personalQrImageUrl;
     }
 
     @Transactional(readOnly = true)
@@ -141,6 +145,8 @@ public class MonthlyParkingPassService {
                 saved.getTotalAmount(),
                 qrContent,
                 null,
+                personalQrImageUrl,
+                referenceCode,
                 saved.getUpdatedAt()
         );
     }

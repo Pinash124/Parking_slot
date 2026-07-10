@@ -124,9 +124,6 @@ public class PaymentGatewayService {
     @Transactional
     public PaymentGatewayResponse createPersonalQrPayment(PaymentGatewayRequest request) {
         validateRequest(request);
-        if (isVnpayConfigured() && request.amount() != null && request.amount().compareTo(BigDecimal.ZERO) > 0) {
-            return createVnpayPayment(request, "127.0.0.1");
-        }
         String referenceCode = buildReferenceCode("PERSONALQR");
         PaymentResponse payment = paymentService.create(new PaymentCreateRequest(
                 request.sessionId(), request.amount(), "PERSONAL_QR", LocalDateTime.now(),
