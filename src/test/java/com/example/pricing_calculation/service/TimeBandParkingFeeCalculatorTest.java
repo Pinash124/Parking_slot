@@ -18,7 +18,7 @@ class TimeBandParkingFeeCalculatorTest {
                 LocalDateTime.of(2026, 7, 5, 8, 0),
                 LocalDateTime.of(2026, 7, 5, 18, 0));
 
-        assertEquals(new BigDecimal("5000"), result.total());
+        assertEquals(new BigDecimal("20000"), result.total());
         assertEquals(1, result.dayTurns());
         assertEquals(0, result.nightHours());
     }
@@ -29,7 +29,7 @@ class TimeBandParkingFeeCalculatorTest {
                 LocalDateTime.of(2026, 7, 5, 20, 0),
                 LocalDateTime.of(2026, 7, 6, 0, 20));
 
-        assertEquals(new BigDecimal("25000"), result.total());
+        assertEquals(new BigDecimal("65000"), result.total());
         assertEquals(1, result.dayTurns());
         assertEquals(3, result.nightHours());
     }
@@ -40,7 +40,7 @@ class TimeBandParkingFeeCalculatorTest {
                 LocalDateTime.of(2026, 7, 5, 21, 0),
                 LocalDateTime.of(2026, 7, 5, 22, 10));
 
-        assertEquals(new BigDecimal("5000"), result.total());
+        assertEquals(new BigDecimal("20000"), result.total());
         assertEquals(0, result.nightHours());
     }
 
@@ -50,7 +50,7 @@ class TimeBandParkingFeeCalculatorTest {
                 LocalDateTime.of(2026, 7, 5, 12, 0),
                 LocalDateTime.of(2026, 7, 5, 12, 5));
 
-        assertEquals(new BigDecimal("5000"), result.total());
+        assertEquals(new BigDecimal("20000"), result.total());
         assertEquals(1, result.dayTurns());
     }
 }

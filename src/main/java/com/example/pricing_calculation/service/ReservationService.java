@@ -1,4 +1,4 @@
-package com.example.pricing_calculation.service;
+﻿package com.example.pricing_calculation.service;
 
 import com.example.pricing_calculation.domain.PaymentModuleParkingSlot;
 import com.example.pricing_calculation.domain.Reservation;
@@ -41,12 +41,14 @@ public class ReservationService {
             VehicleRepository vehicleRepository,
             ZoneRepository zoneRepository,
             PaymentModuleParkingSlotRepository parkingSlotRepository,
+            MonthlyParkingPassRepository monthlyParkingPassRepository,
             RealtimeEventService realtimeEventService) {
         this.reservationRepository = reservationRepository;
         this.userAccountRepository = userAccountRepository;
         this.vehicleRepository = vehicleRepository;
         this.zoneRepository = zoneRepository;
         this.parkingSlotRepository = parkingSlotRepository;
+        this.monthlyParkingPassRepository = monthlyParkingPassRepository;
         this.realtimeEventService = realtimeEventService;
     }
 
@@ -63,6 +65,10 @@ public class ReservationService {
                 .orElseThrow(() -> new ResourceNotFoundException("Parking slot not found: " + request.slotId()));
         if (!vehicle.getUser().getId().equals(user.getId())) {
             throw new BadRequestException("Vehicle does not belong to selected user");
+        }
+        if (monthlyParkingPassRepository.existsByVehicleIdAndStatusIn(vehicle.getId(),
+                List.of("ACTIVE", "SCHEDULED", "PENDING_PAYMENT"))) {
+            throw new BadRequestException("Vehicle already has a monthly pass and cannot make reservations");
         }
         if (!VehicleTypeClassifier.isCar(vehicle.getVehicleType())) {
             throw new BadRequestException("Only cars can reserve a parking slot");

@@ -11,6 +11,7 @@ import com.example.pricing_calculation.domain.UserAccount;
 import com.example.pricing_calculation.domain.UserRole;
 import com.example.pricing_calculation.repository.BuildingRepository;
 import com.example.pricing_calculation.repository.FloorRepository;
+import com.example.pricing_calculation.repository.PaymentModulePricingPolicyRepository;
 import com.example.pricing_calculation.repository.PaymentModuleVehicleTypeRepository;
 import com.example.pricing_calculation.repository.UserAccountRepository;
 import com.example.pricing_calculation.repository.ZoneRepository;
@@ -27,12 +28,13 @@ class BootstrapAdminInitializerTest {
         BuildingRepository buildings = mock(BuildingRepository.class);
         FloorRepository floors = mock(FloorRepository.class);
         PaymentModuleVehicleTypeRepository vehicleTypes = mock(PaymentModuleVehicleTypeRepository.class);
+        PaymentModulePricingPolicyRepository pricingPolicies = mock(PaymentModulePricingPolicyRepository.class);
         ZoneRepository zones = mock(ZoneRepository.class);
         when(users.existsByEmailIgnoreCase("admin@smartparking.local")).thenReturn(false);
         when(passwords.hash("Admin@12345")).thenReturn("hashed-password");
 
         new BootstrapAdminInitializer(
-                users, passwords, buildings, floors, vehicleTypes, zones,
+                users, passwords, buildings, floors, vehicleTypes, pricingPolicies, zones,
                 " Admin@SmartParking.Local ", "Admin@12345").run();
 
         ArgumentCaptor<UserAccount> captor = ArgumentCaptor.forClass(UserAccount.class);
@@ -51,11 +53,12 @@ class BootstrapAdminInitializerTest {
         BuildingRepository buildings = mock(BuildingRepository.class);
         FloorRepository floors = mock(FloorRepository.class);
         PaymentModuleVehicleTypeRepository vehicleTypes = mock(PaymentModuleVehicleTypeRepository.class);
+        PaymentModulePricingPolicyRepository pricingPolicies = mock(PaymentModulePricingPolicyRepository.class);
         ZoneRepository zones = mock(ZoneRepository.class);
         when(users.existsByEmailIgnoreCase("admin@smartparking.local")).thenReturn(true);
 
         new BootstrapAdminInitializer(
-                users, passwords, buildings, floors, vehicleTypes, zones,
+                users, passwords, buildings, floors, vehicleTypes, pricingPolicies, zones,
                 "admin@smartparking.local", "Admin@12345").run();
 
         verify(users, never()).save(any());
