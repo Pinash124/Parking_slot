@@ -21,6 +21,8 @@ public interface PaymentModuleParkingSessionRepository extends
     long countByStatusIgnoreCase(String status);
 
     Optional<PaymentModuleParkingSession> findByTicketCodeIgnoreCase(String ticketCode);
+    Optional<PaymentModuleParkingSession> findFirstByTicketCodeIgnoreCaseOrderByEntryTimeDesc(String ticketCode);
+    Optional<PaymentModuleParkingSession> findFirstByVehicleIdOrderByEntryTimeDesc(Long vehicleId);
 
     Optional<PaymentModuleParkingSession> findFirstByVehiclePlateNumberIgnoreCaseOrderByEntryTimeDesc(String plateNumber);
     Optional<PaymentModuleParkingSession> findFirstByVehicleUserIdAndStatusInOrderByEntryTimeDesc(Long userId, List<String> statuses);

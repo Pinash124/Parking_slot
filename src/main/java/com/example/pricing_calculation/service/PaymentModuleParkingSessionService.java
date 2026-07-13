@@ -80,8 +80,19 @@ public class PaymentModuleParkingSessionService {
         if (request == null) {
             throw new BadRequestException("Check-in request is required");
         }
+        LocalDateTime entryTime = request.entryTime() == null
+                ? LocalDateTime.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh"))
+                : request.entryTime();
+
         Vehicle vehicle = null;
-        if (request.vehicleId() != null) {
+        if (request.reservationId() != null && request.vehicleId() == null) {
+            Reservation reservation = reservationRepository.findById(request.reservationId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Reservation not found: " + request.reservationId()));
+            if (reservation.getVehicle() == null) {
+                throw new BadRequestException("Reservation vehicle is required for check-in");
+            }
+            vehicle = reservation.getVehicle();
+        } else if (request.vehicleId() != null) {
             vehicle = vehicleRepository.findById(request.vehicleId())
                     .orElseThrow(() -> new ResourceNotFoundException("Vehicle not found: " + request.vehicleId()));
         } else if (request.licensePlate() != null && !request.licensePlate().isBlank()) {
@@ -112,21 +123,25 @@ public class PaymentModuleParkingSessionService {
             throw new BadRequestException("vehicleId or licensePlate is required");
         }
 
-        LocalDateTime entryTime = request.entryTime() == null
-                ? LocalDateTime.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh"))
-                : request.entryTime();
-        MonthlyParkingPass monthlyPass = findActiveMonthlyPass(vehicle.getId(), entryTime);
-        ReservationResolution reservationResolution = monthlyPass == null
-                ? resolveReservation(request, vehicle, entryTime)
-                : new ReservationResolution(null, false);
+        ReservationResolution reservationResolution = resolveReservation(request, vehicle, entryTime);
         Reservation reservation = reservationResolution.reservation();
-        Long slotId = monthlyPass != null && monthlyPass.getReservedSlot() != null
-                ? monthlyPass.getReservedSlot().getId()
-                : reservation != null
-                        ? reservation.getReservedSlot() != null
-                                ? reservation.getReservedSlot().getId()
-                                : randomAvailableSlotIdForReservation(vehicle.getVehicleType().getId(), reservation.getZone().getId())
-                        : reservationResolution.invalidated() ? null : request.slotId();
+        MonthlyParkingPass monthlyPass = reservation == null && !reservationResolution.invalidated()
+                ? findActiveMonthlyPass(vehicle.getId(), entryTime)
+                : null;
+        Long slotId;
+        if (monthlyPass != null && monthlyPass.getReservedSlot() != null) {
+            slotId = monthlyPass.getReservedSlot().getId();
+        } else if (reservation != null) {
+            if (reservation.getReservedSlot() != null) {
+                slotId = reservation.getReservedSlot().getId();
+            } else if (request.slotId() != null) {
+                slotId = request.slotId();
+            } else {
+                throw new BadRequestException("Reservation does not have a selected parking slot");
+            }
+        } else {
+            slotId = reservationResolution.invalidated() ? null : request.slotId();
+        }
         if (slotId == null) {
             slotId = randomAvailableSlotIdForWalkIn(vehicle.getVehicleType().getId(), entryTime);
         }
@@ -134,8 +149,8 @@ public class PaymentModuleParkingSessionService {
         PaymentModuleParkingSlot slot = parkingSlotRepository.findByIdForUpdate(selectedSlotId)
                 .orElseThrow(() -> new ResourceNotFoundException("Parking slot not found: " + selectedSlotId));
         boolean assignedReservationSlot = reservation != null
-                && reservation.getReservedSlot() != null
-                && reservation.getReservedSlot().getId().equals(slot.getId());
+                && ((reservation.getReservedSlot() != null && reservation.getReservedSlot().getId().equals(slot.getId()))
+                || (reservation.getReservedSlot() == null && request.slotId() != null && request.slotId().equals(slot.getId())));
         boolean assignedMonthlySlot = monthlyPass != null
                 && monthlyPass.getReservedSlot() != null
                 && monthlyPass.getReservedSlot().getId().equals(slot.getId());
@@ -172,7 +187,10 @@ public class PaymentModuleParkingSessionService {
                 throw new BadRequestException("Selected slot is outside the reserved zone");
             }
             if (reservation.getReservedSlot() != null && !reservation.getReservedSlot().getId().equals(slot.getId())) {
-                throw new BadRequestException("Check-in must use the legacy slot assigned to the reservation");
+                throw new BadRequestException("Check-in must use the slot selected in the reservation");
+            }
+            if (reservation.getReservedSlot() == null) {
+                reservation.setReservedSlot(slot);
             }
             if (!"PENDING".equalsIgnoreCase(reservation.getStatus())
                     && !"APPROVED".equalsIgnoreCase(reservation.getStatus())) {
@@ -232,9 +250,12 @@ public class PaymentModuleParkingSessionService {
         }
         LocalDateTime earliest = reservation.getStartTime().minusMinutes(rules.getReservationEarlyMinutes());
         LocalDateTime latest = reservation.getStartTime().plusMinutes(rules.getReservationLateMinutes());
-        if (entryTime.isBefore(earliest) || entryTime.isAfter(latest)) {
+        if (entryTime.isBefore(earliest)) {
+            throw new BadRequestException("Reservation check-in is too early; selected slot remains reserved");
+        }
+        if (entryTime.isAfter(latest)) {
             cancelReservationForArrival(reservation);
-            return new ReservationResolution(null, true);
+            throw new BadRequestException("Reservation check-in window has expired");
         }
         return new ReservationResolution(reservation, false);
     }
@@ -304,6 +325,28 @@ public class PaymentModuleParkingSessionService {
 
     private record ReservationResolution(Reservation reservation, boolean invalidated) { }
 
+    @Transactional(readOnly = true)
+    public ParkingSessionResponse lookupForGate(String query) {
+        if (query == null || query.isBlank()) {
+            throw new BadRequestException("Lookup query is required");
+        }
+        String term = query.trim().toUpperCase();
+        java.util.Optional<PaymentModuleParkingSession> matched = java.util.Optional.empty();
+        if (term.matches("^\\d+$")) {
+            matched = parkingSessionRepository.findById(Long.parseLong(term));
+        }
+        if (matched.isEmpty()) {
+            matched = parkingSessionRepository.findFirstByTicketCodeIgnoreCaseOrderByEntryTimeDesc(term);
+        }
+        if (matched.isEmpty()) {
+            Vehicle vehicle = findVehicleByNormalizedPlate(term);
+            if (vehicle != null) {
+                matched = parkingSessionRepository.findFirstByVehicleIdOrderByEntryTimeDesc(vehicle.getId());
+            }
+        }
+        return matched.map(ParkingSessionResponse::from)
+                .orElseThrow(() -> new ResourceNotFoundException("Parking session not found for query: " + term));
+    }
     @Transactional(readOnly = true)
     public ParkingSessionResponse getById(Long id) {
         return ParkingSessionResponse.from(findSession(id));
@@ -378,10 +421,7 @@ public class PaymentModuleParkingSessionService {
         if (opt.isPresent()) {
             return opt.get();
         }
-        return vehicleRepository.findAll().stream()
-                .filter(v -> v.getPlateNumber() != null && v.getPlateNumber().replaceAll("[^A-Za-z0-9]", "").equalsIgnoreCase(target))
-                .findFirst()
-                .orElse(null);
+        return vehicleRepository.findByNormalizedPlate(target).orElse(null);
     }
 
     private String generateTicketCode() {

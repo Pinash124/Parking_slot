@@ -68,6 +68,11 @@ public class PaymentModuleParkingSessionController {
         return parkingSessionService.list(status);
     }
 
+    @GetMapping("/lookup")
+    public ParkingSessionResponse lookup(@RequestHeader("Authorization") String header, @RequestParam String query) {
+        staff(header);
+        return parkingSessionService.lookupForGate(query);
+    }
     @GetMapping("/{id}")
     public ParkingSessionResponse getById(@RequestHeader("Authorization") String header, @PathVariable Long id) {
         staff(header);

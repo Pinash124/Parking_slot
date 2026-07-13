@@ -22,6 +22,8 @@ public interface MonthlyParkingPassRepository extends JpaRepository<MonthlyParki
 
     List<MonthlyParkingPass> findByVehicleIdOrderByCreatedAtDesc(Long vehicleId);
 
+    boolean existsByVehicleIdAndStatusIn(Long vehicleId, java.util.Collection<String> statuses);
+
     @EntityGraph(attributePaths = {
             "user",
             "vehicle",

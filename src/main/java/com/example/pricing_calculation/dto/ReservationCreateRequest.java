@@ -6,6 +6,7 @@ public record ReservationCreateRequest(
         Long userId,
         Long vehicleId,
         Long zoneId,
+        Long slotId,
         LocalDateTime startTime,
         LocalDateTime endTime
 ) {
