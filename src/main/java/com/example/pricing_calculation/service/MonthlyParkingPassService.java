@@ -116,7 +116,7 @@ public class MonthlyParkingPassService {
         pass.setReservedSlot(slot);
         pass.setMonths(months);
         pass.setMonthlyRate(monthlyRate);
-        pass.setTotalAmount(monthlyRate.multiply(BigDecimal.valueOf(months)).setScale(2, RoundingMode.HALF_UP));
+        pass.setTotalAmount(calculateTotalAmount(monthlyRate, months));
         pass.setStartDate(startDate);
         pass.setEndDate(endDate);
         pass.setStatus("PENDING_PAYMENT");
@@ -127,6 +127,21 @@ public class MonthlyParkingPassService {
         slot.setStatus("MONTHLY_HELD");
         slots.save(slot);
         return MonthlyParkingPassResponse.from(passes.save(pass));
+    }
+
+    private BigDecimal calculateTotalAmount(BigDecimal monthlyRate, int months) {
+        BigDecimal discountRate = BigDecimal.ZERO;
+        if (months >= 12) {
+            discountRate = new BigDecimal("0.15");
+        } else if (months >= 6) {
+            discountRate = new BigDecimal("0.10");
+        } else if (months >= 3) {
+            discountRate = new BigDecimal("0.05");
+        }
+        return monthlyRate
+                .multiply(BigDecimal.valueOf(months))
+                .multiply(BigDecimal.ONE.subtract(discountRate))
+                .setScale(2, RoundingMode.HALF_UP);
     }
 
     @Transactional
