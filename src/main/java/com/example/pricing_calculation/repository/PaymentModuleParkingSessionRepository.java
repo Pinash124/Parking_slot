@@ -30,4 +30,21 @@ public interface PaymentModuleParkingSessionRepository extends
     List<PaymentModuleParkingSession> findAllByOrderByEntryTimeDesc();
     List<PaymentModuleParkingSession> findByStatusIgnoreCaseOrderByEntryTimeDesc(String status);
     long countByVehicleIdAndStatusIn(Long vehicleId, List<String> statuses);
+
+
+    @Query("""
+            select count(session)
+            from PaymentModuleParkingSession session
+            join session.vehicle vehicle
+            join vehicle.vehicleType vehicleType
+            where upper(session.status) in :statuses
+              and (
+                    vehicleType.wheelCount = 2
+                    or lower(vehicleType.name) like '%motor%'
+                    or lower(vehicleType.name) like '%bike%'
+                    or lower(vehicleType.name) like '%xe may%'
+                    or lower(vehicleType.name) like '%2 banh%'
+              )
+            """)
+    long countActiveTwoWheelSessions(@Param("statuses") List<String> statuses);
 }

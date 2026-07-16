@@ -135,11 +135,18 @@ public class PricingService {
         
         int wheelCount = VehicleTypeClassifier.wheelCount(vehicleType);
         TimeBandParkingFeeCalculator.Result timeBandFee = timeBandCalculator.calculate(
-                wheelCount, entryTime, exitTime);
+                wheelCount,
+                entryTime,
+                exitTime,
+                policy != null ? policy.getDailyRate() : null,
+                policy != null ? policy.getDailyBillingMode() : null,
+                policy != null ? policy.getDailyBillingBlockHours() : null,
+                policy != null ? policy.getHourlyRate() : null,
+                policy != null ? policy.getHourlyBillingMode() : null,
+                policy != null ? policy.getHourlyBillingBlockHours() : null);
         BigDecimal hourlyRate = timeBandFee.nightHourlyRate();
         BigDecimal dailyRate = timeBandFee.dayTurnRate();
         BigDecimal lostTicketFee = lostTicket ? BigDecimal.valueOf(50000) : BigDecimal.ZERO;
-        BigDecimal overtimeFeeRate = BigDecimal.ZERO;
         BigDecimal fixedSurcharge = BigDecimal.ZERO;
 
         if (policy != null) {
@@ -149,10 +156,8 @@ public class PricingService {
             } else if (lostTicket) {
                 lostTicketFee = BigDecimal.valueOf(50000);
             }
-            overtimeFeeRate = firstPositive(policy.getOvertimeFee(), BigDecimal.ZERO);
         }
 
-        int safeOvertimeMinutes = Math.max(0, overtimeMinutes == null ? 0 : overtimeMinutes);
         long durationMinutes = Duration.between(entryTime, exitTime).toMinutes();
         long billableHours = timeBandFee.nightHours();
         
@@ -170,7 +175,7 @@ public class PricingService {
             totalFee = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
         } else {
             parkingFee = timeBandFee.total().setScale(2, RoundingMode.HALF_UP);
-            overtimeFee = overtimeFeeRate.multiply(BigDecimal.valueOf(safeOvertimeMinutes)).setScale(2, RoundingMode.HALF_UP);
+            overtimeFee = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
             penaltyFee = lostTicketFee;
             fixedSurchargeVal = fixedSurcharge;
             totalFee = parkingFee.add(penaltyFee).add(fixedSurchargeVal).add(overtimeFee).setScale(2, RoundingMode.HALF_UP);

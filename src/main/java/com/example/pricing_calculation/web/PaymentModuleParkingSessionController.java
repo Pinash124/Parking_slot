@@ -1,6 +1,7 @@
 package com.example.pricing_calculation.web;
 
 import com.example.pricing_calculation.dto.ParkingSessionResponse;
+import com.example.pricing_calculation.dto.FloorOccupancyResponse;
 import com.example.pricing_calculation.dto.SessionCheckInRequest;
 import com.example.pricing_calculation.dto.SessionCheckoutRequest;
 import com.example.pricing_calculation.service.PaymentModuleParkingSessionService;
@@ -73,6 +74,13 @@ public class PaymentModuleParkingSessionController {
         staff(header);
         return parkingSessionService.lookupForGate(query);
     }
+
+    @GetMapping("/floor-occupancy")
+    public java.util.List<FloorOccupancyResponse> floorOccupancy(@RequestHeader("Authorization") String header) {
+        staff(header);
+        return parkingSessionService.floorOccupancy();
+    }
+
     @GetMapping("/{id}")
     public ParkingSessionResponse getById(@RequestHeader("Authorization") String header, @PathVariable Long id) {
         staff(header);

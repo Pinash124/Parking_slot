@@ -55,6 +55,8 @@ public class UnifiedManagerController {
     @PostMapping("/pricing-policies") public PricingPolicyView createPolicy(@RequestHeader("Authorization")String h,@RequestBody PricingPolicyRequest r){manager(h);return service.savePolicy(null,r);}
     @PutMapping("/pricing-policies/{id}") public PricingPolicyView updatePolicy(@RequestHeader("Authorization")String h,@PathVariable Long id,@RequestBody PricingPolicyRequest r){manager(h);return service.savePolicy(id,r);}
     @DeleteMapping("/pricing-policies/{id}") public void deletePolicy(@RequestHeader("Authorization")String h,@PathVariable Long id){manager(h);service.deletePolicy(id);}
+    @GetMapping("/pricing-rules") public PricingRuleSettingsView pricingRules(@RequestHeader("Authorization")String h){manager(h);return service.pricingRules();}
+    @PutMapping("/pricing-rules") public PricingRuleSettingsView savePricingRules(@RequestHeader("Authorization")String h,@RequestBody PricingRuleSettingsRequest r){manager(h);return service.savePricingRules(r);}
 
     @GetMapping("/additional-services") public List<AdditionalServiceView> additionalServices(@RequestHeader("Authorization")String h){manager(h);return service.additionalServices();}
     @PostMapping("/additional-services") public AdditionalServiceView createAdditionalService(@RequestHeader("Authorization")String h,@RequestBody AdditionalServiceRequest r){manager(h);return service.saveAdditionalService(null,r);}

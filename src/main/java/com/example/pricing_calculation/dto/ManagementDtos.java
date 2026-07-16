@@ -27,15 +27,21 @@ public final class ManagementDtos {
     public record SlotView(Long id, Long zoneId, String zoneName, String zoneType, Long vehicleTypeId, String vehicleTypeName, String slotCode, String status) {
         public static SlotView from(PaymentModuleParkingSlot x) { return new SlotView(x.getId(), x.getZone().getId(), x.getZone().getZoneName(), x.getZone().getZoneType(), x.getZone().getVehicleType().getId(), x.getZone().getVehicleType().getName(), x.getSlotCode(), x.getStatus()); }
     }
-    public record PricingPolicyRequest(Long vehicleTypeId, String policyName, BigDecimal hourlyRate, BigDecimal dailyRate,
+    public record PricingPolicyRequest(Long vehicleTypeId, String policyName,
+                                       BigDecimal hourlyRate, String hourlyBillingMode, Integer hourlyBillingBlockHours,
+                                       BigDecimal dailyRate, String dailyBillingMode, Integer dailyBillingBlockHours,
                                        BigDecimal monthlyRate, BigDecimal fixedSurcharge, BigDecimal lostTicketFee, BigDecimal overtimeFee, LocalDateTime effectiveFrom,
                                        LocalDateTime effectiveTo, String status) { }
     public record PricingPolicyView(Long id, Long vehicleTypeId, String vehicleTypeName, String policyName,
-                                    BigDecimal hourlyRate, BigDecimal dailyRate, BigDecimal monthlyRate, BigDecimal fixedSurcharge, BigDecimal lostTicketFee,
+                                    BigDecimal hourlyRate, String hourlyBillingMode, Integer hourlyBillingBlockHours,
+                                    BigDecimal dailyRate, String dailyBillingMode, Integer dailyBillingBlockHours,
+                                    BigDecimal monthlyRate, BigDecimal fixedSurcharge, BigDecimal lostTicketFee,
                                     BigDecimal overtimeFee, LocalDateTime effectiveFrom, LocalDateTime effectiveTo,
                                     String status) {
-        public static PricingPolicyView from(PaymentModulePricingPolicy x) { return new PricingPolicyView(x.getId(), x.getVehicleType().getId(), x.getVehicleType().getName(), x.getPolicyName(), x.getHourlyRate(), x.getDailyRate(), x.getMonthlyRate(), x.getFixedSurcharge(), x.getLostTicketFee(), x.getOvertimeFee(), x.getEffectiveFrom(), x.getEffectiveTo(), x.getStatus()); }
+        public static PricingPolicyView from(PaymentModulePricingPolicy x) { return new PricingPolicyView(x.getId(), x.getVehicleType().getId(), x.getVehicleType().getName(), x.getPolicyName(), x.getHourlyRate(), x.getHourlyBillingMode(), x.getHourlyBillingBlockHours(), x.getDailyRate(), x.getDailyBillingMode(), x.getDailyBillingBlockHours(), x.getMonthlyRate(), x.getFixedSurcharge(), x.getLostTicketFee(), x.getOvertimeFee(), x.getEffectiveFrom(), x.getEffectiveTo(), x.getStatus()); }
     }
+    public record PricingRuleSettingsRequest(String dayStart, String nightStart) { }
+    public record PricingRuleSettingsView(String dayStart, String nightStart) { }
     public record AdditionalServiceRequest(String name, BigDecimal price, String status) { }
     public record AdditionalServiceView(Long id, String name, BigDecimal price, String status) {
         public static AdditionalServiceView from(AdditionalService x) { return new AdditionalServiceView(x.getId(), x.getName(), x.getPrice(), x.getStatus()); }

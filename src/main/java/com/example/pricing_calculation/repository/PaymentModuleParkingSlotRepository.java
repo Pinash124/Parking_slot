@@ -55,4 +55,13 @@ public interface PaymentModuleParkingSlotRepository extends JpaRepository<Paymen
             @Param("vehicleTypeId") Long vehicleTypeId,
             @Param("status") String status
     );
+
+    @Query("""
+            select count(slot)
+            from PaymentModuleParkingSlot slot
+            join slot.zone zone
+            where upper(zone.zoneType) = 'MOTORBIKE'
+              and upper(slot.status) not in ('MAINTENANCE', 'LOCKED')
+            """)
+    long countMotorbikeCapacity();
 }

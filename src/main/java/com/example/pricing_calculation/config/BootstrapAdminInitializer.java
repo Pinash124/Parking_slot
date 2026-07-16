@@ -12,16 +12,16 @@ import org.springframework.stereotype.Component;
 @Component
 public class BootstrapAdminInitializer implements CommandLineRunner {
     private static final BigDecimal MOTORBIKE_HOURLY = BigDecimal.valueOf(3000);
-    private static final BigDecimal MOTORBIKE_DAILY = BigDecimal.valueOf(20000);
+    private static final BigDecimal MOTORBIKE_DAILY = BigDecimal.valueOf(8000);
     private static final BigDecimal MOTORBIKE_MONTHLY = BigDecimal.valueOf(100000);
     private static final BigDecimal MOTORBIKE_LOST_TICKET = BigDecimal.valueOf(50000);
-    private static final BigDecimal MOTORBIKE_OVERTIME = BigDecimal.valueOf(5000);
+    private static final BigDecimal MOTORBIKE_OVERTIME = BigDecimal.ZERO;
 
     private static final BigDecimal CAR_HOURLY = BigDecimal.valueOf(5000);
-    private static final BigDecimal CAR_DAILY = BigDecimal.valueOf(50000);
+    private static final BigDecimal CAR_DAILY = BigDecimal.valueOf(35000);
     private static final BigDecimal CAR_MONTHLY = BigDecimal.valueOf(300000);
     private static final BigDecimal CAR_LOST_TICKET = BigDecimal.valueOf(100000);
-    private static final BigDecimal CAR_OVERTIME = BigDecimal.valueOf(10000);
+    private static final BigDecimal CAR_OVERTIME = BigDecimal.ZERO;
 
     private final UserAccountRepository users;
     private final PasswordHashService passwords;
