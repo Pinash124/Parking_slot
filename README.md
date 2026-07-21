@@ -1,132 +1,132 @@
 # Parking Payment System Backend
 
-Backend Spring Boot cho há»‡ thá»‘ng quáº£n lÃ½ bÃ£i Ä‘á»— xe, táº­p trung vÃ o cÃ¡c module Ä‘Æ°á»£c giao trong `PBMS_Sheet_Full.xlsx`: reservation, pricing, parking session, payment, WebSocket vÃ  dashboard.
+Backend Spring Boot cho hệ thống quản lý bãi đỗ xe, tập trung vào các module được giao trong `PBMS_Sheet_Full.xlsx`: reservation, pricing, parking session, payment, WebSocket và dashboard.
 
-## 1. Tráº¡ng thÃ¡i triá»ƒn khai
+## 1. Trạng thái triển khai
 
-CÃ¡c chá»©c nÄƒng hiá»‡n Ä‘Ã£ cÃ³ trong repository:
+Các chức năng hiện đã có trong repository:
 
-- Äáº·t chá»—, tÃ¬m kiáº¿m, phÃª duyá»‡t vÃ  há»§y reservation.
-- Check-in, táº¡o ticket, checkout vÃ  cáº­p nháº­t tráº¡ng thÃ¡i parking slot.
-- TÃ­nh phÃ­ theo giá»/ngÃ y, phÃ­ máº¥t vÃ© vÃ  phÃ­ quÃ¡ giá».
-- Thanh toÃ¡n Cash vÃ  VNPAY sandbox.
-- Tra cá»©u checkout theo biá»ƒn sá»‘, theo dÃµi tráº¡ng thÃ¡i payment vÃ  thá»i háº¡n 15 phÃºt rá»i bÃ£i.
-- XÃ¡c thá»±c payment táº¡i cá»•ng ra vÃ  tráº£ quyáº¿t Ä‘á»‹nh má»Ÿ barrier.
-- LÆ°u, tÃ¬m kiáº¿m vÃ  tá»•ng há»£p lá»‹ch sá»­ giao dá»‹ch.
-- PhÃ¡t sá»± kiá»‡n realtime báº±ng STOMP WebSocket.
-- Dashboard tá»•ng há»£p reservation, session, slot, payment, doanh thu vÃ  transaction.
-- Unit test, functional test, smoke bot vÃ  concurrent load test cho payment flow.
+- Đặt chỗ, tìm kiếm, phê duyệt và hủy reservation.
+- Check-in, tạo ticket, checkout và cập nhật trạng thái parking slot.
+- Tính phí theo giờ/ngày, phí mất vé và phí quá giờ.
+- Thanh toán Cash và VNPAY sandbox.
+- Tra cứu checkout theo biển số, theo dõi trạng thái payment và thời hạn 15 phút rời bãi.
+- Xác thực payment tại cổng ra và trả quyết định mở barrier.
+- Lưu, tìm kiếm và tổng hợp lịch sử giao dịch.
+- Phát sự kiện realtime bằng STOMP WebSocket.
+- Dashboard tổng hợp reservation, session, slot, payment, doanh thu và transaction.
+- Unit test, functional test, smoke bot và concurrent load test cho payment flow.
 
-## 2. CÃ´ng nghá»‡ vÃ  mÃ´i trÆ°á»ng
+## 2. Công nghệ và môi trường
 
-| ThÃ nh pháº§n | CÃ´ng nghá»‡ |
+| Thành phần | Công nghệ |
 |---|---|
 | Runtime | Java 17+ |
 | Framework | Spring Boot 4.1.0 |
 | REST API | Spring Web MVC |
 | Persistence | Spring Data JPA / Hibernate |
-| Database | Microsoft SQL Server hoáº·c MySQL / database `SmartParking` |
+| Database | Microsoft SQL Server hoặc MySQL / database `SmartParking` |
 | Realtime | STOMP WebSocket |
 | Build | Maven Wrapper |
 | Test | JUnit 5, Mockito, Spring Boot Test, Java HTTP Client |
 
-CÃ¡c dependency vÃ  plugin Ä‘Æ°á»£c khai bÃ¡o táº¡i [`pom.xml`](pom.xml). SQL Server lÃ  profile máº·c Ä‘á»‹nh; MySQL Ä‘Æ°á»£c há»— trá»£ qua profile `mysql`.
+Các dependency và plugin được khai báo tại [`pom.xml`](pom.xml). SQL Server là profile mặc định; MySQL được hỗ trợ qua profile `mysql`.
 
-## 3. Khá»Ÿi Ä‘á»™ng nhanh
+## 3. Khởi động nhanh
 
-### Äiá»u kiá»‡n
+### Điều kiện
 
-- Java 17 trá»Ÿ lÃªn.
-- SQL Server láº¯ng nghe táº¡i `localhost:1433`.
-- Database `SmartParking` Ä‘Ã£ Ä‘Æ°á»£c khá»Ÿi táº¡o.
-- TÃ i khoáº£n SQL hiá»‡n táº¡i: `sa`.
+- Java 17 trở lên.
+- SQL Server lắng nghe tại `localhost:1433`.
+- Database `SmartParking` đã được khởi tạo.
+- Tài khoản SQL hiện tại: `sa`.
 
-### Cháº¡y á»©ng dá»¥ng
+### Chạy ứng dụng
 
 ```powershell
 .\mvnw.cmd test
 .\mvnw.cmd spring-boot:run
 ```
 
-Server máº·c Ä‘á»‹nh cháº¡y táº¡i `http://localhost:8080`. Endpoint kiá»ƒm tra Ä‘Æ¡n giáº£n lÃ  `GET /hello`, Ä‘Æ°á»£c xá»­ lÃ½ bá»Ÿi [`HelloController.java`](src/main/java/com/example/pricing_calculation/HelloController.java).
+Server mặc định chạy tại `http://localhost:8080`. Endpoint kiểm tra đơn giản là `GET /hello`, được xử lý bởi [`HelloController.java`](src/main/java/com/example/pricing_calculation/HelloController.java).
 
 ### Swagger / OpenAPI
 
-Há»‡ thá»‘ng dÃ¹ng Springdoc OpenAPI Ä‘á»ƒ tá»± Ä‘á»™ng quÃ©t toÃ n bá»™ REST controller. Sau khi á»©ng dá»¥ng khá»Ÿi Ä‘á»™ng, má»Ÿ:
+Hệ thống dùng Springdoc OpenAPI để tự động quét toàn bộ REST controller. Sau khi ứng dụng khởi động, mở:
 
 - Swagger UI: [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
 - OpenAPI JSON: [http://localhost:8080/v3/api-docs](http://localhost:8080/v3/api-docs)
 - OpenAPI YAML: [http://localhost:8080/v3/api-docs.yaml](http://localhost:8080/v3/api-docs.yaml)
 
-Test Ä‘Äƒng kÃ½ vÃ  Ä‘Äƒng nháº­p ngay trÃªn Swagger UI:
+Test đăng ký và đăng nhập ngay trên Swagger UI:
 
-1. Má»Ÿ nhÃ³m `Authentication`.
-2. Chá»n `POST /api/auth/register`, báº¥m **Try it out**, nháº­p JSON vÃ  báº¥m **Execute**.
-3. Chá»n `POST /api/auth/login`, nháº­p email/password Ä‘Ã£ Ä‘Äƒng kÃ½ rá»“i sao chÃ©p `accessToken` tá»« response.
-4. Báº¥m **Authorize** á»Ÿ Ä‘áº§u trang, nháº­p access token vÃ  xÃ¡c nháº­n.
-5. Gá»i `POST /api/auth/logout`; Swagger tá»± gá»­i header `Authorization: Bearer <token>`.
+1. Mở nhóm `Authentication`.
+2. Chọn `POST /api/auth/register`, bấm **Try it out**, nhập JSON và bấm **Execute**.
+3. Chọn `POST /api/auth/login`, nhập email/password đã đăng ký rồi sao chép `accessToken` từ response.
+4. Bấm **Authorize** ở đầu trang, nhập access token và xác nhận.
+5. Gọi `POST /api/auth/logout`; Swagger tự gửi header `Authorization: Bearer <token>`.
 
-Metadata OpenAPI vÃ  Bearer scheme náº±m táº¡i [`OpenApiConfig.java`](src/main/java/com/example/pricing_calculation/config/OpenApiConfig.java). Cháº¡y test tá»± Ä‘á»™ng cho Swagger:
+Metadata OpenAPI và Bearer scheme nằm tại [`OpenApiConfig.java`](src/main/java/com/example/pricing_calculation/config/OpenApiConfig.java). Chạy test tự động cho Swagger:
 
 ```powershell
 .\mvnw.cmd "-Dtest=SwaggerDocumentationTest" test
 ```
 
-Káº¿t quáº£ kiá»ƒm tra gáº§n nháº¥t: `2` test, `0` failure, `0` error, `BUILD SUCCESS`.
+Kết quả kiểm tra gần nhất: `2` test, `0` failure, `0` error, `BUILD SUCCESS`.
 
-### ÄÃ³ng gÃ³i
+### Đóng gói
 
 ```powershell
 .\mvnw.cmd -DskipTests package
 java -jar target\pricing-calculation-0.0.1-SNAPSHOT.jar
 ```
 
-Entry point cá»§a á»©ng dá»¥ng lÃ  [`PricingCalculationApplication.java`](src/main/java/com/example/pricing_calculation/PricingCalculationApplication.java).
+Entry point của ứng dụng là [`PricingCalculationApplication.java`](src/main/java/com/example/pricing_calculation/PricingCalculationApplication.java).
 
-### Cháº¡y trÃªn mÃ¡y chá»‰ cÃ³ MySQL
+### Chạy trên máy chỉ có MySQL
 
-KhÃ´ng cáº§n cÃ i SSMS vÃ  khÃ´ng sá»­ dá»¥ng hai file MDF/LDF. YÃªu cáº§u MySQL 8 trá»Ÿ lÃªn.
+Không cần cài SSMS và không sử dụng hai file MDF/LDF. Yêu cầu MySQL 8 trở lên.
 
-1. Khá»Ÿi táº¡o schema báº±ng [`SmartParkingSystem.mysql.sql`](database/SmartParkingSystem.mysql.sql):
+1. Khởi tạo schema bằng [`SmartParkingSystem.mysql.sql`](database/SmartParkingSystem.mysql.sql):
 
 ```powershell
 cmd /c "mysql -u root -p < database\SmartParkingSystem.mysql.sql"
 ```
 
-Script nÃ y táº¡o database náº¿u chÆ°a tá»“n táº¡i vÃ  tÃ¡i táº¡o 19 báº£ng. KhÃ´ng cháº¡y trÃªn database `SmartParking` Ä‘ang chá»©a dá»¯ liá»‡u cáº§n giá»¯ láº¡i.
+Script này tạo database nếu chưa tồn tại và tái tạo 19 bảng. Không chạy trên database `SmartParking` đang chứa dữ liệu cần giữ lại.
 
-2. Khai bÃ¡o tÃ i khoáº£n MySQL trong terminal:
+2. Khai báo tài khoản MySQL trong terminal:
 
 ```powershell
 $env:MYSQL_USERNAME="root"
 $env:MYSQL_PASSWORD="your-password"
 ```
 
-3. Cháº¡y á»©ng dá»¥ng vá»›i profile MySQL:
+3. Chạy ứng dụng với profile MySQL:
 
 ```powershell
 .\mvnw.cmd spring-boot:run "-Dspring-boot.run.profiles=mysql"
 ```
 
-Hoáº·c cháº¡y file jar:
+Hoặc chạy file jar:
 
 ```powershell
 java -jar target\pricing-calculation-0.0.1-SNAPSHOT.jar --spring.profiles.active=mysql
 ```
 
-Cáº¥u hÃ¬nh profile náº±m táº¡i [`application-mysql.properties`](src/main/resources/application-mysql.properties). CÃ³ thá»ƒ ghi Ä‘Ã¨ toÃ n bá»™ JDBC URL báº±ng biáº¿n `MYSQL_URL`.
+Cấu hình profile nằm tại [`application-mysql.properties`](src/main/resources/application-mysql.properties). Có thể ghi đè toàn bộ JDBC URL bằng biến `MYSQL_URL`.
 
-### Táº¡o ZIP Ä‘á»ƒ gá»­i Ä‘i
+### Tạo ZIP để gửi đi
 
-KhÃ´ng zip trá»±c tiáº¿p MDF/LDF khi SQL Server Ä‘ang cháº¡y. DÃ¹ng script sau Ä‘á»ƒ táº¡o gÃ³i portable bÃªn ngoÃ i project:
+Không zip trực tiếp MDF/LDF khi SQL Server đang chạy. Dùng script sau để tạo gói portable bên ngoài project:
 
 ```powershell
 .\package-portable.ps1
 ```
 
-GÃ³i ZIP tá»± Ä‘á»™ng loáº¡i `target`, `SmartParking.mdf` vÃ  `SmartParking_log.ldf`, nhÆ°ng váº«n chá»©a source, schema SQL Server vÃ  schema MySQL. NgÆ°á»i nháº­n dÃ¹ng MySQL chá»‰ cáº§n lÃ m theo má»¥c phÃ­a trÃªn.
+Gói ZIP tự động loại `target`, `SmartParking.mdf` và `SmartParking_log.ldf`, nhưng vẫn chứa source, schema SQL Server và schema MySQL. Người nhận dùng MySQL chỉ cần làm theo mục phía trên.
 
-## 4. Kiáº¿n trÃºc xá»­ lÃ½
+## 4. Kiến trúc xử lý
 
 ```mermaid
 flowchart LR
@@ -138,62 +138,62 @@ flowchart LR
     Realtime --> WS["STOMP /topic/*"]
 ```
 
-Quy Æ°á»›c liÃªn káº¿t file:
+Quy ước liên kết file:
 
-1. `web/*Controller`: nháº­n HTTP request, parse DTO vÃ  tráº£ HTTP response.
-2. `service/*Service`: kiá»ƒm tra dá»¯ liá»‡u vÃ  thá»±c hiá»‡n nghiá»‡p vá»¥.
-3. `repository/*Repository`: truy váº¥n entity báº±ng Spring Data JPA.
-4. `domain/*`: Ã¡nh xáº¡ entity tá»›i báº£ng SQL Server.
-5. `dto/*`: contract request/response, khÃ´ng lÆ°u trá»±c tiáº¿p vÃ o database.
+1. `web/*Controller`: nhận HTTP request, parse DTO và trả HTTP response.
+2. `service/*Service`: kiểm tra dữ liệu và thực hiện nghiệp vụ.
+3. `repository/*Repository`: truy vấn entity bằng Spring Data JPA.
+4. `domain/*`: ánh xạ entity tới bảng SQL Server.
+5. `dto/*`: contract request/response, không lưu trực tiếp vào database.
 
-Lá»—i nghiá»‡p vá»¥ Ä‘Æ°á»£c nÃ©m báº±ng [`BadRequestException.java`](src/main/java/com/example/pricing_calculation/service/BadRequestException.java) hoáº·c [`ResourceNotFoundException.java`](src/main/java/com/example/pricing_calculation/service/ResourceNotFoundException.java), sau Ä‘Ã³ Ä‘Æ°á»£c chuáº©n hÃ³a thÃ nh HTTP 400/404 bá»Ÿi [`ApiExceptionHandler.java`](src/main/java/com/example/pricing_calculation/web/ApiExceptionHandler.java).
+Lỗi nghiệp vụ được ném bằng [`BadRequestException.java`](src/main/java/com/example/pricing_calculation/service/BadRequestException.java) hoặc [`ResourceNotFoundException.java`](src/main/java/com/example/pricing_calculation/service/ResourceNotFoundException.java), sau đó được chuẩn hóa thành HTTP 400/404 bởi [`ApiExceptionHandler.java`](src/main/java/com/example/pricing_calculation/web/ApiExceptionHandler.java).
 
 ## 5. Database
 
-### Nguá»“n khá»Ÿi táº¡o
+### Nguồn khởi tạo
 
-- Script khá»Ÿi táº¡o: [`database/SmartParkingSystem.sql`](database/SmartParkingSystem.sql).
-- Database logic: `SmartParking` trÃªn SQL Server Express táº¡i `localhost:1433`.
-- File dá»¯ liá»‡u: `D:\New folder\Parking Payment System\database\SmartParking.mdf`.
+- Script khởi tạo: [`database/SmartParkingSystem.sql`](database/SmartParkingSystem.sql).
+- Database logic: `SmartParking` trên SQL Server Express tại `localhost:1433`.
+- File dữ liệu: `D:\New folder\Parking Payment System\database\SmartParking.mdf`.
 - File transaction log: `D:\New folder\Parking Payment System\database\SmartParking_log.ldf`.
-- Cáº¥u hÃ¬nh káº¿t ná»‘i: [`application.properties`](src/main/resources/application.properties).
+- Cấu hình kết nối: [`application.properties`](src/main/resources/application.properties).
 
-`spring.jpa.hibernate.ddl-auto=none`, vÃ¬ váº­y Java khÃ´ng tá»± táº¡o hoáº·c thay Ä‘á»•i schema. Khi database chÆ°a tá»“n táº¡i, cháº¡y `SmartParkingSystem.sql` má»™t láº§n trong SSMS 2022 trÆ°á»›c khi khá»Ÿi Ä‘á»™ng backend.
+`spring.jpa.hibernate.ddl-auto=none`, vì vậy Java không tự tạo hoặc thay đổi schema. Khi database chưa tồn tại, chạy `SmartParkingSystem.sql` một lần trong SSMS 2022 trước khi khởi động backend.
 
-Máº­t kháº©u SQL hiá»‡n Ä‘ang náº±m trá»±c tiáº¿p trong `application.properties`. Khi triá»ƒn khai tháº­t, cáº§n chuyá»ƒn username/password sang environment variables hoáº·c secret manager.
+Mật khẩu SQL hiện đang nằm trực tiếp trong `application.properties`. Khi triển khai thật, cần chuyển username/password sang environment variables hoặc secret manager.
 
-### Entity vÃ  báº£ng Ä‘Æ°á»£c sá»­ dá»¥ng
+### Entity và bảng được sử dụng
 
-| Entity | Báº£ng | Quan há»‡ chÃ­nh | File |
+| Entity | Bảng | Quan hệ chính | File |
 |---|---|---|---|
-| `UserAccount` | `Users` | Má»™t user cÃ³ nhiá»u vehicle/reservation | [`UserAccount.java`](src/main/java/com/example/pricing_calculation/domain/UserAccount.java) |
-| `VehicleTypeEntity` | `VehicleTypes` | ÄÆ°á»£c dÃ¹ng bá»Ÿi vehicle, zone, pricing policy | [`VehicleTypeEntity.java`](src/main/java/com/example/pricing_calculation/domain/VehicleTypeEntity.java) |
-| `Vehicle` | `Vehicles` | Thuá»™c user vÃ  vehicle type | [`Vehicle.java`](src/main/java/com/example/pricing_calculation/domain/Vehicle.java) |
-| `Building` | `Buildings` | CÃ³ nhiá»u floor | [`Building.java`](src/main/java/com/example/pricing_calculation/domain/Building.java) |
-| `Floor` | `Floors` | Thuá»™c building, cÃ³ nhiá»u zone | [`Floor.java`](src/main/java/com/example/pricing_calculation/domain/Floor.java) |
-| `Zone` | `Zones` | Thuá»™c floor vÃ  giá»›i háº¡n theo vehicle type | [`Zone.java`](src/main/java/com/example/pricing_calculation/domain/Zone.java) |
-| `ParkingSlot` | `ParkingSlots` | Thuá»™c zone; tráº¡ng thÃ¡i `AVAILABLE`, `RESERVED`, `OCCUPIED` | [`ParkingSlot.java`](src/main/java/com/example/pricing_calculation/domain/ParkingSlot.java) |
-| `PricingPolicy` | `PricingPolicies` | ChÃ­nh sÃ¡ch phÃ­ theo vehicle type vÃ  thá»i gian hiá»‡u lá»±c | [`PricingPolicy.java`](src/main/java/com/example/pricing_calculation/domain/PricingPolicy.java) |
-| `Reservation` | `Reservations` | LiÃªn káº¿t user, vehicle vÃ  zone | [`Reservation.java`](src/main/java/com/example/pricing_calculation/domain/Reservation.java) |
-| `ParkingSession` | `ParkingSessions` | LiÃªn káº¿t reservation, vehicle vÃ  slot | [`ParkingSession.java`](src/main/java/com/example/pricing_calculation/domain/ParkingSession.java) |
-| `Payment` | `Payments` | Thuá»™c má»™t parking session | [`Payment.java`](src/main/java/com/example/pricing_calculation/domain/Payment.java) |
-| `TransactionHistory` | `Transactions` | Thuá»™c má»™t payment, lÆ°u gateway/reference/status | [`TransactionHistory.java`](src/main/java/com/example/pricing_calculation/domain/TransactionHistory.java) |
+| `UserAccount` | `Users` | Một user có nhiều vehicle/reservation | [`UserAccount.java`](src/main/java/com/example/pricing_calculation/domain/UserAccount.java) |
+| `VehicleTypeEntity` | `VehicleTypes` | Được dùng bởi vehicle, zone, pricing policy | [`VehicleTypeEntity.java`](src/main/java/com/example/pricing_calculation/domain/VehicleTypeEntity.java) |
+| `Vehicle` | `Vehicles` | Thuộc user và vehicle type | [`Vehicle.java`](src/main/java/com/example/pricing_calculation/domain/Vehicle.java) |
+| `Building` | `Buildings` | Có nhiều floor | [`Building.java`](src/main/java/com/example/pricing_calculation/domain/Building.java) |
+| `Floor` | `Floors` | Thuộc building, có nhiều zone | [`Floor.java`](src/main/java/com/example/pricing_calculation/domain/Floor.java) |
+| `Zone` | `Zones` | Thuộc floor và giới hạn theo vehicle type | [`Zone.java`](src/main/java/com/example/pricing_calculation/domain/Zone.java) |
+| `ParkingSlot` | `ParkingSlots` | Thuộc zone; trạng thái `AVAILABLE`, `RESERVED`, `OCCUPIED` | [`ParkingSlot.java`](src/main/java/com/example/pricing_calculation/domain/ParkingSlot.java) |
+| `PricingPolicy` | `PricingPolicies` | Chính sách phí theo vehicle type và thời gian hiệu lực | [`PricingPolicy.java`](src/main/java/com/example/pricing_calculation/domain/PricingPolicy.java) |
+| `Reservation` | `Reservations` | Liên kết user, vehicle và zone | [`Reservation.java`](src/main/java/com/example/pricing_calculation/domain/Reservation.java) |
+| `ParkingSession` | `ParkingSessions` | Liên kết reservation, vehicle và slot | [`ParkingSession.java`](src/main/java/com/example/pricing_calculation/domain/ParkingSession.java) |
+| `Payment` | `Payments` | Thuộc một parking session | [`Payment.java`](src/main/java/com/example/pricing_calculation/domain/Payment.java) |
+| `TransactionHistory` | `Transactions` | Thuộc một payment, lưu gateway/reference/status | [`TransactionHistory.java`](src/main/java/com/example/pricing_calculation/domain/TransactionHistory.java) |
 
-Script SQL cÃ²n táº¡o `Gates`, `Violations`, `IncidentReports`, `Feedbacks`, `Notifications`, `AuditLogs` vÃ  `LicensePlateScans`. Repository hiá»‡n chÆ°a cÃ³ entity/API cho cÃ¡c báº£ng nÃ y.
+Script SQL còn tạo `Gates`, `Violations`, `IncidentReports`, `Feedbacks`, `Notifications`, `AuditLogs` và `LicensePlateScans`. Repository hiện chưa có entity/API cho các bảng này.
 
-## 6. Chá»©c nÄƒng há»‡ thá»‘ng
+## 6. Chức năng hệ thống
 
-### Authentication API (khÃ´ng cáº§n frontend)
+### Authentication API (không cần frontend)
 
-Backend cung cáº¥p Ä‘áº§y Ä‘á»§ API Ä‘Äƒng kÃ½, Ä‘Äƒng nháº­p vÃ  Ä‘Äƒng xuáº¥t. CÃ³ thá»ƒ gá»i trá»±c tiáº¿p báº±ng Postman, `curl` hoáº·c báº¥t ká»³ á»©ng dá»¥ng web/mobile nÃ o; dá»± Ã¡n khÃ´ng phá»¥ thuá»™c vÃ o mÃ£ nguá»“n frontend.
+Backend cung cấp đầy đủ API đăng ký, đăng nhập và đăng xuất. Có thể gọi trực tiếp bằng Postman, `curl` hoặc bất kỳ ứng dụng web/mobile nào; dự án không phụ thuộc vào mã nguồn frontend.
 
-| API | Chá»©c nÄƒng | Káº¿t quáº£ chÃ­nh |
+| API | Chức năng | Kết quả chính |
 |---|---|---|
-| `POST /api/auth/register` | Táº¡o tÃ i khoáº£n `CUSTOMER` Ä‘ang hoáº¡t Ä‘á»™ng | HTTP 201 vÃ  thÃ´ng tin tÃ i khoáº£n, khÃ´ng tráº£ máº­t kháº©u |
-| `POST /api/auth/login` | Kiá»ƒm tra email/máº­t kháº©u | Bearer access token cÃ³ hiá»‡u lá»±c 8 giá» |
-| `POST /api/auth/logout` | Thu há»“i access token hiá»‡n táº¡i | XÃ³a phiÃªn Ä‘Äƒng nháº­p phÃ­a backend |
+| `POST /api/auth/register` | Tạo tài khoản `CUSTOMER` đang hoạt động | HTTP 201 và thông tin tài khoản, không trả mật khẩu |
+| `POST /api/auth/login` | Kiểm tra email/mật khẩu | Bearer access token có hiệu lực 8 giờ |
+| `POST /api/auth/logout` | Thu hồi access token hiện tại | Xóa phiên đăng nhập phía backend |
 
-VÃ­ dá»¥ Ä‘Äƒng kÃ½:
+Ví dụ đăng ký:
 
 ```powershell
 $body = @{
@@ -209,7 +209,7 @@ Invoke-RestMethod -Method Post `
     -Body $body
 ```
 
-VÃ­ dá»¥ Ä‘Äƒng nháº­p vÃ  Ä‘Äƒng xuáº¥t:
+Ví dụ đăng nhập và đăng xuất:
 
 ```powershell
 $loginBody = @{
@@ -227,189 +227,189 @@ Invoke-RestMethod -Method Post `
     -Headers @{ Authorization = "Bearer $($login.accessToken)" }
 ```
 
-Email Ä‘Æ°á»£c chuáº©n hÃ³a vá» chá»¯ thÆ°á»ng; password dÃ i 8â€“128 kÃ½ tá»± vÃ  chá»‰ Ä‘Æ°á»£c lÆ°u dÆ°á»›i dáº¡ng PBKDF2-SHA256 kÃ¨m salt. Backend tá»± gÃ¡n `status=ACTIVE` vÃ  `role=CUSTOMER`, nÃªn client khÃ´ng thá»ƒ tá»± cáº¥p quyá»n cho mÃ¬nh. PhiÃªn Ä‘Äƒng nháº­p hiá»‡n Ä‘Æ°á»£c giá»¯ trong bá»™ nhá»› vÃ  sáº½ bá»‹ xÃ³a khi á»©ng dá»¥ng khá»Ÿi Ä‘á»™ng láº¡i.
+Email được chuẩn hóa về chữ thường; password dài 8–128 ký tự và chỉ được lưu dưới dạng PBKDF2-SHA256 kèm salt. Backend tự gán `status=ACTIVE` và `role=CUSTOMER`, nên client không thể tự cấp quyền cho mình. Phiên đăng nhập hiện được giữ trong bộ nhớ và sẽ bị xóa khi ứng dụng khởi động lại.
 
 ### 6.1 Reservation
 
-| API | Chá»©c nÄƒng |
+| API | Chức năng |
 |---|---|
-| `POST /api/reservations` | Táº¡o reservation vÃ  tá»± Ä‘áº·t tráº¡ng thÃ¡i `APPROVED` |
-| `GET /api/reservations` | Lá»c theo user, vehicle, zone, status vÃ  khoáº£ng thá»i gian |
-| `GET /api/reservations/{id}` | Xem chi tiáº¿t |
-| `PATCH /api/reservations/{id}/approve` | PhÃª duyá»‡t |
-| `PATCH /api/reservations/{id}/cancel` | Há»§y |
+| `POST /api/reservations` | Tạo reservation và tự đặt trạng thái `APPROVED` |
+| `GET /api/reservations` | Lọc theo user, vehicle, zone, status và khoảng thời gian |
+| `GET /api/reservations/{id}` | Xem chi tiết |
+| `PATCH /api/reservations/{id}/approve` | Phê duyệt |
+| `PATCH /api/reservations/{id}/cancel` | Hủy |
 
-File xá»­ lÃ½ vÃ  liÃªn káº¿t:
+File xử lý và liên kết:
 
-- [`ReservationController.java`](src/main/java/com/example/pricing_calculation/web/ReservationController.java) Ä‘á»‹nh nghÄ©a endpoint.
-- [`ReservationService.java`](src/main/java/com/example/pricing_calculation/service/ReservationService.java) kiá»ƒm tra user/vehicle/zone, quyá»n sá»Ÿ há»¯u vehicle vÃ  sá»©c chá»©a zone.
-- [`ReservationRepository.java`](src/main/java/com/example/pricing_calculation/repository/ReservationRepository.java) Ä‘áº¿m reservation trÃ¹ng thá»i gian.
-- `UserAccountRepository`, `VehicleRepository`, `ZoneRepository` cung cáº¥p dá»¯ liá»‡u tham chiáº¿u.
-- [`ParkingSlotRepository.java`](src/main/java/com/example/pricing_calculation/repository/ParkingSlotRepository.java) cung cáº¥p tá»•ng sá»‘ slot Ä‘á»ƒ kiá»ƒm tra capacity.
-- [`Reservation.java`](src/main/java/com/example/pricing_calculation/domain/Reservation.java) Ã¡nh xáº¡ báº£ng `Reservations`.
-- `ReservationCreateRequest`, `ReservationResponse`, `PageResponse` lÃ  DTO request/response.
-- `RealtimeEventService` phÃ¡t sá»± kiá»‡n reservation tá»›i `/topic/reservations`.
+- [`ReservationController.java`](src/main/java/com/example/pricing_calculation/web/ReservationController.java) định nghĩa endpoint.
+- [`ReservationService.java`](src/main/java/com/example/pricing_calculation/service/ReservationService.java) kiểm tra user/vehicle/zone, quyền sở hữu vehicle và sức chứa zone.
+- [`ReservationRepository.java`](src/main/java/com/example/pricing_calculation/repository/ReservationRepository.java) đếm reservation trùng thời gian.
+- `UserAccountRepository`, `VehicleRepository`, `ZoneRepository` cung cấp dữ liệu tham chiếu.
+- [`ParkingSlotRepository.java`](src/main/java/com/example/pricing_calculation/repository/ParkingSlotRepository.java) cung cấp tổng số slot để kiểm tra capacity.
+- [`Reservation.java`](src/main/java/com/example/pricing_calculation/domain/Reservation.java) ánh xạ bảng `Reservations`.
+- `ReservationCreateRequest`, `ReservationResponse`, `PageResponse` là DTO request/response.
+- `RealtimeEventService` phát sự kiện reservation tới `/topic/reservations`.
 
 ### 6.2 Pricing calculation
 
-| API | Chá»©c nÄƒng |
+| API | Chức năng |
 |---|---|
-| `GET /api/pricing/estimate` | Æ¯á»›c tÃ­nh phÃ­ theo vehicle type, entry/exit time, máº¥t vÃ© vÃ  sá»‘ phÃºt quÃ¡ giá» |
+| `GET /api/pricing/estimate` | Ước tính phí theo vehicle type, entry/exit time, mất vé và số phút quá giờ |
 
-Tham sá»‘: `vehicleTypeId`, `entryTime`, `exitTime`, `lostTicket`, `overtimeMinutes`.
+Tham số: `vehicleTypeId`, `entryTime`, `exitTime`, `lostTicket`, `overtimeMinutes`.
 
-File xá»­ lÃ½ vÃ  liÃªn káº¿t:
+File xử lý và liên kết:
 
-- [`PricingController.java`](src/main/java/com/example/pricing_calculation/web/PricingController.java) nháº­n query parameter.
-- [`PricingService.java`](src/main/java/com/example/pricing_calculation/service/PricingService.java) chá»n policy cÃ²n hiá»‡u lá»±c vÃ  tÃ­nh phÃ­.
-- [`PricingPolicyRepository.java`](src/main/java/com/example/pricing_calculation/repository/PricingPolicyRepository.java) tÃ¬m policy `ACTIVE` theo thá»i Ä‘iá»ƒm entry.
-- [`VehicleTypeRepository.java`](src/main/java/com/example/pricing_calculation/repository/VehicleTypeRepository.java) cung cáº¥p default hourly fee khi khÃ´ng cÃ³ policy.
-- [`PricingPolicy.java`](src/main/java/com/example/pricing_calculation/domain/PricingPolicy.java) vÃ  `VehicleTypeEntity` Ã¡nh xáº¡ dá»¯ liá»‡u giÃ¡.
-- [`PricingQuoteResponse.java`](src/main/java/com/example/pricing_calculation/dto/PricingQuoteResponse.java) tráº£ chi tiáº¿t tá»«ng thÃ nh pháº§n phÃ­ vÃ  currency `VND`.
+- [`PricingController.java`](src/main/java/com/example/pricing_calculation/web/PricingController.java) nhận query parameter.
+- [`PricingService.java`](src/main/java/com/example/pricing_calculation/service/PricingService.java) chọn policy còn hiệu lực và tính phí.
+- [`PricingPolicyRepository.java`](src/main/java/com/example/pricing_calculation/repository/PricingPolicyRepository.java) tìm policy `ACTIVE` theo thời điểm entry.
+- [`VehicleTypeRepository.java`](src/main/java/com/example/pricing_calculation/repository/VehicleTypeRepository.java) cung cấp default hourly fee khi không có policy.
+- [`PricingPolicy.java`](src/main/java/com/example/pricing_calculation/domain/PricingPolicy.java) và `VehicleTypeEntity` ánh xạ dữ liệu giá.
+- [`PricingQuoteResponse.java`](src/main/java/com/example/pricing_calculation/dto/PricingQuoteResponse.java) trả chi tiết từng thành phần phí và currency `VND`.
 
-Quy táº¯c chÃ­nh:
+Quy tắc chính:
 
-- Thá»i gian Ä‘Æ°á»£c lÃ m trÃ²n lÃªn theo giá», tá»‘i thiá»ƒu má»™t giá».
-- Tá»« 24 giá» trá»Ÿ lÃªn dÃ¹ng `dailyRate`, sau Ä‘Ã³ cá»™ng sá»‘ giá» dÆ° theo `hourlyRate`.
-- `lostTicket=true` cá»™ng `lostTicketFee`.
-- Overtime lÃ m trÃ²n lÃªn theo giá» rá»“i nhÃ¢n `overtimeFee`.
+- Thời gian được làm tròn lên theo giờ, tối thiểu một giờ.
+- Từ 24 giờ trở lên dùng `dailyRate`, sau đó cộng số giờ dư theo `hourlyRate`.
+- `lostTicket=true` cộng `lostTicketFee`.
+- Overtime làm tròn lên theo giờ rồi nhân `overtimeFee`.
 
 ### 6.3 Parking session
 
-| API | Chá»©c nÄƒng |
+| API | Chức năng |
 |---|---|
-| `POST /api/parking-sessions/check-in` | Táº¡o session/ticket vÃ  chuyá»ƒn slot sang `OCCUPIED` |
+| `POST /api/parking-sessions/check-in` | Tạo session/ticket và chuyển slot sang `OCCUPIED` |
 | `GET /api/parking-sessions/{id}` | Xem session |
-| `POST /api/parking-sessions/{id}/checkout` | TÃ­nh phÃ­, chuyá»ƒn session sang `CHECKED_OUT` vÃ  tráº£ slot vá» `AVAILABLE` |
+| `POST /api/parking-sessions/{id}/checkout` | Tính phí, chuyển session sang `CHECKED_OUT` và trả slot về `AVAILABLE` |
 
-File xá»­ lÃ½ vÃ  liÃªn káº¿t:
+File xử lý và liên kết:
 
-- [`ParkingSessionController.java`](src/main/java/com/example/pricing_calculation/web/ParkingSessionController.java) Ä‘á»‹nh nghÄ©a endpoint.
-- [`ParkingSessionService.java`](src/main/java/com/example/pricing_calculation/service/ParkingSessionService.java) xÃ¡c thá»±c vehicle/slot/reservation, táº¡o ticket vÃ  gá»i `PricingService` khi checkout.
-- `ParkingSessionRepository`, `ReservationRepository`, `VehicleRepository`, `ParkingSlotRepository` Ä‘á»c vÃ  ghi dá»¯ liá»‡u.
-- [`ParkingSession.java`](src/main/java/com/example/pricing_calculation/domain/ParkingSession.java) liÃªn káº¿t `Reservation`, `Vehicle`, `ParkingSlot`.
-- `SessionCheckInRequest`, `SessionCheckoutRequest`, `ParkingSessionResponse` lÃ  DTO.
-- Sá»± kiá»‡n session/slot Ä‘Æ°á»£c phÃ¡t tá»›i `/topic/parking-sessions` vÃ  `/topic/parking-slots`.
+- [`ParkingSessionController.java`](src/main/java/com/example/pricing_calculation/web/ParkingSessionController.java) định nghĩa endpoint.
+- [`ParkingSessionService.java`](src/main/java/com/example/pricing_calculation/service/ParkingSessionService.java) xác thực vehicle/slot/reservation, tạo ticket và gọi `PricingService` khi checkout.
+- `ParkingSessionRepository`, `ReservationRepository`, `VehicleRepository`, `ParkingSlotRepository` đọc và ghi dữ liệu.
+- [`ParkingSession.java`](src/main/java/com/example/pricing_calculation/domain/ParkingSession.java) liên kết `Reservation`, `Vehicle`, `ParkingSlot`.
+- `SessionCheckInRequest`, `SessionCheckoutRequest`, `ParkingSessionResponse` là DTO.
+- Sự kiện session/slot được phát tới `/topic/parking-sessions` và `/topic/parking-slots`.
 
-### 6.4 Payment cÆ¡ báº£n
+### 6.4 Payment cơ bản
 
-| API | Chá»©c nÄƒng |
+| API | Chức năng |
 |---|---|
-| `POST /api/payments` | Táº¡o payment trá»±c tiáº¿p cho má»™t session |
+| `POST /api/payments` | Tạo payment trực tiếp cho một session |
 | `GET /api/payments/{id}` | Xem payment |
-| `PATCH /api/payments/{id}/status` | Cáº­p nháº­t tráº¡ng thÃ¡i vÃ  cÃ³ thá»ƒ táº¡o transaction gateway |
+| `PATCH /api/payments/{id}/status` | Cập nhật trạng thái và có thể tạo transaction gateway |
 
-File xá»­ lÃ½ vÃ  liÃªn káº¿t:
+File xử lý và liên kết:
 
-- [`PaymentController.java`](src/main/java/com/example/pricing_calculation/web/PaymentController.java) nháº­n request.
-- [`PaymentService.java`](src/main/java/com/example/pricing_calculation/service/PaymentService.java) láº¥y `totalFee` tá»« session khi request khÃ´ng truyá»n amount, lÆ°u payment vÃ  táº¡o transaction náº¿u cÃ³ gateway/reference.
-- `PaymentRepository`, `ParkingSessionRepository`, `TransactionHistoryRepository` thá»±c hiá»‡n persistence.
-- [`Payment.java`](src/main/java/com/example/pricing_calculation/domain/Payment.java) Ã¡nh xáº¡ `Payments`; `TransactionHistory` Ã¡nh xáº¡ `Transactions`.
-- `PaymentCreateRequest`, `PaymentStatusUpdateRequest`, `PaymentResponse` lÃ  DTO.
-- Payment event Ä‘Æ°á»£c phÃ¡t tá»›i `/topic/payments`.
+- [`PaymentController.java`](src/main/java/com/example/pricing_calculation/web/PaymentController.java) nhận request.
+- [`PaymentService.java`](src/main/java/com/example/pricing_calculation/service/PaymentService.java) lấy `totalFee` từ session khi request không truyền amount, lưu payment và tạo transaction nếu có gateway/reference.
+- `PaymentRepository`, `ParkingSessionRepository`, `TransactionHistoryRepository` thực hiện persistence.
+- [`Payment.java`](src/main/java/com/example/pricing_calculation/domain/Payment.java) ánh xạ `Payments`; `TransactionHistory` ánh xạ `Transactions`.
+- `PaymentCreateRequest`, `PaymentStatusUpdateRequest`, `PaymentResponse` là DTO.
+- Payment event được phát tới `/topic/payments`.
 
 ### 6.5 Payment gateway
 
-| API | Chá»©c nÄƒng |
+| API | Chức năng |
 |---|---|
-| `POST /api/payment-gateways/cash` | Táº¡o payment `COMPLETED` ngay |
-| `POST /api/payment-gateways/vnpay` | Create a `PENDING` payment and signed VNPay Sandbox URL; `qrContent` contains the same URL |
+| `POST /api/payment-gateways/cash` | Tạo payment `COMPLETED` ngay |
+| `POST /api/payment-gateways/vnpay` | Tạo payment `PENDING` và URL VNPay Sandbox đã được ký; `qrContent` chứa cùng URL |
 | `GET /api/payment-gateways/vnpay/return` | Verify VNPay return signature, amount and transaction before updating payment |
 | `GET /api/payment-gateways/vnpay/ipn` | Verified VNPay IPN endpoint returning `RspCode` and `Message` |
 
-File xá»­ lÃ½ vÃ  liÃªn káº¿t:
+File xử lý và liên kết:
 
-- [`PaymentGatewayController.java`](src/main/java/com/example/pricing_calculation/web/PaymentGatewayController.java) cung cáº¥p API gateway.
-- [`PaymentGatewayService.java`](src/main/java/com/example/pricing_calculation/service/PaymentGatewayService.java) sinh reference code, gá»i `PaymentService`, Ä‘á»“ng bá»™ status cá»§a `Payments` vÃ  `Transactions`, Ä‘á»“ng thá»i táº¡o `exitDeadline = paymentTime + 15 phÃºt`.
-- `PaymentRepository` vÃ  `TransactionHistoryRepository` tra cá»©u/cáº­p nháº­t payment cÃ¹ng transaction.
-- `PaymentGatewayRequest`, `PaymentGatewayConfirmRequest`, `PaymentGatewayResponse` lÃ  DTO.
+- [`PaymentGatewayController.java`](src/main/java/com/example/pricing_calculation/web/PaymentGatewayController.java) cung cấp API gateway.
+- [`PaymentGatewayService.java`](src/main/java/com/example/pricing_calculation/service/PaymentGatewayService.java) sinh reference code, gọi `PaymentService`, đồng bộ status của `Payments` và `Transactions`, đồng thời tạo `exitDeadline = paymentTime + 15 phút`.
+- `PaymentRepository` và `TransactionHistoryRepository` tra cứu/cập nhật payment cùng transaction.
+- `PaymentGatewayRequest`, `PaymentGatewayConfirmRequest`, `PaymentGatewayResponse` là DTO.
 
-VNPay Sandbox uses merchant configuration from environment variables, HMAC-SHA512 request signing and verified Return/IPN callbacks.
+VNPay Sandbox sử dụng cấu hình merchant từ các biến môi trường, ký request bằng HMAC-SHA512 và xác minh callback Return/IPN.
 
-### 6.6 Payment checkout vÃ  barrier
+### 6.6 Payment checkout và barrier
 
-| API | Chá»©c nÄƒng |
+| API | Chức năng |
 |---|---|
-| `POST /api/payment-checkout/prepare` | TÃ¬m session má»›i nháº¥t theo biá»ƒn sá»‘; náº¿u Ä‘ang `ACTIVE` thÃ¬ checkout vÃ  tÃ­nh phÃ­ |
-| `GET /api/payment-checkout/sessions/{sessionId}/status` | Tráº£ payment status, `paid`, `paidAt`, `exitDeadline` vÃ  cá»­a sá»• 15 phÃºt |
-| `POST /api/payment-checkout/validate-exit` | Kiá»ƒm tra xe Ä‘Ã£ tráº£ tiá»n vÃ  cÃ²n trong thá»i háº¡n Ä‘á»ƒ quyáº¿t Ä‘á»‹nh má»Ÿ barrier |
+| `POST /api/payment-checkout/prepare` | Tìm session mới nhất theo biển số; nếu đang `ACTIVE` thì checkout và tính phí |
+| `GET /api/payment-checkout/sessions/{sessionId}/status` | Trả payment status, `paid`, `paidAt`, `exitDeadline` và cửa sổ 15 phút |
+| `POST /api/payment-checkout/validate-exit` | Kiểm tra xe đã trả tiền và còn trong thời hạn để quyết định mở barrier |
 
-File xá»­ lÃ½ vÃ  liÃªn káº¿t:
+File xử lý và liên kết:
 
-- [`PaymentCheckoutController.java`](src/main/java/com/example/pricing_calculation/web/PaymentCheckoutController.java) cung cáº¥p ba endpoint.
-- [`PaymentCheckoutService.java`](src/main/java/com/example/pricing_calculation/service/PaymentCheckoutService.java) tÃ¬m session báº±ng `ParkingSessionRepository`, gá»i `ParkingSessionService` Ä‘á»ƒ tÃ­nh phÃ­ vÃ  dÃ¹ng `PaymentRepository` Ä‘á»ƒ xÃ¡c minh payment.
-- `PaymentCheckoutPrepareRequest`, `PaymentCheckoutResponse`, `PaymentExitValidationRequest`, `PaymentExitValidationResponse` lÃ  DTO.
-- Káº¿t quáº£ barrier lÃ  `OPEN_PAYMENT_VERIFIED`, `DENY_PAYMENT_REQUIRED` hoáº·c `DENY_EXIT_WINDOW_EXPIRED`.
-- Quyáº¿t Ä‘á»‹nh Ä‘Æ°á»£c phÃ¡t realtime tá»›i `/topic/parking-sessions`.
+- [`PaymentCheckoutController.java`](src/main/java/com/example/pricing_calculation/web/PaymentCheckoutController.java) cung cấp ba endpoint.
+- [`PaymentCheckoutService.java`](src/main/java/com/example/pricing_calculation/service/PaymentCheckoutService.java) tìm session bằng `ParkingSessionRepository`, gọi `ParkingSessionService` để tính phí và dùng `PaymentRepository` để xác minh payment.
+- `PaymentCheckoutPrepareRequest`, `PaymentCheckoutResponse`, `PaymentExitValidationRequest`, `PaymentExitValidationResponse` là DTO.
+- Kết quả barrier là `OPEN_PAYMENT_VERIFIED`, `DENY_PAYMENT_REQUIRED` hoặc `DENY_EXIT_WINDOW_EXPIRED`.
+- Quyết định được phát realtime tới `/topic/parking-sessions`.
 
-Backend chá»‰ tráº£ quyáº¿t Ä‘á»‹nh `openBarrier`; chÆ°a tÃ­ch há»£p thiáº¿t bá»‹/barrier API tháº­t.
+Backend chỉ trả quyết định `openBarrier`; chưa tích hợp thiết bị/barrier API thật.
 
 ### 6.7 Transaction history
 
-| API | Chá»©c nÄƒng |
+| API | Chức năng |
 |---|---|
-| `GET /api/transaction-history` | TÃ¬m kiáº¿m cÃ³ phÃ¢n trang vÃ  filter |
-| `GET /api/transaction-history/summary` | Tá»•ng há»£p sá»‘ lÆ°á»£ng, amount vÃ  tráº¡ng thÃ¡i |
-| `GET /api/transaction-history/recent` | Láº¥y transaction gáº§n nháº¥t |
-| `GET /api/transaction-history/code/{code}` | TÃ¬m theo reference code |
-| `GET /api/transaction-history/{id}` | TÃ¬m theo ID |
-| `POST /api/transaction-history` | Táº¡o transaction cho payment cÃ³ sáºµn |
-| `PUT /api/transaction-history/{id}` | Cáº­p nháº­t transaction |
-| `PATCH /api/transaction-history/{id}/status` | Äá»•i tráº¡ng thÃ¡i |
-| `DELETE /api/transaction-history/{id}` | XÃ³a transaction |
+| `GET /api/transaction-history` | Tìm kiếm có phân trang và filter |
+| `GET /api/transaction-history/summary` | Tổng hợp số lượng, amount và trạng thái |
+| `GET /api/transaction-history/recent` | Lấy transaction gần nhất |
+| `GET /api/transaction-history/code/{code}` | Tìm theo reference code |
+| `GET /api/transaction-history/{id}` | Tìm theo ID |
+| `POST /api/transaction-history` | Tạo transaction cho payment có sẵn |
+| `PUT /api/transaction-history/{id}` | Cập nhật transaction |
+| `PATCH /api/transaction-history/{id}/status` | Đổi trạng thái |
+| `DELETE /api/transaction-history/{id}` | Xóa transaction |
 
-Filter há»— trá»£ `keyword`, `type`, `status`, `paymentMethod`, `licensePlate`, `reservationCode`, thá»i gian, khoáº£ng amount, paging vÃ  sorting.
+Filter hỗ trợ `keyword`, `type`, `status`, `paymentMethod`, `licensePlate`, `reservationCode`, thời gian, khoảng amount, paging và sorting.
 
-- [`TransactionHistoryController.java`](src/main/java/com/example/pricing_calculation/web/TransactionHistoryController.java) Ä‘á»‹nh nghÄ©a API.
-- [`TransactionHistoryService.java`](src/main/java/com/example/pricing_calculation/service/TransactionHistoryService.java) dá»±ng JPA specification vÃ  summary.
-- [`TransactionHistoryRepository.java`](src/main/java/com/example/pricing_calculation/repository/TransactionHistoryRepository.java) há»— trá»£ CRUD, specification, reference lookup vÃ  recent query.
-- `TransactionHistory` liÃªn káº¿t tá»›i `Payment`, sau Ä‘Ã³ láº§n theo `ParkingSession`, `Vehicle`, `Reservation` vÃ  `UserAccount` Ä‘á»ƒ dá»±ng response.
-- `TransactionStatus`, `TransactionType`, `PaymentMethod` Ä‘á»‹nh nghÄ©a cÃ¡c enum há»— trá»£ filter.
+- [`TransactionHistoryController.java`](src/main/java/com/example/pricing_calculation/web/TransactionHistoryController.java) định nghĩa API.
+- [`TransactionHistoryService.java`](src/main/java/com/example/pricing_calculation/service/TransactionHistoryService.java) dựng JPA specification và summary.
+- [`TransactionHistoryRepository.java`](src/main/java/com/example/pricing_calculation/repository/TransactionHistoryRepository.java) hỗ trợ CRUD, specification, reference lookup và recent query.
+- `TransactionHistory` liên kết tới `Payment`, sau đó lần theo `ParkingSession`, `Vehicle`, `Reservation` và `UserAccount` để dựng response.
+- `TransactionStatus`, `TransactionType`, `PaymentMethod` định nghĩa các enum hỗ trợ filter.
 
 ### 6.8 Realtime WebSocket
 
 - STOMP endpoint: `/ws`.
 - Broker prefix: `/topic`.
 - Application prefix: `/app`.
-- Topic hiá»‡n dÃ¹ng: `/topic/reservations`, `/topic/parking-sessions`, `/topic/parking-slots`, `/topic/payments`.
+- Topic hiện dùng: `/topic/reservations`, `/topic/parking-sessions`, `/topic/parking-slots`, `/topic/payments`.
 
-[`WebSocketConfig.java`](src/main/java/com/example/pricing_calculation/config/WebSocketConfig.java) cáº¥u hÃ¬nh broker; [`RealtimeEventService.java`](src/main/java/com/example/pricing_calculation/service/RealtimeEventService.java) Ä‘Ã³ng gÃ³i payload báº±ng `WebSocketEvent` vÃ  phÃ¡t tá»« cÃ¡c service nghiá»‡p vá»¥.
+[`WebSocketConfig.java`](src/main/java/com/example/pricing_calculation/config/WebSocketConfig.java) cấu hình broker; [`RealtimeEventService.java`](src/main/java/com/example/pricing_calculation/service/RealtimeEventService.java) đóng gói payload bằng `WebSocketEvent` và phát từ các service nghiệp vụ.
 
-`setAllowedOriginPatterns("*")` phÃ¹ há»£p mÃ´i trÆ°á»ng phÃ¡t triá»ƒn nhÆ°ng cáº§n giá»›i háº¡n domain khi triá»ƒn khai production.
+`setAllowedOriginPatterns("*")` phù hợp môi trường phát triển nhưng cần giới hạn domain khi triển khai production.
 
 ### 6.9 Dashboard
 
-| API | Chá»©c nÄƒng |
+| API | Chức năng |
 |---|---|
-| `GET /api/dashboard/overview` | Tráº£ sá»‘ liá»‡u tá»•ng quan hiá»‡n táº¡i |
+| `GET /api/dashboard/overview` | Trả số liệu tổng quan hiện tại |
 
-Response gá»“m tá»•ng/pending/approved reservations, active sessions, available/occupied/reserved slots, pending/completed payments, doanh thu hÃ´m nay vÃ  tá»•ng transactions.
+Response gồm tổng/pending/approved reservations, active sessions, available/occupied/reserved slots, pending/completed payments, doanh thu hôm nay và tổng transactions.
 
-- [`DashboardController.java`](src/main/java/com/example/pricing_calculation/web/DashboardController.java) cung cáº¥p endpoint.
-- [`DashboardService.java`](src/main/java/com/example/pricing_calculation/service/DashboardService.java) tá»•ng há»£p tá»« `ReservationRepository`, `ParkingSessionRepository`, `ParkingSlotRepository`, `PaymentRepository` vÃ  `TransactionHistoryRepository`.
-- [`DashboardOverviewResponse.java`](src/main/java/com/example/pricing_calculation/dto/DashboardOverviewResponse.java) lÃ  contract response.
+- [`DashboardController.java`](src/main/java/com/example/pricing_calculation/web/DashboardController.java) cung cấp endpoint.
+- [`DashboardService.java`](src/main/java/com/example/pricing_calculation/service/DashboardService.java) tổng hợp từ `ReservationRepository`, `ParkingSessionRepository`, `ParkingSlotRepository`, `PaymentRepository` và `TransactionHistoryRepository`.
+- [`DashboardOverviewResponse.java`](src/main/java/com/example/pricing_calculation/dto/DashboardOverviewResponse.java) là contract response.
 
 ## 7. Authentication bot testing
 
-[`AuthFlowBot.java`](src/test/java/com/example/pricing_calculation/authtest/AuthFlowBot.java) dÃ¹ng Java HTTP Client gá»i REST API tháº­t trÃªn má»™t cá»•ng ngáº«u nhiÃªn. Bot tá»± táº¡o email duy nháº¥t vÃ  kiá»ƒm tra toÃ n bá»™ chuá»—i sau:
+[`AuthFlowBot.java`](src/test/java/com/example/pricing_calculation/authtest/AuthFlowBot.java) dùng Java HTTP Client gọi REST API thật trên một cổng ngẫu nhiên. Bot tự tạo email duy nhất và kiểm tra toàn bộ chuỗi sau:
 
-| BÆ°á»›c | API | Káº¿t quáº£ báº¯t buá»™c |
+| Bước | API | Kết quả bắt buộc |
 |---|---|---|
-| ÄÄƒng kÃ½ | `POST /api/auth/register` | HTTP 201, `ACTIVE`, role `CUSTOMER`, response khÃ´ng lá»™ password |
-| ÄÄƒng nháº­p sai | `POST /api/auth/login` | HTTP 401 vÃ  khÃ´ng cáº¥p token |
-| ÄÄƒng nháº­p Ä‘Ãºng | `POST /api/auth/login` | HTTP 200, tráº£ Bearer token vÃ  thá»i gian háº¿t háº¡n |
-| ÄÄƒng xuáº¥t | `POST /api/auth/logout` | HTTP 200, token bá»‹ thu há»“i |
-| DÃ¹ng láº¡i token | `POST /api/auth/logout` | HTTP 401, chá»©ng minh token cÅ© khÃ´ng cÃ²n hiá»‡u lá»±c |
+| Đăng ký | `POST /api/auth/register` | HTTP 201, `ACTIVE`, role `CUSTOMER`, response không lộ password |
+| Đăng nhập sai | `POST /api/auth/login` | HTTP 401 và không cấp token |
+| Đăng nhập đúng | `POST /api/auth/login` | HTTP 200, trả Bearer token và thời gian hết hạn |
+| Đăng xuất | `POST /api/auth/logout` | HTTP 200, token bị thu hồi |
+| Dùng lại token | `POST /api/auth/logout` | HTTP 401, chứng minh token cũ không còn hiệu lực |
 
-[`AuthFlowBotTest.java`](src/test/java/com/example/pricing_calculation/authtest/AuthFlowBotTest.java) khá»Ÿi Ä‘á»™ng Spring Boot, controller, service vÃ  JPA vá»›i database H2 in-memory riÃªng. Test khÃ´ng cáº§n frontend, khÃ´ng cáº§n SQL Server vÃ  tá»± xÃ³a tÃ i khoáº£n bot sau khi hoÃ n táº¥t.
+[`AuthFlowBotTest.java`](src/test/java/com/example/pricing_calculation/authtest/AuthFlowBotTest.java) khởi động Spring Boot, controller, service và JPA với database H2 in-memory riêng. Test không cần frontend, không cần SQL Server và tự xóa tài khoản bot sau khi hoàn tất.
 
-Cháº¡y riÃªng bot auth:
+Chạy riêng bot auth:
 
 ```powershell
 .\mvnw.cmd "-Dtest=AuthFlowBotTest" test
 ```
 
-Log cháº¡y thá»±c táº¿ gáº§n nháº¥t ngÃ y `2026-06-18`:
+Log chạy thực tế gần nhất ngày `2026-06-18`:
 
 ```text
 [auth-bot] result=PASS durationMs=1384 register=201 invalidLogin=401 login=200 logout=200 reusedToken=401
@@ -417,38 +417,38 @@ Tests run: 1, Failures: 0, Errors: 0, Skipped: 0
 BUILD SUCCESS
 ```
 
-ToÃ n bá»™ test suite sau khi thÃªm bot vÃ  Swagger: `24` test, `0` failure, `0` error, `2` payment smoke/load test Ä‘Æ°á»£c skip theo cáº¥u hÃ¬nh máº·c Ä‘á»‹nh; káº¿t quáº£ `BUILD SUCCESS`.
+Toàn bộ test suite sau khi thêm bot và Swagger: `24` test, `0` failure, `0` error, `2` payment smoke/load test được skip theo cấu hình mặc định; kết quả `BUILD SUCCESS`.
 
-CÃ¡c unit test auth bá»• sung náº±m táº¡i [`AuthServiceTest.java`](src/test/java/com/example/pricing_calculation/service/AuthServiceTest.java), kiá»ƒm tra chuáº©n hÃ³a dá»¯ liá»‡u, hash máº­t kháº©u, email trÃ¹ng, credential sai vÃ  thu há»“i token.
+Các unit test auth bổ sung nằm tại [`AuthServiceTest.java`](src/test/java/com/example/pricing_calculation/service/AuthServiceTest.java), kiểm tra chuẩn hóa dữ liệu, hash mật khẩu, email trùng, credential sai và thu hồi token.
 
 ## 8. Payment testing
 
-Má»¥c nÃ y há»£p nháº¥t ná»™i dung trÆ°á»›c Ä‘Ã¢y cá»§a `PAYMENT_TESTING.md`. Pháº¡m vi test lÃ  backend payment; website chá»‰ Ä‘Æ°á»£c dÃ¹ng lÃ m tÃ i liá»‡u xÃ¡c Ä‘á»‹nh luá»“ng, khÃ´ng kiá»ƒm thá»­ UI.
+Mục này hợp nhất nội dung trước đây của `PAYMENT_TESTING.md`. Phạm vi test là backend payment; website chỉ được dùng làm tài liệu xác định luồng, không kiểm thử UI.
 
 ### Functional test cases
 
-| ID | TÃ¡c vá»¥ | Test method | Káº¿t quáº£ mong Ä‘á»£i |
+| ID | Tác vụ | Test method | Kết quả mong đợi |
 |---|---|---|---|
-| PAY-001 | Nháº­p biá»ƒn sá»‘ | `prepareByPlateChecksOutActiveSessionAndReturnsCalculatedFee` | TÃ¬m session vÃ  chuyá»ƒn `ACTIVE` sang `CHECKED_OUT` |
-| PAY-002 | TÃ­nh phÃ­ giá»/máº¥t vÃ©/overtime | `calculatesHourlyLostTicketAndOvertimeFees` | TÃ­nh Ä‘Ãºng parking fee vÃ  penalty |
-| PAY-003 | TÃ­nh phÃ­ ngÃ y | `appliesDailyRateThenRemainingHourlyRate` | DÃ¹ng daily rate vÃ  giá» cÃ²n láº¡i |
-| PAY-004 | Cash | `cashCompletesImmediatelyAndReturnsExitDeadline` | `COMPLETED` vÃ  cÃ³ deadline 15 phÃºt |
-| PAY-006 | VNPAY | `vnpayCreatesPendingPaymentUrlAndQrContent` | `PENDING`, URL vÃ  QR content |
-| PAY-007 | Callback thÃ nh cÃ´ng | `successfulCallbackCompletesPaymentAndStartsFifteenMinuteWindow` | Payment/transaction thÃ nh `COMPLETED` |
-| PAY-008 | Callback sai gateway | `callbackRejectsReferenceFromAnotherGateway` | Tá»« chá»‘i cáº­p nháº­t |
-| PAY-009 | Tráº¡ng thÃ¡i payment | `completedPaymentStatusIncludesFifteenMinuteDeadline` | `paid=true`, deadline vÃ  window 15 phÃºt |
-| PAY-010 | Xe ra Ä‘Ãºng háº¡n | `exitValidationOpensBarrierInsidePaymentWindow` | `openBarrier=true` |
-| PAY-011 | Xe ra quÃ¡ háº¡n | `exitValidationRejectsExpiredPaymentWindow` | `DENY_EXIT_WINDOW_EXPIRED` |
-| PAY-012 | Xe chÆ°a tráº£ tiá»n | `exitValidationRejectsUnpaidVehicle` | `DENY_PAYMENT_REQUIRED` |
+| PAY-001 | Nhập biển số | `prepareByPlateChecksOutActiveSessionAndReturnsCalculatedFee` | Tìm session và chuyển `ACTIVE` sang `CHECKED_OUT` |
+| PAY-002 | Tính phí giờ/mất vé/overtime | `calculatesHourlyLostTicketAndOvertimeFees` | Tính đúng parking fee và penalty |
+| PAY-003 | Tính phí ngày | `appliesDailyRateThenRemainingHourlyRate` | Dùng daily rate và giờ còn lại |
+| PAY-004 | Cash | `cashCompletesImmediatelyAndReturnsExitDeadline` | `COMPLETED` và có deadline 15 phút |
+| PAY-006 | VNPAY | `vnpayCreatesPendingPaymentUrlAndQrContent` | `PENDING`, URL và QR content |
+| PAY-007 | Callback thành công | `successfulCallbackCompletesPaymentAndStartsFifteenMinuteWindow` | Payment/transaction thành `COMPLETED` |
+| PAY-008 | Callback sai gateway | `callbackRejectsReferenceFromAnotherGateway` | Từ chối cập nhật |
+| PAY-009 | Trạng thái payment | `completedPaymentStatusIncludesFifteenMinuteDeadline` | `paid=true`, deadline và window 15 phút |
+| PAY-010 | Xe ra đúng hạn | `exitValidationOpensBarrierInsidePaymentWindow` | `openBarrier=true` |
+| PAY-011 | Xe ra quá hạn | `exitValidationRejectsExpiredPaymentWindow` | `DENY_EXIT_WINDOW_EXPIRED` |
+| PAY-012 | Xe chưa trả tiền | `exitValidationRejectsUnpaidVehicle` | `DENY_PAYMENT_REQUIRED` |
 
-CÃ¡c unit/functional test náº±m táº¡i:
+Các unit/functional test nằm tại:
 
 - [`PricingServiceTest.java`](src/test/java/com/example/pricing_calculation/service/PricingServiceTest.java).
 - [`PaymentGatewayServiceTest.java`](src/test/java/com/example/pricing_calculation/service/PaymentGatewayServiceTest.java).
 - [`PaymentCheckoutServiceTest.java`](src/test/java/com/example/pricing_calculation/service/PaymentCheckoutServiceTest.java).
 - [`PricingCalculationApplicationTests.java`](src/test/java/com/example/pricing_calculation/PricingCalculationApplicationTests.java).
 
-Cháº¡y suite máº·c Ä‘á»‹nh:
+Chạy suite mặc định:
 
 ```powershell
 .\mvnw.cmd test
@@ -456,9 +456,9 @@ Cháº¡y suite máº·c Ä‘á»‹nh:
 
 ### Smoke bot
 
-[`PaymentFlowBot.java`](src/test/java/com/example/pricing_calculation/paymenttest/PaymentFlowBot.java) dÃ¹ng Java HTTP Client gá»i API tháº­t qua controller/service/JPA/SQL Server. Má»™t bot thá»±c hiá»‡n reservation, check-in, tÃ­nh phÃ­, payment, callback, kiá»ƒm tra deadline vÃ  validate barrier.
+[`PaymentFlowBot.java`](src/test/java/com/example/pricing_calculation/paymenttest/PaymentFlowBot.java) dùng Java HTTP Client gọi API thật qua controller/service/JPA/SQL Server. Một bot thực hiện reservation, check-in, tính phí, payment, callback, kiểm tra deadline và validate barrier.
 
-[`PaymentFlowSmokeTest.java`](src/test/java/com/example/pricing_calculation/paymenttest/PaymentFlowSmokeTest.java) cháº¡y tuáº§n tá»± hai luá»“ng `CASH`, `VNPAY`.
+[`PaymentFlowSmokeTest.java`](src/test/java/com/example/pricing_calculation/paymenttest/PaymentFlowSmokeTest.java) chạy tuần tự hai luồng `CASH`, `VNPAY`.
 
 ```powershell
 .\mvnw.cmd "-Dpayment.smoke=true" "-Dtest=PaymentFlowSmokeTest" test
@@ -466,38 +466,38 @@ Cháº¡y suite máº·c Ä‘á»‹nh:
 
 ### Load test
 
-[`PaymentLoadTest.java`](src/test/java/com/example/pricing_calculation/paymenttest/PaymentLoadTest.java) dÃ¹ng `ExecutorService` vÃ  `CountDownLatch` Ä‘á»ƒ cháº¡y bot Ä‘á»“ng thá»i. Sá»‘ user tá»‘i Ä‘a Ä‘Æ°á»£c giá»›i háº¡n á»Ÿ 200.
+[`PaymentLoadTest.java`](src/test/java/com/example/pricing_calculation/paymenttest/PaymentLoadTest.java) dùng `ExecutorService` và `CountDownLatch` để chạy bot đồng thời. Số user tối đa được giới hạn ở 200.
 
 ```powershell
 .\mvnw.cmd "-Dpayment.load=true" "-Dpayment.load.users=30" "-Dpayment.load.concurrency=10" "-Dpayment.load.p95-ms=15000" "-Dtest=PaymentLoadTest" test
 ```
 
-Káº¿t quáº£ kiá»ƒm tra gáº§n nháº¥t trÃªn mÃ¡y local:
+Kết quả kiểm tra gần nhất trên máy local:
 
 ```text
 [payment-load] users=30 concurrency=10 successful=30 totalMs=1047 p95Ms=796 flowsPerSecond=28.65
 ```
 
-[`PaymentTestDataFactory.java`](src/test/java/com/example/pricing_calculation/paymenttest/PaymentTestDataFactory.java) táº¡o dá»¯ liá»‡u marker riÃªng trong SQL Server vÃ  xÃ³a `Transactions`, `Payments`, `ParkingSessions`, `Reservations` cÃ¹ng toÃ n bá»™ dá»¯ liá»‡u ná»n sau má»—i test. Smoke/load test Ä‘á»u assert khÃ´ng cÃ²n marker.
+[`PaymentTestDataFactory.java`](src/test/java/com/example/pricing_calculation/paymenttest/PaymentTestDataFactory.java) tạo dữ liệu marker riêng trong SQL Server và xóa `Transactions`, `Payments`, `ParkingSessions`, `Reservations` cùng toàn bộ dữ liệu nền sau mỗi test. Smoke/load test đều assert không còn marker.
 
-## 9. Cáº¥u trÃºc thÆ° má»¥c
+## 9. Cấu trúc thư mục
 
 ```text
 src/main/java/com/example/pricing_calculation/
 |-- config/       WebSocket configuration
-|-- domain/       JPA entities vÃ  enums
+|-- domain/       JPA entities và enums
 |-- dto/          Request/response contracts
 |-- repository/   Spring Data JPA access
 |-- service/      Business logic
-`-- web/          REST controllers vÃ  exception handler
+`-- web/          REST controllers và exception handler
 
 src/test/java/com/example/pricing_calculation/
-|-- authtest/     HTTP bot cho register, login vÃ  logout
+|-- authtest/     HTTP bot cho register, login và logout
 |-- service/      Unit/functional tests
-`-- paymenttest/  HTTP bot, smoke test, load test vÃ  test data factory
+`-- paymenttest/  HTTP bot, smoke test, load test và test data factory
 ```
 
-## 10. Luá»“ng payment hoÃ n chá»‰nh
+## 10. Luồng payment hoàn chỉnh
 
 ```mermaid
 sequenceDiagram
