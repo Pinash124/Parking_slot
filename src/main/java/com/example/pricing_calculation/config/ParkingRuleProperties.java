@@ -14,8 +14,8 @@ public class ParkingRuleProperties {
     private int tariffGraceMinutes = 10;
     private LocalTime dayStart = LocalTime.of(7, 0);
     private LocalTime nightStart = LocalTime.of(22, 0);
-    private BigDecimal twoWheelDayTurn = BigDecimal.valueOf(8000);
-    private BigDecimal fourWheelDayTurn = BigDecimal.valueOf(35000);
+    private BigDecimal twoWheelDayTurn = BigDecimal.valueOf(5000);
+    private BigDecimal fourWheelDayTurn = BigDecimal.valueOf(10000);
     private BigDecimal twoWheelNightHourly = BigDecimal.valueOf(3000);
     private BigDecimal fourWheelNightHourly = BigDecimal.valueOf(5000);
 

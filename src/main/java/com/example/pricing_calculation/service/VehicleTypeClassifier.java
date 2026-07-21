@@ -22,10 +22,6 @@ public final class VehicleTypeClassifier {
         return 4;
     }
 
-    public static boolean isTwoWheel(VehicleTypeEntity vehicleType) {
-        return wheelCount(vehicleType) == 2;
-    }
-
     public static boolean isCar(VehicleTypeEntity vehicleType) {
         return wheelCount(vehicleType) == 4;
     }

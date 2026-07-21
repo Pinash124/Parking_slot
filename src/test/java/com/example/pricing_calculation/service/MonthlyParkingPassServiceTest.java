@@ -14,7 +14,6 @@ import com.example.pricing_calculation.domain.Vehicle;
 import com.example.pricing_calculation.domain.VehicleTypeEntity;
 import com.example.pricing_calculation.domain.Zone;
 import com.example.pricing_calculation.dto.MonthlyParkingPassDtos.MonthlyParkingPassCreateRequest;
-import com.example.pricing_calculation.dto.MonthlyParkingPassDtos.MonthlyParkingPassPaymentRequest;
 import com.example.pricing_calculation.repository.MonthlyParkingPassRepository;
 import com.example.pricing_calculation.repository.PaymentModuleParkingSlotRepository;
 import com.example.pricing_calculation.repository.VehicleRepository;
@@ -32,8 +31,7 @@ class MonthlyParkingPassServiceTest {
         VehicleRepository vehicles = mock(VehicleRepository.class);
         PaymentModuleParkingSlotRepository slots = mock(PaymentModuleParkingSlotRepository.class);
         PricingService pricing = mock(PricingService.class);
-        MonthlyParkingPassService service = new MonthlyParkingPassService(
-                passes, vehicles, slots, pricing, "/payment/vnpay-personal-qr.png");
+        MonthlyParkingPassService service = new MonthlyParkingPassService(passes, vehicles, slots, pricing);
         UserAccount user = mock(UserAccount.class);
         Vehicle vehicle = mock(Vehicle.class);
         VehicleTypeEntity type = mock(VehicleTypeEntity.class);
@@ -55,8 +53,7 @@ class MonthlyParkingPassServiceTest {
         VehicleRepository vehicles = mock(VehicleRepository.class);
         PaymentModuleParkingSlotRepository slots = mock(PaymentModuleParkingSlotRepository.class);
         PricingService pricing = mock(PricingService.class);
-        MonthlyParkingPassService service = new MonthlyParkingPassService(
-                passes, vehicles, slots, pricing, "/payment/vnpay-personal-qr.png");
+        MonthlyParkingPassService service = new MonthlyParkingPassService(passes, vehicles, slots, pricing);
 
         UserAccount user = mock(UserAccount.class);
         Vehicle vehicle = mock(Vehicle.class);
@@ -91,32 +88,5 @@ class MonthlyParkingPassServiceTest {
         assertEquals("PENDING_PAYMENT", response.status());
         assertEquals("PENDING", response.paymentStatus());
         verify(slot).setStatus("MONTHLY_HELD");
-    }
-
-    @Test
-    void confirmsMonthlyPassPaymentAsOnlineQr() {
-        MonthlyParkingPassRepository passes = mock(MonthlyParkingPassRepository.class);
-        VehicleRepository vehicles = mock(VehicleRepository.class);
-        PaymentModuleParkingSlotRepository slots = mock(PaymentModuleParkingSlotRepository.class);
-        PricingService pricing = mock(PricingService.class);
-        MonthlyParkingPassService service = new MonthlyParkingPassService(
-                passes, vehicles, slots, pricing, "/payment/vnpay-personal-qr.png");
-        MonthlyParkingPass pass = mock(MonthlyParkingPass.class);
-        PaymentModuleParkingSlot slot = mock(PaymentModuleParkingSlot.class);
-        when(pass.getPaymentStatus()).thenReturn("PENDING");
-        when(pass.getStatus()).thenReturn("PENDING_PAYMENT");
-        when(pass.getStartDate()).thenReturn(LocalDate.now());
-        when(pass.getReservedSlot()).thenReturn(slot);
-        when(slot.getId()).thenReturn(20L);
-        when(slot.getStatus()).thenReturn("MONTHLY_HELD");
-        when(passes.findById(99L)).thenReturn(Optional.of(pass));
-        when(slots.findByIdForUpdate(20L)).thenReturn(Optional.of(slot));
-        when(passes.save(pass)).thenReturn(pass);
-
-        service.confirmPayment(99L, new MonthlyParkingPassPaymentRequest("BANK-001"));
-
-        verify(pass).setPaymentMethod("ONLINE_QR");
-        verify(pass).setPaymentReference("BANK-001");
-        verify(slot).setStatus("MONTHLY_RESERVED");
     }
 }

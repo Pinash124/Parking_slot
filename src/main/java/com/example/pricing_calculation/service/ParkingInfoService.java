@@ -89,7 +89,7 @@ public class ParkingInfoService {
         java.util.Set<String> allowedZoneTypes = switch (normalized) {
             case "RESERVATION" -> java.util.Set.of("CAR_NORMAL");
             case "MONTHLY" -> java.util.Set.of("CAR_MONTHLY");
-            case "PARKING" -> java.util.Set.of("CAR_NORMAL");
+            case "PARKING" -> java.util.Set.of("CAR_NORMAL", "MOTORBIKE");
             default -> throw new BadRequestException("purpose must be RESERVATION, MONTHLY or PARKING");
         };
         return parkingSlotRepository.searchAvailableSlots(zoneId, vehicleTypeId, "AVAILABLE")
@@ -102,7 +102,7 @@ public class ParkingInfoService {
     private List<String> parkingRules() {
         return List.of(
                 "Xe vao bai phai co ticket code, QR/RFID hoac parking session hop le",
-                "O to duoc quan ly theo tung slot; xe 2 banh duoc quan ly theo so luong trong khu xe may",
+                "Moi slot chi chua mot xe tai mot thoi diem",
                 "Xe ra bai phai hoan tat thanh toan va con trong cua so validate exit",
                 "Slot da dat truoc khong duoc su dung boi xe khac",
                 "Mat ve, sai phi, kho tim xe hoac slot bi chiem can gui feedback/incident de nhan vien xu ly"

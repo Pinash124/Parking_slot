@@ -1,6 +1,5 @@
 package com.example.pricing_calculation.service;
 
-import com.example.pricing_calculation.domain.PaymentModuleParkingSlot;
 import com.example.pricing_calculation.domain.Reservation;
 import com.example.pricing_calculation.domain.UserAccount;
 import com.example.pricing_calculation.domain.Vehicle;
@@ -8,7 +7,6 @@ import com.example.pricing_calculation.domain.Zone;
 import com.example.pricing_calculation.dto.PageResponse;
 import com.example.pricing_calculation.dto.ReservationCreateRequest;
 import com.example.pricing_calculation.dto.ReservationResponse;
-import com.example.pricing_calculation.repository.MonthlyParkingPassRepository;
 import com.example.pricing_calculation.repository.PaymentModuleParkingSlotRepository;
 import com.example.pricing_calculation.repository.ReservationRepository;
 import com.example.pricing_calculation.repository.UserAccountRepository;
@@ -32,7 +30,6 @@ public class ReservationService {
     private final VehicleRepository vehicleRepository;
     private final ZoneRepository zoneRepository;
     private final PaymentModuleParkingSlotRepository parkingSlotRepository;
-    private final MonthlyParkingPassRepository monthlyParkingPassRepository;
     private final RealtimeEventService realtimeEventService;
 
     public ReservationService(
@@ -41,14 +38,12 @@ public class ReservationService {
             VehicleRepository vehicleRepository,
             ZoneRepository zoneRepository,
             PaymentModuleParkingSlotRepository parkingSlotRepository,
-            MonthlyParkingPassRepository monthlyParkingPassRepository,
             RealtimeEventService realtimeEventService) {
         this.reservationRepository = reservationRepository;
         this.userAccountRepository = userAccountRepository;
         this.vehicleRepository = vehicleRepository;
         this.zoneRepository = zoneRepository;
         this.parkingSlotRepository = parkingSlotRepository;
-        this.monthlyParkingPassRepository = monthlyParkingPassRepository;
         this.realtimeEventService = realtimeEventService;
     }
 
@@ -61,14 +56,8 @@ public class ReservationService {
                 .orElseThrow(() -> new ResourceNotFoundException("Vehicle not found: " + request.vehicleId()));
         Zone zone = zoneRepository.findById(request.zoneId())
                 .orElseThrow(() -> new ResourceNotFoundException("Zone not found: " + request.zoneId()));
-        PaymentModuleParkingSlot slot = parkingSlotRepository.findByIdForUpdate(request.slotId())
-                .orElseThrow(() -> new ResourceNotFoundException("Parking slot not found: " + request.slotId()));
         if (!vehicle.getUser().getId().equals(user.getId())) {
             throw new BadRequestException("Vehicle does not belong to selected user");
-        }
-        if (monthlyParkingPassRepository.existsByVehicleIdAndStatusIn(vehicle.getId(),
-                List.of("ACTIVE", "SCHEDULED", "PENDING_PAYMENT"))) {
-            throw new BadRequestException("Vehicle already has a monthly pass and cannot make reservations");
         }
         if (!VehicleTypeClassifier.isCar(vehicle.getVehicleType())) {
             throw new BadRequestException("Only cars can reserve a parking slot");
@@ -79,24 +68,15 @@ public class ReservationService {
         if (!zone.getVehicleType().getId().equals(vehicle.getVehicleType().getId())) {
             throw new BadRequestException("Selected zone does not support this vehicle type");
         }
-        if (slot.getZone() == null || !slot.getZone().getId().equals(zone.getId())) {
-            throw new BadRequestException("Selected slot is outside the selected reservation zone");
-        }
-        if (!"AVAILABLE".equalsIgnoreCase(slot.getStatus())) {
-            throw new BadRequestException("Selected parking slot is not available for reservation");
-        }
         ensureZoneCapacity(zone.getId(), request.startTime(), request.endTime());
 
         Reservation reservation = new Reservation();
         reservation.setUser(user);
         reservation.setVehicle(vehicle);
         reservation.setZone(zone);
-        reservation.setReservedSlot(slot);
         reservation.setStartTime(request.startTime());
         reservation.setEndTime(request.endTime());
         reservation.setStatus("APPROVED");
-        slot.setStatus("RESERVED");
-        parkingSlotRepository.save(slot);
         Reservation saved = reservationRepository.save(reservation);
         ReservationResponse response = ReservationResponse.from(saved);
         realtimeEventService.publish(
@@ -198,8 +178,8 @@ public class ReservationService {
         if (request == null) {
             throw new BadRequestException("Reservation request is required");
         }
-        if (request.userId() == null || request.vehicleId() == null || request.zoneId() == null || request.slotId() == null) {
-            throw new BadRequestException("userId, vehicleId, zoneId and slotId are required");
+        if (request.userId() == null || request.vehicleId() == null || request.zoneId() == null) {
+            throw new BadRequestException("userId, vehicleId and zoneId are required");
         }
         if (request.startTime() == null || request.endTime() == null) {
             throw new BadRequestException("startTime and endTime are required");

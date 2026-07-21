@@ -1,7 +1,6 @@
 package com.example.pricing_calculation.web;
 
 import com.example.pricing_calculation.dto.ParkingSessionResponse;
-import com.example.pricing_calculation.dto.FloorOccupancyResponse;
 import com.example.pricing_calculation.dto.SessionCheckInRequest;
 import com.example.pricing_calculation.dto.SessionCheckoutRequest;
 import com.example.pricing_calculation.service.PaymentModuleParkingSessionService;
@@ -69,18 +68,6 @@ public class PaymentModuleParkingSessionController {
         return parkingSessionService.list(status);
     }
 
-    @GetMapping("/lookup")
-    public ParkingSessionResponse lookup(@RequestHeader("Authorization") String header, @RequestParam String query) {
-        staff(header);
-        return parkingSessionService.lookupForGate(query);
-    }
-
-    @GetMapping("/floor-occupancy")
-    public java.util.List<FloorOccupancyResponse> floorOccupancy(@RequestHeader("Authorization") String header) {
-        staff(header);
-        return parkingSessionService.floorOccupancy();
-    }
-
     @GetMapping("/{id}")
     public ParkingSessionResponse getById(@RequestHeader("Authorization") String header, @PathVariable Long id) {
         staff(header);
@@ -122,27 +109,14 @@ public class PaymentModuleParkingSessionController {
         Long reservationId = null;
         Long vehicleId = null;
 
-        Long qrVehicleId = qrCodeService.parseVehicleId(decodedText);
-        if (qrVehicleId != null) {
-            com.example.pricing_calculation.domain.Vehicle vehicle = vehicleRepository.findById(qrVehicleId)
-                    .orElseThrow(() -> new com.example.pricing_calculation.service.ResourceNotFoundException("Vehicle not found from QR: " + qrVehicleId));
-            vehicleId = vehicle.getId();
-            java.util.List<com.example.pricing_calculation.domain.Reservation> activeReservations =
-                    reservationRepository.findByVehicleIdAndStatusIgnoreCase(vehicleId, "APPROVED");
-            if (!activeReservations.isEmpty()) {
-                reservationId = activeReservations.get(0).getId();
-            }
-        } else if (decodedText.matches("^\\d+$")) {
+        if (decodedText.matches("^\\d+$")) {
             Long resId = Long.parseLong(decodedText);
             com.example.pricing_calculation.domain.Reservation reservation = reservationRepository.findById(resId)
                     .orElseThrow(() -> new com.example.pricing_calculation.service.ResourceNotFoundException("Reservation not found: " + resId));
             reservationId = reservation.getId();
             vehicleId = reservation.getVehicle().getId();
         } else {
-            String plate = qrCodeService.parseVehiclePlate(decodedText);
-            if (plate == null) {
-                plate = decodedText.trim().toUpperCase();
-            }
+            String plate = decodedText.trim().toUpperCase();
             java.util.Optional<com.example.pricing_calculation.domain.Vehicle> optVehicle = vehicleRepository.findByPlateNumberIgnoreCase(plate);
             
             if (optVehicle.isPresent()) {
@@ -168,8 +142,6 @@ public class PaymentModuleParkingSessionController {
                 guestVehicle.setStatus("ACTIVE");
                 
                 com.example.pricing_calculation.domain.Vehicle savedGuest = vehicleRepository.save(guestVehicle);
-                savedGuest.setQrCode(qrCodeService.buildVehicleQrContent(savedGuest));
-                savedGuest = vehicleRepository.save(savedGuest);
                 vehicleId = savedGuest.getId();
             }
         }

@@ -66,6 +66,9 @@ public class MonthlyParkingPass {
     @Column(name = "payment_reference", length = 100)
     private String paymentReference;
 
+    @Column(name = "auto_renew")
+    private Boolean autoRenew;
+
     @Column(name = "paid_at")
     private LocalDateTime paidAt;
 
@@ -163,6 +166,8 @@ public class MonthlyParkingPass {
     public void setPaymentMethod(String paymentMethod) { this.paymentMethod = normalize(paymentMethod); }
     public String getPaymentReference() { return paymentReference; }
     public void setPaymentReference(String paymentReference) { this.paymentReference = normalize(paymentReference); }
+    public Boolean getAutoRenew() { return autoRenew; }
+    public void setAutoRenew(Boolean autoRenew) { this.autoRenew = autoRenew; }
     public LocalDateTime getPaidAt() { return paidAt; }
     public void setPaidAt(LocalDateTime paidAt) { this.paidAt = paidAt; }
 

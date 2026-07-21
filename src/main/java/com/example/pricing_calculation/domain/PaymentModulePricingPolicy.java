@@ -31,20 +31,8 @@ public class PaymentModulePricingPolicy {
     @Column(name = "hourly_rate", precision = 18, scale = 2)
     private BigDecimal hourlyRate;
 
-    @Column(name = "hourly_billing_mode", length = 20)
-    private String hourlyBillingMode;
-
-    @Column(name = "hourly_billing_block_hours")
-    private Integer hourlyBillingBlockHours;
-
     @Column(name = "daily_rate", precision = 18, scale = 2)
     private BigDecimal dailyRate;
-
-    @Column(name = "daily_billing_mode", length = 20)
-    private String dailyBillingMode;
-
-    @Column(name = "daily_billing_block_hours")
-    private Integer dailyBillingBlockHours;
 
     @Column(name = "monthly_rate", precision = 18, scale = 2)
     private BigDecimal monthlyRate;
@@ -83,24 +71,8 @@ public class PaymentModulePricingPolicy {
         return hourlyRate;
     }
 
-    public String getHourlyBillingMode() {
-        return hourlyBillingMode;
-    }
-
-    public Integer getHourlyBillingBlockHours() {
-        return hourlyBillingBlockHours;
-    }
-
     public BigDecimal getDailyRate() {
         return dailyRate;
-    }
-
-    public String getDailyBillingMode() {
-        return dailyBillingMode;
-    }
-
-    public Integer getDailyBillingBlockHours() {
-        return dailyBillingBlockHours;
     }
 
     public BigDecimal getMonthlyRate() { return monthlyRate; }
@@ -129,11 +101,7 @@ public class PaymentModulePricingPolicy {
     public void setVehicleType(VehicleTypeEntity vehicleType) { this.vehicleType = vehicleType; }
     public void setPolicyName(String policyName) { this.policyName = policyName; }
     public void setHourlyRate(BigDecimal hourlyRate) { this.hourlyRate = hourlyRate; }
-    public void setHourlyBillingMode(String hourlyBillingMode) { this.hourlyBillingMode = hourlyBillingMode; }
-    public void setHourlyBillingBlockHours(Integer hourlyBillingBlockHours) { this.hourlyBillingBlockHours = hourlyBillingBlockHours; }
     public void setDailyRate(BigDecimal dailyRate) { this.dailyRate = dailyRate; }
-    public void setDailyBillingMode(String dailyBillingMode) { this.dailyBillingMode = dailyBillingMode; }
-    public void setDailyBillingBlockHours(Integer dailyBillingBlockHours) { this.dailyBillingBlockHours = dailyBillingBlockHours; }
     public void setMonthlyRate(BigDecimal monthlyRate) { this.monthlyRate = monthlyRate; }
     public void setFixedSurcharge(BigDecimal fixedSurcharge) { this.fixedSurcharge = fixedSurcharge; }
     public void setLostTicketFee(BigDecimal lostTicketFee) { this.lostTicketFee = lostTicketFee; }

@@ -1,12 +1,10 @@
 package com.example.pricing_calculation.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -35,7 +33,7 @@ import org.junit.jupiter.api.Test;
 class PaymentModuleParkingSessionServiceTest {
 
     @Test
-    void checksInEarlyUsingSlotSelectedOnReservation() {
+    void checksInEarlyUsingRandomSlotInTheReservedZone() {
         PaymentModuleParkingSessionRepository sessions = mock(PaymentModuleParkingSessionRepository.class);
         ReservationRepository reservations = mock(ReservationRepository.class);
         VehicleRepository vehicles = mock(VehicleRepository.class);
@@ -47,10 +45,9 @@ class PaymentModuleParkingSessionServiceTest {
         PaymentModuleVehicleTypeRepository vehicleTypes = mock(PaymentModuleVehicleTypeRepository.class);
         MonthlyParkingPassRepository monthlyPasses = mock(MonthlyParkingPassRepository.class);
         ParkingRuleProperties rules = new ParkingRuleProperties();
-        QrCodeService qrCodeService = mock(QrCodeService.class);
         PaymentModuleParkingSessionService service = new PaymentModuleParkingSessionService(
                 sessions, reservations, vehicles, slots, pricing, realtime, usages, users, vehicleTypes,
-                monthlyPasses, rules, qrCodeService);
+                monthlyPasses, rules);
 
         Vehicle vehicle = mock(Vehicle.class);
         VehicleTypeEntity vehicleType = mock(VehicleTypeEntity.class);
@@ -71,7 +68,7 @@ class PaymentModuleParkingSessionServiceTest {
         when(reservation.getId()).thenReturn(30L);
         when(reservation.getVehicle()).thenReturn(vehicle);
         when(reservation.getZone()).thenReturn(zone);
-        when(reservation.getReservedSlot()).thenReturn(selectedSlot);
+        when(reservation.getReservedSlot()).thenReturn(null);
         when(reservation.getStatus()).thenReturn("APPROVED");
         when(reservation.getStartTime()).thenReturn(LocalDateTime.of(2026, 7, 5, 10, 0));
         when(zone.getId()).thenReturn(5L);
@@ -79,9 +76,10 @@ class PaymentModuleParkingSessionServiceTest {
         when(zone.getZoneType()).thenReturn("CAR_NORMAL");
         when(zone.getZoneName()).thenReturn("CAR ZONE");
         when(selectedSlot.getId()).thenReturn(20L);
-        when(selectedSlot.getStatus()).thenReturn("RESERVED");
+        when(selectedSlot.getStatus()).thenReturn("AVAILABLE");
         when(selectedSlot.getZone()).thenReturn(zone);
         when(selectedSlot.getSlotCode()).thenReturn("A-01");
+        when(slots.searchAvailableSlots(5L, 1L, "AVAILABLE")).thenReturn(List.of(selectedSlot));
         when(slots.findByIdForUpdate(20L)).thenReturn(Optional.of(selectedSlot));
         when(sessions.countByVehicleIdAndStatusIn(anyLong(), any())).thenReturn(0L);
         when(sessions.save(any(PaymentModuleParkingSession.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -96,44 +94,6 @@ class PaymentModuleParkingSessionServiceTest {
         assertEquals("ACTIVE", response.status());
         verify(reservation).setStatus("CONFIRMED");
         verify(selectedSlot).setStatus("OCCUPIED");
-        verify(slots).findByIdForUpdate(20L);
         verify(slots, never()).findByIdForUpdate(999L);
-    }
-    @Test
-    void explicitReservationQrTooEarlyDoesNotFallbackToRandomSlot() {
-        PaymentModuleParkingSessionRepository sessions = mock(PaymentModuleParkingSessionRepository.class);
-        ReservationRepository reservations = mock(ReservationRepository.class);
-        VehicleRepository vehicles = mock(VehicleRepository.class);
-        PaymentModuleParkingSlotRepository slots = mock(PaymentModuleParkingSlotRepository.class);
-        PricingService pricing = mock(PricingService.class);
-        RealtimeEventService realtime = mock(RealtimeEventService.class);
-        SessionServiceUsageRepository usages = mock(SessionServiceUsageRepository.class);
-        UserAccountRepository users = mock(UserAccountRepository.class);
-        PaymentModuleVehicleTypeRepository vehicleTypes = mock(PaymentModuleVehicleTypeRepository.class);
-        MonthlyParkingPassRepository monthlyPasses = mock(MonthlyParkingPassRepository.class);
-        ParkingRuleProperties rules = new ParkingRuleProperties();
-        QrCodeService qrCodeService = mock(QrCodeService.class);
-        PaymentModuleParkingSessionService service = new PaymentModuleParkingSessionService(
-                sessions, reservations, vehicles, slots, pricing, realtime, usages, users, vehicleTypes,
-                monthlyPasses, rules, qrCodeService);
-
-        Vehicle vehicle = mock(Vehicle.class);
-        Reservation reservation = mock(Reservation.class);
-        LocalDateTime tooEarly = LocalDateTime.of(2026, 7, 5, 9, 0);
-
-        when(reservations.findById(30L)).thenReturn(Optional.of(reservation));
-        when(reservation.getVehicle()).thenReturn(vehicle);
-        when(reservation.getStatus()).thenReturn("APPROVED");
-        when(reservation.getStartTime()).thenReturn(LocalDateTime.of(2026, 7, 5, 10, 0));
-        when(vehicle.getId()).thenReturn(10L);
-
-        assertThrows(BadRequestException.class, () -> service.checkIn(
-                new SessionCheckInRequest(30L, null, 999L, null, tooEarly, null),
-                7L,
-                "GATE_IN_01"));
-
-        verify(slots, never()).findByIdForUpdate(anyLong());
-        verify(sessions, never()).save(any(PaymentModuleParkingSession.class));
-        verify(reservations, times(2)).findById(30L);
     }
 }

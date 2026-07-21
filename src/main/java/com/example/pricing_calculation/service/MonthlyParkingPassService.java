@@ -6,6 +6,7 @@ import com.example.pricing_calculation.domain.UserAccount;
 import com.example.pricing_calculation.domain.Vehicle;
 import com.example.pricing_calculation.dto.MonthlyParkingPassDtos.MonthlyParkingPassCreateRequest;
 import com.example.pricing_calculation.dto.MonthlyParkingPassDtos.MonthlyParkingPassPaymentInstructionResponse;
+import com.example.pricing_calculation.dto.MonthlyParkingPassDtos.MonthlyParkingPassPaymentPrepareRequest;
 import com.example.pricing_calculation.dto.MonthlyParkingPassDtos.MonthlyParkingPassPaymentRequest;
 import com.example.pricing_calculation.dto.MonthlyParkingPassDtos.MonthlyParkingPassResponse;
 import com.example.pricing_calculation.repository.MonthlyParkingPassRepository;
@@ -19,7 +20,6 @@ import java.time.ZoneId;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,16 +32,13 @@ public class MonthlyParkingPassService {
     private final VehicleRepository vehicles;
     private final PaymentModuleParkingSlotRepository slots;
     private final PricingService pricing;
-    private final String personalQrImageUrl;
 
     public MonthlyParkingPassService(MonthlyParkingPassRepository passes, VehicleRepository vehicles,
-            PaymentModuleParkingSlotRepository slots, PricingService pricing,
-            @Value("${personal-qr.image-url:/payment/vnpay-personal-qr.png}") String personalQrImageUrl) {
+            PaymentModuleParkingSlotRepository slots, PricingService pricing) {
         this.passes = passes;
         this.vehicles = vehicles;
         this.slots = slots;
         this.pricing = pricing;
-        this.personalQrImageUrl = personalQrImageUrl;
     }
 
     @Transactional(readOnly = true)
@@ -54,15 +51,6 @@ public class MonthlyParkingPassService {
     public List<MonthlyParkingPassResponse> listAll() {
         return passes.findAllByOrderByCreatedAtDesc().stream()
                 .map(MonthlyParkingPassResponse::from).toList();
-    }
-
-    @Transactional(readOnly = true)
-    public MonthlyParkingPassResponse getForUser(UserAccount user, Long id) {
-        MonthlyParkingPass pass = find(id);
-        if (pass.getUser() == null || user == null || !pass.getUser().getId().equals(user.getId())) {
-            throw new ForbiddenException("Monthly pass does not belong to current user");
-        }
-        return MonthlyParkingPassResponse.from(pass);
     }
 
     @Transactional(isolation = Isolation.SERIALIZABLE)
@@ -116,11 +104,12 @@ public class MonthlyParkingPassService {
         pass.setReservedSlot(slot);
         pass.setMonths(months);
         pass.setMonthlyRate(monthlyRate);
-        pass.setTotalAmount(calculateTotalAmount(monthlyRate, months));
+        pass.setTotalAmount(monthlyRate.multiply(BigDecimal.valueOf(months)).setScale(2, RoundingMode.HALF_UP));
         pass.setStartDate(startDate);
         pass.setEndDate(endDate);
         pass.setStatus("PENDING_PAYMENT");
         pass.setPaymentStatus("PENDING");
+        pass.setAutoRenew(Boolean.FALSE);
         pass.setNote(request.note());
         pass.setCreatedAt(now);
         pass.setUpdatedAt(now);
@@ -129,86 +118,73 @@ public class MonthlyParkingPassService {
         return MonthlyParkingPassResponse.from(passes.save(pass));
     }
 
-    private BigDecimal calculateTotalAmount(BigDecimal monthlyRate, int months) {
-        BigDecimal discountRate = BigDecimal.ZERO;
-        if (months >= 12) {
-            discountRate = new BigDecimal("0.15");
-        } else if (months >= 6) {
-            discountRate = new BigDecimal("0.10");
-        } else if (months >= 3) {
-            discountRate = new BigDecimal("0.05");
-        }
-        return monthlyRate
-                .multiply(BigDecimal.valueOf(months))
-                .multiply(BigDecimal.ONE.subtract(discountRate))
-                .setScale(2, RoundingMode.HALF_UP);
-    }
-
     @Transactional
-    public MonthlyParkingPassPaymentInstructionResponse prepareOnlinePayment(UserAccount user, Long id) {
+    public MonthlyParkingPassPaymentInstructionResponse prepareOnlinePayment(
+            UserAccount user,
+            Long id,
+            MonthlyParkingPassPaymentPrepareRequest request) {
         MonthlyParkingPass pass = findOwnedPendingPass(user, id);
+        boolean autoRenew = request != null && Boolean.TRUE.equals(request.autoRenew());
         String referenceCode = buildReferenceCode("MTHQR", pass.getId());
         pass.setPaymentMethod("ONLINE_QR");
         pass.setPaymentReference(referenceCode);
+        pass.setAutoRenew(autoRenew);
         pass.setUpdatedAt(LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh")));
         MonthlyParkingPass saved = passes.save(pass);
-        String qrContent = buildQrContent(saved, referenceCode);
+        String qrContent = buildQrContent(saved, "ONLINE_QR", referenceCode, autoRenew);
         return new MonthlyParkingPassPaymentInstructionResponse(
                 MonthlyParkingPassResponse.from(saved),
                 "ONLINE_QR",
                 referenceCode,
                 saved.getTotalAmount(),
+                autoRenew,
                 qrContent,
                 null,
-                personalQrImageUrl,
-                referenceCode,
                 saved.getUpdatedAt()
         );
     }
 
     @Transactional
-    public MonthlyParkingPassResponse prepareVnpayPayment(UserAccount user, Long id, String referenceCode) {
-        if (referenceCode == null || referenceCode.isBlank()) {
-            throw new BadRequestException("referenceCode is required");
-        }
+    public MonthlyParkingPassPaymentInstructionResponse prepareCashBill(UserAccount user, Long id) {
         MonthlyParkingPass pass = findOwnedPendingPass(user, id);
-        pass.setPaymentMethod("VNPAY");
-        pass.setPaymentReference(referenceCode.trim());
+        String referenceCode = buildReferenceCode("MTHCASH", pass.getId());
+        pass.setPaymentMethod("CASH");
+        pass.setPaymentReference(referenceCode);
+        pass.setAutoRenew(Boolean.TRUE);
         pass.setUpdatedAt(LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh")));
-        return MonthlyParkingPassResponse.from(passes.save(pass));
+        MonthlyParkingPass saved = passes.save(pass);
+        String qrContent = buildQrContent(saved, "CASH", referenceCode, true);
+        String billContent = buildCashBill(saved, referenceCode, qrContent);
+        return new MonthlyParkingPassPaymentInstructionResponse(
+                MonthlyParkingPassResponse.from(saved),
+                "CASH",
+                referenceCode,
+                saved.getTotalAmount(),
+                Boolean.TRUE,
+                qrContent,
+                billContent,
+                saved.getUpdatedAt()
+        );
     }
 
     @Transactional(isolation = Isolation.SERIALIZABLE)
     public MonthlyParkingPassResponse confirmPayment(Long id, MonthlyParkingPassPaymentRequest request) {
         MonthlyParkingPass pass = find(id);
-        String reference = request == null || request.referenceCode() == null || request.referenceCode().isBlank()
-                ? pass.getPaymentReference()
-                : request.referenceCode();
-        return completePayment(pass, reference, "ONLINE_QR");
-    }
-
-    @Transactional(readOnly = true)
-    public BigDecimal amountByPaymentReference(String referenceCode) {
-        return findByPaymentReference(referenceCode).getTotalAmount();
-    }
-
-    @Transactional(isolation = Isolation.SERIALIZABLE)
-    public MonthlyParkingPassResponse confirmVnpayPayment(String referenceCode) {
-        MonthlyParkingPass pass = findByPaymentReference(referenceCode);
-        return completePayment(pass, referenceCode, "VNPAY");
-    }
-
-    private MonthlyParkingPassResponse completePayment(MonthlyParkingPass pass, String reference, String paymentMethod) {
         if ("PAID".equalsIgnoreCase(pass.getPaymentStatus())) {
             return MonthlyParkingPassResponse.from(pass);
         }
         if (!"PENDING_PAYMENT".equalsIgnoreCase(pass.getStatus())) {
             throw new BadRequestException("Only a pending monthly pass can be paid");
         }
+        String method = request == null || request.paymentMethod() == null || request.paymentMethod().isBlank()
+                ? "CASH" : request.paymentMethod().trim().toUpperCase();
         LocalDate today = LocalDate.now(ZoneId.of("Asia/Ho_Chi_Minh"));
         pass.setPaymentStatus("PAID");
-        pass.setPaymentMethod(paymentMethod);
-        pass.setPaymentReference(reference);
+        pass.setPaymentMethod(method);
+        pass.setPaymentReference(request == null ? null : request.referenceCode());
+        if (request != null && request.autoRenew() != null) {
+            pass.setAutoRenew(request.autoRenew());
+        }
         pass.setPaidAt(LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh")));
         pass.setStatus(pass.getStartDate().isAfter(today) ? "SCHEDULED" : "ACTIVE");
         pass.setUpdatedAt(LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh")));
@@ -223,13 +199,16 @@ public class MonthlyParkingPassService {
     }
 
     @Transactional(isolation = Isolation.SERIALIZABLE)
-    public MonthlyParkingPassResponse confirmPaymentFromQr(String qrContent, String referenceCode) {
+    public MonthlyParkingPassResponse confirmPaymentFromQr(String qrContent, String paymentMethod, String referenceCode) {
         Long id = parsePassId(qrContent);
         MonthlyParkingPass pass = find(id);
+        String method = paymentMethod == null || paymentMethod.isBlank()
+                ? pass.getPaymentMethod() == null ? "CASH" : pass.getPaymentMethod()
+                : paymentMethod;
         String reference = referenceCode == null || referenceCode.isBlank()
                 ? pass.getPaymentReference()
                 : referenceCode;
-        return confirmPayment(id, new MonthlyParkingPassPaymentRequest(reference));
+        return confirmPayment(id, new MonthlyParkingPassPaymentRequest(method, reference, pass.getAutoRenew()));
     }
 
     @Transactional(isolation = Isolation.SERIALIZABLE)
@@ -260,14 +239,6 @@ public class MonthlyParkingPassService {
                 .orElseThrow(() -> new ResourceNotFoundException("Monthly parking pass not found: " + id));
     }
 
-    private MonthlyParkingPass findByPaymentReference(String referenceCode) {
-        if (referenceCode == null || referenceCode.isBlank()) {
-            throw new BadRequestException("referenceCode is required");
-        }
-        return passes.findByPaymentReferenceIgnoreCase(referenceCode.trim())
-                .orElseThrow(() -> new ResourceNotFoundException("Monthly parking pass not found for reference: " + referenceCode));
-    }
-
     private MonthlyParkingPass findOwnedPendingPass(UserAccount user, Long id) {
         MonthlyParkingPass pass = find(id);
         if (pass.getUser() == null || user == null || !pass.getUser().getId().equals(user.getId())) {
@@ -283,14 +254,32 @@ public class MonthlyParkingPassService {
         return prefix + "-" + passId + "-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
     }
 
-    private String buildQrContent(MonthlyParkingPass pass, String referenceCode) {
+    private String buildQrContent(MonthlyParkingPass pass, String method, String referenceCode, boolean autoRenew) {
         return "MONTHLY_PASS"
                 + "|passId=" + pass.getId()
                 + "|ref=" + referenceCode
-                + "|method=ONLINE_QR"
+                + "|method=" + method
                 + "|amount=" + safeAmount(pass.getTotalAmount())
+                + "|autoRenew=" + autoRenew
                 + "|plate=" + text(pass.getVehicle() == null ? null : pass.getVehicle().getPlateNumber())
                 + "|slot=" + text(pass.getReservedSlot() == null ? null : pass.getReservedSlot().getSlotCode());
+    }
+
+    private String buildCashBill(MonthlyParkingPass pass, String referenceCode, String qrContent) {
+        return String.join("\n",
+                "BILL VE THANG",
+                "Ma ve: #" + pass.getId(),
+                "Bien so: " + text(pass.getVehicle() == null ? null : pass.getVehicle().getPlateNumber()),
+                "Slot: " + text(pass.getReservedSlot() == null ? null : pass.getReservedSlot().getSlotCode()),
+                "Thoi han: " + pass.getMonths() + " thang",
+                "Tu ngay: " + pass.getStartDate(),
+                "Den ngay: " + pass.getEndDate(),
+                "So tien: " + safeAmount(pass.getTotalAmount()) + " VND",
+                "Hinh thuc: TIEN MAT",
+                "Tu gia han: CO",
+                "Ma tham chieu: " + referenceCode,
+                "QR staff scan: " + qrContent
+        );
     }
 
     private Long parsePassId(String qrContent) {

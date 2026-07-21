@@ -20,6 +20,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class PricingService {
 
+    private static final BigDecimal CAR_MONTHLY_RATE = BigDecimal.valueOf(500000);
+
     private final PaymentModulePricingPolicyRepository pricingPolicyRepository;
     private final PaymentModuleVehicleTypeRepository vehicleTypeRepository;
     private final VehicleRepository vehicleRepository;
@@ -102,10 +104,8 @@ public class PricingService {
         }
         VehicleTypeEntity vehicleType = vehicleTypeRepository.findById(vehicleTypeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Vehicle type not found: " + vehicleTypeId));
-        LocalDateTime effectiveAt = atTime == null ? LocalDateTime.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh")) : atTime;
-        PaymentModulePricingPolicy policy = findPolicy(vehicleTypeId, effectiveAt);
-        if (policy != null && policy.getMonthlyRate() != null && policy.getMonthlyRate().compareTo(BigDecimal.ZERO) > 0) {
-            return policy.getMonthlyRate().setScale(2, RoundingMode.HALF_UP);
+        if (VehicleTypeClassifier.isCar(vehicleType)) {
+            return CAR_MONTHLY_RATE.setScale(2, RoundingMode.HALF_UP);
         }
         return firstPositive(vehicleType.getMonthlyRate(), BigDecimal.ZERO);
     }
@@ -135,18 +135,11 @@ public class PricingService {
         
         int wheelCount = VehicleTypeClassifier.wheelCount(vehicleType);
         TimeBandParkingFeeCalculator.Result timeBandFee = timeBandCalculator.calculate(
-                wheelCount,
-                entryTime,
-                exitTime,
-                policy != null ? policy.getDailyRate() : null,
-                policy != null ? policy.getDailyBillingMode() : null,
-                policy != null ? policy.getDailyBillingBlockHours() : null,
-                policy != null ? policy.getHourlyRate() : null,
-                policy != null ? policy.getHourlyBillingMode() : null,
-                policy != null ? policy.getHourlyBillingBlockHours() : null);
+                wheelCount, entryTime, exitTime);
         BigDecimal hourlyRate = timeBandFee.nightHourlyRate();
         BigDecimal dailyRate = timeBandFee.dayTurnRate();
         BigDecimal lostTicketFee = lostTicket ? BigDecimal.valueOf(50000) : BigDecimal.ZERO;
+        BigDecimal overtimeFeeRate = BigDecimal.ZERO;
         BigDecimal fixedSurcharge = BigDecimal.ZERO;
 
         if (policy != null) {
@@ -156,30 +149,23 @@ public class PricingService {
             } else if (lostTicket) {
                 lostTicketFee = BigDecimal.valueOf(50000);
             }
+            overtimeFeeRate = firstPositive(policy.getOvertimeFee(), BigDecimal.ZERO);
         }
 
+        int safeOvertimeMinutes = Math.max(0, overtimeMinutes == null ? 0 : overtimeMinutes);
         long durationMinutes = Duration.between(entryTime, exitTime).toMinutes();
         long billableHours = timeBandFee.nightHours();
         
         BigDecimal parkingFee;
-        BigDecimal overtimeFee;
-        BigDecimal penaltyFee;
-        BigDecimal fixedSurchargeVal;
-        BigDecimal totalFee;
-
         if (monthlyPassActive) {
             parkingFee = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
-            overtimeFee = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
-            penaltyFee = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
-            fixedSurchargeVal = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
-            totalFee = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
         } else {
             parkingFee = timeBandFee.total().setScale(2, RoundingMode.HALF_UP);
-            overtimeFee = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
-            penaltyFee = lostTicketFee;
-            fixedSurchargeVal = fixedSurcharge;
-            totalFee = parkingFee.add(penaltyFee).add(fixedSurchargeVal).add(overtimeFee).setScale(2, RoundingMode.HALF_UP);
         }
+
+        BigDecimal overtimeFee = overtimeFeeRate.multiply(BigDecimal.valueOf(safeOvertimeMinutes)).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal penaltyFee = lostTicketFee;
+        BigDecimal totalFee = parkingFee.add(penaltyFee).add(fixedSurcharge).add(overtimeFee).setScale(2, RoundingMode.HALF_UP);
 
         return new PricingQuoteResponse(
                 vehicleType.getId(),
@@ -193,9 +179,9 @@ public class PricingService {
                 hourlyRate,
                 dailyRate,
                 parkingFee,
-                monthlyPassActive ? BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP) : lostTicketFee,
+                lostTicketFee,
                 overtimeFee,
-                fixedSurchargeVal,
+                fixedSurcharge,
                 penaltyFee,
                 totalFee,
                 "VND"

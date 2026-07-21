@@ -80,8 +80,8 @@ with ranked_slots as (
 update parking_slots slot
 set slot_code = case
     when ranked.zone_type = 'CAR_MONTHLY'
-        then ranked.floor_code || '-CAR-' || lpad(ranked.zone_rank::text, 3, '0')
-    else ranked.floor_code || '-CAR-' || lpad((ranked.monthly_count + ranked.zone_rank)::text, 3, '0')
+        then ranked.floor_code || '-CAR-MONTHLY-' || lpad(ranked.zone_rank::text, 3, '0')
+    else ranked.floor_code || '-CAR-NORMAL-' || lpad((ranked.monthly_count + ranked.zone_rank)::text, 3, '0')
 end
 from ranked_slots ranked
 where slot.slot_id = ranked.slot_id;
@@ -92,21 +92,6 @@ alter table zones add constraint chk_zones_zone_type
 alter table zones alter column zone_type set not null;
 create index if not exists idx_zones_floor_type on zones(floor_id, zone_type);
 
-
-alter table if exists reservations
-    add column if not exists reserved_slot_id bigint;
-
-do $$
-begin
-    if not exists (select 1 from pg_constraint where conname = 'fk_reservation_reserved_slot') then
-        alter table reservations
-            add constraint fk_reservation_reserved_slot
-            foreign key (reserved_slot_id) references parking_slots(slot_id);
-    end if;
-end $$;
-
-create index if not exists idx_reservation_reserved_slot
-    on reservations(reserved_slot_id);
 alter table if exists monthly_parking_passes
     add column if not exists reserved_slot_id bigint,
     add column if not exists payment_status varchar(20),

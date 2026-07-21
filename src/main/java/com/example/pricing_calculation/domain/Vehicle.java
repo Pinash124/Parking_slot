@@ -39,9 +39,6 @@ public class Vehicle {
     @Column(name = "status", length = 20)
     private String status;
 
-    @Column(name = "qr_code", length = 255, unique = true)
-    private String qrCode;
-
     public Long getId() {
         return id;
     }
@@ -70,15 +67,10 @@ public class Vehicle {
         return status;
     }
 
-    public String getQrCode() {
-        return qrCode;
-    }
-
     public void setUser(UserAccount user) { this.user = user; }
     public void setVehicleType(VehicleTypeEntity vehicleType) { this.vehicleType = vehicleType; }
     public void setPlateNumber(String plateNumber) { this.plateNumber = plateNumber == null ? null : plateNumber.trim().toUpperCase(); }
     public void setBrand(String brand) { this.brand = brand; }
     public void setColor(String color) { this.color = color; }
     public void setStatus(String status) { this.status = status; }
-    public void setQrCode(String qrCode) { this.qrCode = qrCode == null ? null : qrCode.trim(); }
 }

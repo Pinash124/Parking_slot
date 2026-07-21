@@ -4,7 +4,6 @@ import com.example.pricing_calculation.domain.*;
 import com.example.pricing_calculation.dto.ManagementDtos.*;
 import com.example.pricing_calculation.repository.*;
 import java.math.BigDecimal;
-import java.time.LocalTime;
 import java.util.List;
 import java.util.Locale;
 import org.springframework.stereotype.Service;
@@ -12,9 +11,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class UnifiedManagementService {
-    private static final String DAY_START_KEY = "pricing.dayStart";
-    private static final String NIGHT_START_KEY = "pricing.nightStart";
-    private static final List<String> BILLING_MODES = List.of("PER_TURN", "PER_HOUR", "PER_BLOCK");
     private static final List<String> SLOT_STATUSES = List.of("AVAILABLE", "OCCUPIED", "RESERVED", "MAINTENANCE",
             "LOCKED", "MONTHLY_HELD", "MONTHLY_RESERVED", "MONTHLY_OCCUPIED");
     private static final List<String> ZONE_TYPES = List.of("CAR_NORMAL", "CAR_MONTHLY", "MOTORBIKE");
@@ -25,12 +21,11 @@ public class UnifiedManagementService {
     private final PaymentModuleParkingSlotRepository slots;
     private final PaymentModulePricingPolicyRepository policies;
     private final AdditionalServiceRepository services;
-    private final SystemSettingRepository settings;
 
     public UnifiedManagementService(BuildingRepository buildings, FloorRepository floors,
             PaymentModuleVehicleTypeRepository vehicleTypes, ZoneRepository zones,
             PaymentModuleParkingSlotRepository slots, PaymentModulePricingPolicyRepository policies,
-            AdditionalServiceRepository services, SystemSettingRepository settings) {
+            AdditionalServiceRepository services) {
         this.buildings = buildings;
         this.floors = floors;
         this.vehicleTypes = vehicleTypes;
@@ -38,7 +33,6 @@ public class UnifiedManagementService {
         this.slots = slots;
         this.policies = policies;
         this.services = services;
-        this.settings = settings;
     }
 
     @Transactional(readOnly = true)
@@ -228,11 +222,7 @@ public class UnifiedManagementService {
         x.setVehicleType(vehicleType(r.vehicleTypeId()));
         x.setPolicyName(r.policyName());
         x.setHourlyRate(nonNegative(r.hourlyRate()));
-        x.setHourlyBillingMode(billingMode(r.hourlyBillingMode(), "PER_HOUR"));
-        x.setHourlyBillingBlockHours(blockHours(r.hourlyBillingBlockHours(), x.getHourlyBillingMode()));
         x.setDailyRate(nonNegative(r.dailyRate()));
-        x.setDailyBillingMode(billingMode(r.dailyBillingMode(), "PER_TURN"));
-        x.setDailyBillingBlockHours(blockHours(r.dailyBillingBlockHours(), x.getDailyBillingMode()));
         x.setMonthlyRate(nonNegative(r.monthlyRate()));
         x.setFixedSurcharge(nonNegative(r.fixedSurcharge()));
         x.setLostTicketFee(nonNegative(r.lostTicketFee()));
@@ -241,25 +231,6 @@ public class UnifiedManagementService {
         x.setEffectiveTo(r.effectiveTo());
         x.setStatus(normal(r.status(), "ACTIVE"));
         return PricingPolicyView.from(policies.save(x));
-    }
-
-    @Transactional(readOnly = true)
-    public PricingRuleSettingsView pricingRules() {
-        return new PricingRuleSettingsView(
-                settingValue(DAY_START_KEY, "07:00"),
-                settingValue(NIGHT_START_KEY, "22:00")
-        );
-    }
-
-    @Transactional
-    public PricingRuleSettingsView savePricingRules(PricingRuleSettingsRequest r) {
-        require(r != null && text(r.dayStart()) && text(r.nightStart()), "dayStart and nightStart are required");
-        String dayStart = normalizeTime(r.dayStart(), "dayStart");
-        String nightStart = normalizeTime(r.nightStart(), "nightStart");
-        require(!dayStart.equals(nightStart), "dayStart and nightStart must be different");
-        saveSetting(DAY_START_KEY, dayStart, "Gio bat dau khung ban ngay tinh theo luot");
-        saveSetting(NIGHT_START_KEY, nightStart, "Gio bat dau khung qua dem tinh theo gio");
-        return new PricingRuleSettingsView(dayStart, nightStart);
     }
 
     @Transactional
@@ -335,9 +306,9 @@ public class UnifiedManagementService {
         slots.saveAll(carSlots);
         slots.flush();
         for (int i = 0; i < monthly.size(); i++)
-            monthly.get(i).setSlotCode(prefix + "-CAR-" + String.format("%03d", i + 1));
+            monthly.get(i).setSlotCode(prefix + "-CAR-MONTHLY-" + String.format("%03d", i + 1));
         for (int i = 0; i < normalSlots.size(); i++)
-            normalSlots.get(i).setSlotCode(prefix + "-CAR-" + String.format("%03d", monthly.size() + i + 1));
+            normalSlots.get(i).setSlotCode(prefix + "-CAR-NORMAL-" + String.format("%03d", monthly.size() + i + 1));
         slots.saveAll(carSlots);
     }
 
@@ -354,41 +325,6 @@ public class UnifiedManagementService {
             return BigDecimal.ZERO;
         require(v.signum() >= 0, "amount cannot be negative");
         return v;
-    }
-
-    private String billingMode(String value, String fallback) {
-        String mode = text(value) ? value.trim().toUpperCase(Locale.ROOT) : fallback;
-        require(BILLING_MODES.contains(mode), "Invalid billing mode: " + value);
-        return mode;
-    }
-
-    private Integer blockHours(Integer value, String mode) {
-        if (!"PER_BLOCK".equals(mode)) {
-            return 1;
-        }
-        int hours = value == null ? 1 : value;
-        require(hours > 0 && hours <= 24, "Block hours must be between 1 and 24");
-        return hours;
-    }
-
-    private String settingValue(String key, String fallback) {
-        return settings.findById(key).map(SystemSetting::getValue).filter(this::text).orElse(fallback);
-    }
-
-    private void saveSetting(String key, String value, String description) {
-        SystemSetting setting = settings.findById(key).orElseGet(SystemSetting::new);
-        setting.setKey(key);
-        setting.setValue(value);
-        setting.setDescription(description);
-        settings.save(setting);
-    }
-
-    private String normalizeTime(String value, String field) {
-        try {
-            return LocalTime.parse(value.trim()).toString();
-        } catch (Exception e) {
-            throw new BadRequestException(field + " must use HH:mm format");
-        }
     }
 
     private void require(boolean ok, String message) {
