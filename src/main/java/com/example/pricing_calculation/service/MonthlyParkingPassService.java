@@ -44,16 +44,14 @@ public class MonthlyParkingPassService {
         this.personalQrImageUrl = personalQrImageUrl;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public List<MonthlyParkingPassResponse> listForUser(UserAccount user) {
-        return passes.findByVehicleUserIdOrderByCreatedAtDesc(user.getId()).stream()
-                .map(MonthlyParkingPassResponse::from).toList();
+        return synchronizeStatuses(passes.findByUserIdOrderByCreatedAtDesc(user.getId()));
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public List<MonthlyParkingPassResponse> listAll() {
-        return passes.findAllByOrderByCreatedAtDesc().stream()
-                .map(MonthlyParkingPassResponse::from).toList();
+        return synchronizeStatuses(passes.findAllByOrderByCreatedAtDesc());
     }
 
     @Transactional(readOnly = true)
@@ -67,17 +65,15 @@ public class MonthlyParkingPassService {
 
     @Transactional(isolation = Isolation.SERIALIZABLE)
     public MonthlyParkingPassResponse register(UserAccount user, MonthlyParkingPassCreateRequest request) {
-        if (request == null || request.vehicleId() == null || request.slotId() == null) {
-            throw new BadRequestException("vehicleId and slotId are required");
+        if (request == null || request.vehicleId() == null) {
+            throw new BadRequestException("vehicleId is required");
         }
         Vehicle vehicle = vehicles.findById(request.vehicleId())
                 .orElseThrow(() -> new ResourceNotFoundException("Vehicle not found: " + request.vehicleId()));
         if (vehicle.getUser() == null || !vehicle.getUser().getId().equals(user.getId())) {
             throw new ForbiddenException("Vehicle does not belong to current user");
         }
-        if (!VehicleTypeClassifier.isCar(vehicle.getVehicleType())) {
-            throw new BadRequestException("Only cars can register a monthly parking slot");
-        }
+        boolean carMonthlyPass = VehicleTypeClassifier.isCar(vehicle.getVehicleType());
         int months = request.months() == null ? 1 : request.months();
         if (months < 1 || months > 12) {
             throw new BadRequestException("months must be between 1 and 12");
@@ -90,19 +86,25 @@ public class MonthlyParkingPassService {
         LocalDate endDate = startDate.plusMonths(months).minusDays(1);
         ensureVehicleHasNoOverlappingPass(vehicle.getId(), startDate, endDate);
 
-        PaymentModuleParkingSlot slot = slots.findByIdForUpdate(request.slotId())
-                .orElseThrow(() -> new ResourceNotFoundException("Parking slot not found: " + request.slotId()));
-        if (!"AVAILABLE".equalsIgnoreCase(slot.getStatus())) {
-            throw new BadRequestException("Selected monthly parking slot is not available");
+        PaymentModuleParkingSlot slot = null;
+        if (carMonthlyPass) {
+            if (request.slotId() == null) {
+                throw new BadRequestException("slotId is required for car monthly pass");
+            }
+            slot = slots.findByIdForUpdate(request.slotId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Parking slot not found: " + request.slotId()));
+            if (!"AVAILABLE".equalsIgnoreCase(slot.getStatus())) {
+                throw new BadRequestException("Selected monthly parking slot is not available");
+            }
+            if (slot.getZone() == null || slot.getZone().getVehicleType() == null
+                    || !slot.getZone().getVehicleType().getId().equals(vehicle.getVehicleType().getId())) {
+                throw new BadRequestException("Selected slot does not support this vehicle type");
+            }
+            if (!"CAR_MONTHLY".equalsIgnoreCase(slot.getZone().getZoneType())) {
+                throw new BadRequestException("Monthly passes must select a slot in the CAR_MONTHLY zone");
+            }
+            ensureSlotHasNoOverlappingPass(slot.getId(), startDate, endDate);
         }
-        if (slot.getZone() == null || slot.getZone().getVehicleType() == null
-                || !slot.getZone().getVehicleType().getId().equals(vehicle.getVehicleType().getId())) {
-            throw new BadRequestException("Selected slot does not support this vehicle type");
-        }
-        if (!"CAR_MONTHLY".equalsIgnoreCase(slot.getZone().getZoneType())) {
-            throw new BadRequestException("Monthly passes must select a slot in the CAR_MONTHLY zone");
-        }
-        ensureSlotHasNoOverlappingPass(slot.getId(), startDate, endDate);
 
         BigDecimal monthlyRate = pricing.monthlyRateForVehicleType(vehicle.getVehicleType().getId(), startDate.atStartOfDay());
         if (monthlyRate == null || monthlyRate.compareTo(BigDecimal.ZERO) <= 0) {
@@ -124,8 +126,10 @@ public class MonthlyParkingPassService {
         pass.setNote(request.note());
         pass.setCreatedAt(now);
         pass.setUpdatedAt(now);
-        slot.setStatus("MONTHLY_HELD");
-        slots.save(slot);
+        if (slot != null) {
+            slot.setStatus("MONTHLY_HELD");
+            slots.save(slot);
+        }
         return MonthlyParkingPassResponse.from(passes.save(pass));
     }
 
@@ -212,13 +216,15 @@ public class MonthlyParkingPassService {
         pass.setPaidAt(LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh")));
         pass.setStatus(pass.getStartDate().isAfter(today) ? "SCHEDULED" : "ACTIVE");
         pass.setUpdatedAt(LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh")));
-        PaymentModuleParkingSlot slot = slots.findByIdForUpdate(pass.getReservedSlot().getId())
-                .orElseThrow(() -> new ResourceNotFoundException("Monthly parking slot not found"));
-        if (!"MONTHLY_HELD".equalsIgnoreCase(slot.getStatus())) {
-            throw new BadRequestException("Monthly parking slot is no longer held for this pass");
+        if (pass.getReservedSlot() != null) {
+            PaymentModuleParkingSlot slot = slots.findByIdForUpdate(pass.getReservedSlot().getId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Monthly parking slot not found"));
+            if (!"MONTHLY_HELD".equalsIgnoreCase(slot.getStatus())) {
+                throw new BadRequestException("Monthly parking slot is no longer held for this pass");
+            }
+            slot.setStatus("MONTHLY_RESERVED");
+            slots.save(slot);
         }
-        slot.setStatus("MONTHLY_RESERVED");
-        slots.save(slot);
         return MonthlyParkingPassResponse.from(passes.save(pass));
     }
 
@@ -238,14 +244,16 @@ public class MonthlyParkingPassService {
         if ("CANCELLED".equalsIgnoreCase(pass.getStatus())) {
             return MonthlyParkingPassResponse.from(pass);
         }
-        PaymentModuleParkingSlot slot = slots.findByIdForUpdate(pass.getReservedSlot().getId())
-                .orElseThrow(() -> new ResourceNotFoundException("Monthly parking slot not found"));
-        if ("MONTHLY_OCCUPIED".equalsIgnoreCase(slot.getStatus())) {
-            throw new BadRequestException("Cannot cancel a monthly pass while its vehicle is parked");
-        }
-        if ("MONTHLY_HELD".equalsIgnoreCase(slot.getStatus()) || "MONTHLY_RESERVED".equalsIgnoreCase(slot.getStatus())) {
-            slot.setStatus("AVAILABLE");
-            slots.save(slot);
+        if (pass.getReservedSlot() != null) {
+            PaymentModuleParkingSlot slot = slots.findByIdForUpdate(pass.getReservedSlot().getId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Monthly parking slot not found"));
+            if ("MONTHLY_OCCUPIED".equalsIgnoreCase(slot.getStatus())) {
+                throw new BadRequestException("Cannot cancel a monthly pass while its vehicle is parked");
+            }
+            if ("MONTHLY_HELD".equalsIgnoreCase(slot.getStatus()) || "MONTHLY_RESERVED".equalsIgnoreCase(slot.getStatus())) {
+                slot.setStatus("AVAILABLE");
+                slots.save(slot);
+            }
         }
         pass.setStatus("CANCELLED");
         if (!"PAID".equalsIgnoreCase(pass.getPaymentStatus())) {
@@ -337,5 +345,45 @@ public class MonthlyParkingPassService {
     private boolean overlaps(MonthlyParkingPass pass, LocalDate start, LocalDate end) {
         return pass.getStartDate() != null && pass.getEndDate() != null
                 && !pass.getStartDate().isAfter(end) && !pass.getEndDate().isBefore(start);
+    }
+
+    private List<MonthlyParkingPassResponse> synchronizeStatuses(List<MonthlyParkingPass> monthlyPasses) {
+        LocalDate today = LocalDate.now(ZoneId.of("Asia/Ho_Chi_Minh"));
+        LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"));
+        boolean changed = false;
+
+        for (MonthlyParkingPass pass : monthlyPasses) {
+            if (!"PAID".equalsIgnoreCase(pass.getPaymentStatus())
+                    || pass.getStatus() == null
+                    || !Set.of("ACTIVE", "SCHEDULED").contains(pass.getStatus().toUpperCase())) {
+                continue;
+            }
+
+            String nextStatus;
+            if (pass.getEndDate() != null && pass.getEndDate().isBefore(today)) {
+                nextStatus = "EXPIRED";
+            } else if (pass.getStartDate() != null && !pass.getStartDate().isAfter(today)) {
+                nextStatus = "ACTIVE";
+            } else {
+                nextStatus = "SCHEDULED";
+            }
+
+            if (!nextStatus.equalsIgnoreCase(pass.getStatus())) {
+                pass.setStatus(nextStatus);
+                pass.setUpdatedAt(now);
+                changed = true;
+                if ("EXPIRED".equals(nextStatus)
+                        && pass.getReservedSlot() != null
+                        && "MONTHLY_RESERVED".equalsIgnoreCase(pass.getReservedSlot().getStatus())) {
+                    pass.getReservedSlot().setStatus("AVAILABLE");
+                    slots.save(pass.getReservedSlot());
+                }
+            }
+        }
+
+        if (changed) {
+            passes.saveAll(monthlyPasses);
+        }
+        return monthlyPasses.stream().map(MonthlyParkingPassResponse::from).toList();
     }
 }

@@ -161,7 +161,7 @@ class PaymentGatewayServiceTest {
                 when(monthlyPassService.prepareVnpayPayment(any(), any(), anyString())).thenReturn(
                                 new MonthlyParkingPassResponse(
                                                 6L, 2L, 9L, "59A-12345", 1L, "CAR",
-                                                10L, "F1-CAR-001", "MONTHLY_HELD", 1,
+                                                10L, "F1-CAR-001", "MONTHLY_HELD", "F1-CAR", 1,
                                                 new BigDecimal("500000"), new BigDecimal("500000"),
                                                 java.time.LocalDate.now(),
                                                 java.time.LocalDate.now().plusMonths(1).minusDays(1),
@@ -249,7 +249,7 @@ class PaymentGatewayServiceTest {
 
                 MonthlyParkingPassResponse confirmedPass = new MonthlyParkingPassResponse(
                                 6L, 2L, 9L, "59A-12345", 1L, "CAR",
-                                10L, "F1-CAR-001", "MONTHLY_HELD", 1,
+                                10L, "F1-CAR-001", "MONTHLY_HELD", "F1-CAR", 1,
                                 new BigDecimal("500000"), new BigDecimal("500000"),
                                 java.time.LocalDate.now(),
                                 java.time.LocalDate.now().plusMonths(1).minusDays(1),

@@ -43,4 +43,6 @@ public interface ReservationRepository extends
     java.util.List<Reservation> findByVehicleIdAndStatusIgnoreCase(Long vehicleId, String status);
 
     List<Reservation> findByVehicleIdAndStatusInOrderByStartTimeAsc(Long vehicleId, List<String> statuses);
+
+    List<Reservation> findByVehicleIdOrderByStartTimeDesc(Long vehicleId);
 }

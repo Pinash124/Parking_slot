@@ -9,8 +9,11 @@ import com.example.pricing_calculation.repository.PaymentRepository;
 import com.example.pricing_calculation.repository.ReservationRepository;
 import com.example.pricing_calculation.repository.TransactionHistoryRepository;
 import java.math.BigDecimal;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.time.temporal.TemporalAdjusters;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,26 +44,61 @@ public class DashboardService {
 
     @Transactional(readOnly = true)
     public DashboardOverviewResponse overview() {
-        LocalDateTime startOfToday = LocalDate.now().atStartOfDay();
+        return overview(null, null);
+    }
+
+    @Transactional(readOnly = true)
+    public DashboardOverviewResponse overview(Integer month, Integer year) {
+        LocalDate today = LocalDate.now();
+        int selectedMonth = month == null ? today.getMonthValue() : month;
+        int selectedYear = year == null ? today.getYear() : year;
+        if (selectedMonth < 1 || selectedMonth > 12) {
+            throw new IllegalArgumentException("Month must be between 1 and 12");
+        }
+
+        LocalDateTime startOfToday = today.atStartOfDay();
         LocalDateTime startOfTomorrow = startOfToday.plusDays(1);
-        BigDecimal sessionRevenue = paymentRepository.sumCompletedAmountBetween(startOfToday, startOfTomorrow);
-        BigDecimal monthlyRevenue = monthlyPassRepository.findAllByOrderByCreatedAtDesc().stream()
+        LocalDateTime startOfWeek = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)).atStartOfDay();
+        LocalDateTime startOfNextWeek = startOfWeek.plusWeeks(1);
+        LocalDateTime startOfMonth = LocalDate.of(selectedYear, selectedMonth, 1).atStartOfDay();
+        LocalDateTime startOfNextMonth = startOfMonth.plusMonths(1);
+        BigDecimal sessionRevenueToday = paymentRepository.sumCompletedAmountBetween(startOfToday, startOfTomorrow);
+        BigDecimal sessionRevenueWeek = paymentRepository.sumCompletedAmountBetween(startOfWeek, startOfNextWeek);
+        BigDecimal sessionRevenueMonth = paymentRepository.sumCompletedAmountBetween(startOfMonth, startOfNextMonth);
+        List<MonthlyParkingPass> paidMonthlyPasses = monthlyPassRepository.findAllByOrderByCreatedAtDesc().stream()
                 .filter(pass -> "PAID".equalsIgnoreCase(pass.getPaymentStatus()))
+                .toList();
+        BigDecimal monthlyRevenueToday = paidMonthlyPasses.stream()
                 .filter(pass -> inRange(revenueTime(pass), startOfToday, startOfTomorrow))
                 .map(this::amount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal todayRevenue = safe(sessionRevenue).add(monthlyRevenue);
+        BigDecimal monthlyRevenueWeek = paidMonthlyPasses.stream()
+                .filter(pass -> inRange(revenueTime(pass), startOfWeek, startOfNextWeek))
+                .map(this::amount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal monthlyRevenueMonth = paidMonthlyPasses.stream()
+                .filter(pass -> inRange(revenueTime(pass), startOfMonth, startOfNextMonth))
+                .map(this::amount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal todayRevenue = safe(sessionRevenueToday).add(monthlyRevenueToday);
+        BigDecimal weekRevenue = safe(sessionRevenueWeek).add(monthlyRevenueWeek);
+        BigDecimal monthRevenue = safe(sessionRevenueMonth).add(monthlyRevenueMonth);
         return new DashboardOverviewResponse(
                 reservationRepository.count(),
                 reservationRepository.countByStatusIgnoreCase("PENDING"),
                 reservationRepository.countByStatusIgnoreCase("APPROVED"),
-                parkingSessionRepository.countByStatusIgnoreCase("ACTIVE"),
+                parkingSessionRepository.countCurrentlyParked(),
                 parkingSlotRepository.countByStatusIgnoreCase("AVAILABLE"),
                 parkingSlotRepository.countByStatusIgnoreCase("OCCUPIED"),
                 parkingSlotRepository.countByStatusIgnoreCase("RESERVED"),
+                parkingSlotRepository.countByStatusIgnoreCase("MONTHLY_HELD"),
+                parkingSlotRepository.countByStatusIgnoreCase("MONTHLY_RESERVED"),
+                parkingSlotRepository.countByStatusIgnoreCase("MONTHLY_OCCUPIED"),
                 paymentRepository.countByStatusIgnoreCase("PENDING"),
                 paymentRepository.countByStatusIgnoreCase("COMPLETED"),
-                todayRevenue == null ? BigDecimal.ZERO : todayRevenue,
+                todayRevenue,
+                weekRevenue,
+                monthRevenue,
                 transactionHistoryRepository.count()
         );
     }

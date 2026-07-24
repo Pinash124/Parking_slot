@@ -6,6 +6,8 @@ import java.time.LocalDateTime;
 public record FeedbackResponse(
         Long id,
         Long userId,
+        String userFullName,
+        String userRole,
         Long sessionId,
         String feedbackType,
         Integer rating,
@@ -18,6 +20,8 @@ public record FeedbackResponse(
         return new FeedbackResponse(
                 feedback.getId(),
                 feedback.getUser() == null ? null : feedback.getUser().getId(),
+                feedback.getUser() == null ? null : feedback.getUser().getFullName(),
+                feedback.getUser() == null ? null : feedback.getUser().getRole(),
                 feedback.getSession() == null ? null : feedback.getSession().getId(),
                 feedback.getFeedbackType(),
                 feedback.getRating(),

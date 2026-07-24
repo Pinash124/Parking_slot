@@ -1,7 +1,6 @@
 package com.example.pricing_calculation.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -27,7 +26,7 @@ import org.junit.jupiter.api.Test;
 class MonthlyParkingPassServiceTest {
 
     @Test
-    void rejectsMonthlyParkingForMotorbikes() {
+    void registersTwoWheelMonthlyPassWithoutFixedSlot() {
         MonthlyParkingPassRepository passes = mock(MonthlyParkingPassRepository.class);
         VehicleRepository vehicles = mock(VehicleRepository.class);
         PaymentModuleParkingSlotRepository slots = mock(PaymentModuleParkingSlotRepository.class);
@@ -38,15 +37,25 @@ class MonthlyParkingPassServiceTest {
         Vehicle vehicle = mock(Vehicle.class);
         VehicleTypeEntity type = mock(VehicleTypeEntity.class);
         when(user.getId()).thenReturn(1L);
+        when(vehicle.getId()).thenReturn(10L);
         when(vehicle.getUser()).thenReturn(user);
         when(vehicle.getVehicleType()).thenReturn(type);
+        when(vehicle.getPlateNumber()).thenReturn("59A-12345");
+        when(type.getId()).thenReturn(1L);
+        when(type.getName()).thenReturn("Xe 2 banh");
         when(type.getWheelCount()).thenReturn(2);
         when(vehicles.findById(10L)).thenReturn(Optional.of(vehicle));
+        when(passes.findByVehicleIdOrderByCreatedAtDesc(10L)).thenReturn(List.of());
+        when(pricing.monthlyRateForVehicleType(any(), any())).thenReturn(new BigDecimal("100000"));
+        when(passes.save(any(MonthlyParkingPass.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        BadRequestException error = assertThrows(BadRequestException.class, () -> service.register(user,
-                new MonthlyParkingPassCreateRequest(10L, 20L, LocalDate.now().plusDays(1), 1, null)));
+        var response = service.register(user,
+                new MonthlyParkingPassCreateRequest(10L, null, LocalDate.now().plusDays(1), 1, null));
 
-        assertEquals("Only cars can register a monthly parking slot", error.getMessage());
+        assertEquals(null, response.slotId());
+        assertEquals(null, response.slotCode());
+        assertEquals("PENDING_PAYMENT", response.status());
+        assertEquals("PENDING", response.paymentStatus());
     }
 
     @Test
@@ -118,5 +127,28 @@ class MonthlyParkingPassServiceTest {
         verify(pass).setPaymentMethod("ONLINE_QR");
         verify(pass).setPaymentReference("BANK-001");
         verify(slot).setStatus("MONTHLY_RESERVED");
+    }
+
+    @Test
+    void activatesPaidScheduledPassAfterItsStartDate() {
+        MonthlyParkingPassRepository passes = mock(MonthlyParkingPassRepository.class);
+        VehicleRepository vehicles = mock(VehicleRepository.class);
+        PaymentModuleParkingSlotRepository slots = mock(PaymentModuleParkingSlotRepository.class);
+        PricingService pricing = mock(PricingService.class);
+        MonthlyParkingPassService service = new MonthlyParkingPassService(
+                passes, vehicles, slots, pricing, "/payment/vnpay-personal-qr.png");
+        UserAccount user = mock(UserAccount.class);
+        MonthlyParkingPass pass = new MonthlyParkingPass();
+        pass.setStatus("SCHEDULED");
+        pass.setPaymentStatus("PAID");
+        pass.setStartDate(LocalDate.now().minusDays(10));
+        pass.setEndDate(LocalDate.now().plusMonths(1));
+        when(user.getId()).thenReturn(1L);
+        when(passes.findByUserIdOrderByCreatedAtDesc(1L)).thenReturn(List.of(pass));
+
+        service.listForUser(user);
+
+        assertEquals("ACTIVE", pass.getStatus());
+        verify(passes).saveAll(List.of(pass));
     }
 }

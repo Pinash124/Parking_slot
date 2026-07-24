@@ -1,6 +1,7 @@
 package com.example.pricing_calculation.service;
 
 import com.example.pricing_calculation.domain.VehicleTypeEntity;
+import java.text.Normalizer;
 import java.util.Locale;
 
 public final class VehicleTypeClassifier {
@@ -12,11 +13,9 @@ public final class VehicleTypeClassifier {
                 && (vehicleType.getWheelCount() == 2 || vehicleType.getWheelCount() == 4)) {
             return vehicleType.getWheelCount();
         }
-        String name = vehicleType == null || vehicleType.getName() == null
-                ? "" : vehicleType.getName().toLowerCase(Locale.ROOT);
+        String name = normalize(vehicleType == null ? null : vehicleType.getName());
         if (name.contains("motor") || name.contains("moto") || name.contains("bike")
-                || name.contains("xe máy") || name.contains("xe may")
-                || name.contains("2 bánh") || name.contains("2 banh")) {
+                || name.contains("xe may") || name.contains("2 banh")) {
             return 2;
         }
         return 4;
@@ -28,5 +27,14 @@ public final class VehicleTypeClassifier {
 
     public static boolean isCar(VehicleTypeEntity vehicleType) {
         return wheelCount(vehicleType) == 4;
+    }
+
+    private static String normalize(String value) {
+        if (value == null) {
+            return "";
+        }
+        String withoutDiacritics = Normalizer.normalize(value, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "");
+        return withoutDiacritics.toLowerCase(Locale.ROOT);
     }
 }

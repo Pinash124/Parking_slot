@@ -28,12 +28,14 @@ public class UserPortalService {
     private final PaymentModulePricingPolicyRepository pricingPolicies;
     private final QrCodeService qrCodeService;
     private final PaymentGatewayService paymentGatewayService;
+    private final VehicleDeletionService vehicleDeletionService;
 
     public UserPortalService(VehicleRepository vehicles,PaymentModuleVehicleTypeRepository vehicleTypes,
             PaymentModuleParkingSessionRepository sessions,PricingService pricing,
             MonthlyParkingPassService monthlyPassService,AdditionalServiceRepository services,
             SessionServiceUsageRepository usages, PaymentModulePricingPolicyRepository pricingPolicies,
-            QrCodeService qrCodeService, PaymentGatewayService paymentGatewayService){
+            QrCodeService qrCodeService, PaymentGatewayService paymentGatewayService,
+            VehicleDeletionService vehicleDeletionService){
         this.vehicles=vehicles;
         this.vehicleTypes=vehicleTypes;
         this.sessions=sessions;
@@ -44,6 +46,7 @@ public class UserPortalService {
         this.pricingPolicies=pricingPolicies;
         this.qrCodeService=qrCodeService;
         this.paymentGatewayService=paymentGatewayService;
+        this.vehicleDeletionService=vehicleDeletionService;
     }
 
     @Transactional(readOnly=true)
@@ -111,8 +114,7 @@ public class UserPortalService {
     @Transactional
     public void deleteVehicle(UserAccount user, Long id) {
         Vehicle vehicle = ownedVehicle(user, id);
-        vehicle.setStatus("DELETED");
-        vehicles.save(vehicle);
+        vehicleDeletionService.delete(vehicle);
     }
 
     @Transactional(readOnly=true)

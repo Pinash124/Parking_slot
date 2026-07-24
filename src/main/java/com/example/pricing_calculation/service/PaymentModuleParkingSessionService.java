@@ -140,8 +140,8 @@ public class PaymentModuleParkingSessionService {
                 ? findActiveMonthlyPass(vehicle.getId(), entryTime)
                 : null;
         boolean flexibleTwoWheelWalkIn = reservation == null
-                && monthlyPass == null
-                && VehicleTypeClassifier.isTwoWheel(vehicle.getVehicleType());
+                && VehicleTypeClassifier.isTwoWheel(vehicle.getVehicleType())
+                && (monthlyPass == null || monthlyPass.getReservedSlot() == null);
         Long slotId;
         if (monthlyPass != null && monthlyPass.getReservedSlot() != null) {
             slotId = monthlyPass.getReservedSlot().getId();
@@ -191,7 +191,7 @@ public class PaymentModuleParkingSessionService {
             if (!slot.getZone().getVehicleType().getId().equals(vehicle.getVehicleType().getId())) {
                 throw new BadRequestException("Vehicle type is not allowed in selected slot zone");
             }
-            if (reservation == null && monthlyPass == null) {
+            if (reservation == null && (monthlyPass == null || flexibleTwoWheelWalkIn)) {
                 ensureWalkInCapacity(slot, entryTime);
             }
         }
@@ -388,10 +388,7 @@ public class PaymentModuleParkingSessionService {
             }
         }
 
-        java.util.List<PaymentModuleParkingSession> active = new java.util.ArrayList<>();
-        active.addAll(parkingSessionRepository.findByStatusIgnoreCaseOrderByEntryTimeDesc("ACTIVE"));
-        active.addAll(parkingSessionRepository.findByStatusIgnoreCaseOrderByEntryTimeDesc("PAYMENT_PENDING"));
-        for (PaymentModuleParkingSession session : active) {
+        for (PaymentModuleParkingSession session : parkingSessionRepository.findCurrentlyParked()) {
             if (session == null || session.getSlot() == null
                     || session.getSlot().getZone() == null
                     || session.getSlot().getZone().getFloor() == null
@@ -474,19 +471,32 @@ public class PaymentModuleParkingSessionService {
         return sessions.stream().map(ParkingSessionResponse::from).toList();
     }
 
+    @Transactional(readOnly = true)
+    public java.util.List<ParkingSessionResponse> currentlyParked() {
+        return parkingSessionRepository.findCurrentlyParked().stream()
+                .map(ParkingSessionResponse::from)
+                .toList();
+    }
+
     @Transactional(isolation = org.springframework.transaction.annotation.Isolation.SERIALIZABLE)
     public ParkingSessionResponse checkout(Long id, SessionCheckoutRequest request) {
         PaymentModuleParkingSession session = findSessionForUpdate(id);
-        if (!"ACTIVE".equalsIgnoreCase(session.getStatus())) {
-            throw new BadRequestException("Only ACTIVE sessions can be checked out");
+        String currentStatus = session.getStatus() == null ? "" : session.getStatus();
+        if (!"ACTIVE".equalsIgnoreCase(currentStatus) && !"PAYMENT_PENDING".equalsIgnoreCase(currentStatus)) {
+            throw new BadRequestException("Only ACTIVE or PAYMENT_PENDING sessions can be checked out");
         }
-        LocalDateTime exitTime = request == null || request.exitTime() == null ? LocalDateTime.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh")) : request.exitTime();
+        LocalDateTime exitTime = request == null || request.exitTime() == null
+                ? LocalDateTime.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh"))
+                : request.exitTime();
+        if (!exitTime.isAfter(session.getEntryTime())) {
+            exitTime = session.getEntryTime().plusSeconds(1);
+        }
         PricingQuoteResponse quote = pricingService.estimateForVehicle(
                 session.getVehicle().getId(),
                 session.getEntryTime(),
                 exitTime,
                 request != null && request.lostTicket(),
-                request == null ? 0 : request.overtimeMinutes()
+                request == null || request.overtimeMinutes() == null ? 0 : request.overtimeMinutes()
         );
         session.setExitTime(exitTime);
         session.setParkingFee(quote.parkingFee());
@@ -509,7 +519,10 @@ public class PaymentModuleParkingSessionService {
         session.setExitGateCode(exitGateCode);
         session.setStatus("COMPLETED");
         if (session.getSlot() != null) {
-            session.getSlot().setStatus(session.getMonthlyPass() == null ? "AVAILABLE" : "MONTHLY_RESERVED");
+            boolean fixedMonthlySlot = session.getMonthlyPass() != null
+                    && session.getMonthlyPass().getReservedSlot() != null
+                    && session.getMonthlyPass().getReservedSlot().getId().equals(session.getSlot().getId());
+            session.getSlot().setStatus(fixedMonthlySlot ? "MONTHLY_RESERVED" : "AVAILABLE");
             parkingSlotRepository.save(session.getSlot());
         }
         ParkingSessionResponse response = ParkingSessionResponse.from(parkingSessionRepository.save(session));

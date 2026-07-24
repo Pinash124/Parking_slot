@@ -191,7 +191,7 @@ public class MonthlyParkingPass {
     }
 
     public boolean isActiveAt(LocalDate date) {
-        if (date == null || startDate == null || endDate == null || reservedSlot == null) {
+        if (date == null || startDate == null || endDate == null) {
             return false;
         }
         if (status != null && !Set.of("ACTIVE", "SCHEDULED").contains(status.toUpperCase())) {

@@ -9,6 +9,6 @@ public final class ExtendedAuthDtos {
     public record ForgotPasswordRequest(String email) { }
     public record ResetPasswordRequest(String email, String otp, String newPassword) { }
     public record ChangePasswordRequest(String currentPassword, String newPassword) { }
-    public record UpdateProfileRequest(String fullName, String phone) { }
-    public record UserProfileResponse(Long id, String fullName, String email, String phone, String status, String role) { }
+    public record UpdateProfileRequest(String username, String fullName, String phone) { }
+    public record UserProfileResponse(Long id, String username, String fullName, String email, String phone, String status, String role) { }
 }

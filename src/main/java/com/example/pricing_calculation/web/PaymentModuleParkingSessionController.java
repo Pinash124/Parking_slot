@@ -69,6 +69,13 @@ public class PaymentModuleParkingSessionController {
         return parkingSessionService.list(status);
     }
 
+    @GetMapping("/current")
+    public java.util.List<ParkingSessionResponse> currentlyParked(
+            @RequestHeader("Authorization") String header) {
+        staff(header);
+        return parkingSessionService.currentlyParked();
+    }
+
     @GetMapping("/lookup")
     public ParkingSessionResponse lookup(@RequestHeader("Authorization") String header, @RequestParam String query) {
         staff(header);

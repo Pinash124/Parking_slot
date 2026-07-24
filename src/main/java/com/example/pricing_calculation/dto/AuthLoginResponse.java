@@ -7,6 +7,7 @@ public record AuthLoginResponse(
         String tokenType,
         LocalDateTime expiresAt,
         Long userId,
+        String username,
         String fullName,
         String email,
         String role

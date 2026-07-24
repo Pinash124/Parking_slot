@@ -18,7 +18,7 @@ public interface MonthlyParkingPassRepository extends JpaRepository<MonthlyParki
             "reservedSlot.zone.floor",
             "reservedSlot.zone.vehicleType"
     })
-    List<MonthlyParkingPass> findByVehicleUserIdOrderByCreatedAtDesc(Long userId);
+    List<MonthlyParkingPass> findByUserIdOrderByCreatedAtDesc(Long userId);
 
     List<MonthlyParkingPass> findByVehicleIdOrderByCreatedAtDesc(Long vehicleId);
 

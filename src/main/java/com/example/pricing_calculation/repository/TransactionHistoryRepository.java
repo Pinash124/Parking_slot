@@ -16,6 +16,8 @@ public interface TransactionHistoryRepository extends
 
     Optional<TransactionHistory> findByReferenceCodeIgnoreCase(String referenceCode);
 
+    long deleteByPaymentId(Long paymentId);
+
     @Query("select transaction from TransactionHistory transaction "
             + "left join transaction.payment payment "
             + "order by payment.paymentTime desc")

@@ -19,6 +19,9 @@ public class UserAccount {
     @Column(name = "full_name", nullable = false, length = 100)
     private String fullName;
 
+    @Column(name = "username", length = 50)
+    private String username;
+
     @Column(name = "email", length = 100)
     private String email;
 
@@ -45,6 +48,10 @@ public class UserAccount {
         return fullName;
     }
 
+    public String getUsername() {
+        return username;
+    }
+
     public String getEmail() {
         return email;
     }
@@ -67,6 +74,10 @@ public class UserAccount {
 
     public void setFullName(String fullName) {
         this.fullName = normalize(fullName);
+    }
+
+    public void setUsername(String username) {
+        this.username = normalize(username);
     }
 
     public void setEmail(String email) {

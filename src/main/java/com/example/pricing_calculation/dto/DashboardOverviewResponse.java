@@ -10,9 +10,14 @@ public record DashboardOverviewResponse(
         long availableSlots,
         long occupiedSlots,
         long reservedSlots,
+        long monthlyHeldSlots,
+        long monthlyReservedSlots,
+        long monthlyOccupiedSlots,
         long pendingPayments,
         long completedPayments,
         BigDecimal todayRevenue,
+        BigDecimal weekRevenue,
+        BigDecimal monthRevenue,
         long totalTransactions
 ) {
 }

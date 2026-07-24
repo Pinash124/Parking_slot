@@ -63,7 +63,13 @@ public class UnifiedManagerController {
     @PutMapping("/additional-services/{id}") public AdditionalServiceView updateAdditionalService(@RequestHeader("Authorization")String h,@PathVariable Long id,@RequestBody AdditionalServiceRequest r){manager(h);return service.saveAdditionalService(id,r);}
     @DeleteMapping("/additional-services/{id}") public void deleteAdditionalService(@RequestHeader("Authorization")String h,@PathVariable Long id){manager(h);service.deleteAdditionalService(id);}
 
-    @GetMapping("/vehicles") public List<VehicleView> allVehicles(@RequestHeader("Authorization")String h){manager(h);return vehicleRepo.findAll().stream().map(VehicleView::from).toList();}
+    @GetMapping("/vehicles") public List<VehicleView> allVehicles(@RequestHeader("Authorization")String h){
+        manager(h);
+        return vehicleRepo.findAll().stream()
+                .filter(vehicle -> !"DELETED".equalsIgnoreCase(vehicle.getStatus()))
+                .map(VehicleView::from)
+                .toList();
+    }
 
     @GetMapping("/monthly-passes") public List<MonthlyParkingPassDtos.MonthlyParkingPassResponse> monthlyPasses(@RequestHeader("Authorization")String h){monthlyPassAdmin(h);return monthlyPasses.listAll();}
     @PostMapping("/monthly-passes/{id}/confirm-payment") public MonthlyParkingPassDtos.MonthlyParkingPassResponse confirmMonthlyPassPayment(@RequestHeader("Authorization")String h,@PathVariable Long id,@RequestBody(required=false) MonthlyParkingPassDtos.MonthlyParkingPassPaymentRequest r){monthlyPassAdmin(h);return monthlyPasses.confirmPayment(id,r);}

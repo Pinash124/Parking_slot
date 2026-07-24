@@ -6,4 +6,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface SessionServiceUsageRepository extends JpaRepository<SessionServiceUsage, Long> {
     List<SessionServiceUsage> findBySessionId(Long sessionId);
+
+    long deleteBySessionId(Long sessionId);
 }

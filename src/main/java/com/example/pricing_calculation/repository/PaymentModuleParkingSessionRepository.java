@@ -29,7 +29,27 @@ public interface PaymentModuleParkingSessionRepository extends
     List<PaymentModuleParkingSession> findByVehicleUserIdOrderByEntryTimeDesc(Long userId);
     List<PaymentModuleParkingSession> findAllByOrderByEntryTimeDesc();
     List<PaymentModuleParkingSession> findByStatusIgnoreCaseOrderByEntryTimeDesc(String status);
+    List<PaymentModuleParkingSession> findByVehicleIdOrderByEntryTimeDesc(Long vehicleId);
     long countByVehicleIdAndStatusIn(Long vehicleId, List<String> statuses);
+
+    @Query("""
+            select session
+            from PaymentModuleParkingSession session
+            join session.slot slot
+            where upper(session.status) in ('ACTIVE', 'PAYMENT_PENDING', 'PENDING_PAYMENT')
+              and upper(slot.status) in ('OCCUPIED', 'MONTHLY_OCCUPIED')
+            order by session.entryTime desc
+            """)
+    List<PaymentModuleParkingSession> findCurrentlyParked();
+
+    @Query("""
+            select count(session)
+            from PaymentModuleParkingSession session
+            join session.slot slot
+            where upper(session.status) in ('ACTIVE', 'PAYMENT_PENDING', 'PENDING_PAYMENT')
+              and upper(slot.status) in ('OCCUPIED', 'MONTHLY_OCCUPIED')
+            """)
+    long countCurrentlyParked();
 
 
     @Query("""

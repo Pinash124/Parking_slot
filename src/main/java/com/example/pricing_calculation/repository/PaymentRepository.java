@@ -31,4 +31,5 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     java.math.BigDecimal sumCompletedAmountBetween(
             @Param("from") LocalDateTime from,
             @Param("to") LocalDateTime to);
+
 }

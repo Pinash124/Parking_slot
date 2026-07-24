@@ -7,4 +7,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface LicensePlateScanRepository extends JpaRepository<LicensePlateScan, Long> {
 
     List<LicensePlateScan> findBySessionIdOrderByScanTimeDesc(Long sessionId);
+
+    long deleteBySessionId(Long sessionId);
 }

@@ -25,6 +25,7 @@ public class FeedbackService {
             "HARD_TO_FIND_VEHICLE",
             "OCCUPIED_SLOT",
             "INCIDENT",
+            "SOFTWARE_ISSUE",
             "COMPLAINT",
             "SUGGESTION",
             "OTHER"
@@ -97,6 +98,37 @@ public class FeedbackService {
                 .stream()
                 .map(FeedbackResponse::from)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<FeedbackResponse> softwareIssues() {
+        return feedbackRepository
+                .findByFeedbackTypeIgnoreCaseOrderByCreatedAtDesc("SOFTWARE_ISSUE")
+                .stream()
+                .map(FeedbackResponse::from)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<FeedbackResponse> mySoftwareIssues(UserAccount user) {
+        return feedbackRepository
+                .findByUserIdAndFeedbackTypeIgnoreCaseOrderByCreatedAtDesc(
+                        user.getId(),
+                        "SOFTWARE_ISSUE")
+                .stream()
+                .map(FeedbackResponse::from)
+                .toList();
+    }
+
+    @Transactional
+    public FeedbackResponse resolveSoftwareIssue(Long id) {
+        Feedback feedback = feedbackRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Software issue not found: " + id));
+        if (!"SOFTWARE_ISSUE".equalsIgnoreCase(feedback.getFeedbackType())) {
+            throw new BadRequestException("Feedback is not a software issue");
+        }
+        feedback.setStatus("RESOLVED");
+        return FeedbackResponse.from(feedbackRepository.save(feedback));
     }
 
     private void validate(FeedbackCreateRequest request) {

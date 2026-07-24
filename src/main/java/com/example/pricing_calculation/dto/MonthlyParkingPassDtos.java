@@ -38,6 +38,7 @@ public final class MonthlyParkingPassDtos {
             Long slotId,
             String slotCode,
             String slotStatus,
+            String zoneName,
             Integer months,
             BigDecimal monthlyRate,
             BigDecimal totalAmount,
@@ -76,6 +77,9 @@ public final class MonthlyParkingPassDtos {
                     pass.getReservedSlot() == null ? null : pass.getReservedSlot().getId(),
                     pass.getReservedSlot() == null ? null : pass.getReservedSlot().getSlotCode(),
                     pass.getReservedSlot() == null ? null : pass.getReservedSlot().getStatus(),
+                    pass.getReservedSlot() == null || pass.getReservedSlot().getZone() == null
+                            ? null
+                            : pass.getReservedSlot().getZone().getZoneName(),
                     pass.getMonths(),
                     pass.getMonthlyRate(),
                     pass.getTotalAmount(),
